@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import {
   TableBody,
@@ -12,84 +12,132 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
+import { useToast } from "@/hooks/use-toast";
 
-// Datos mock de bodegas
+// Interface para bodegas desde la BD
 interface Bodega {
-  id: string;
+  id_bodega: number;
   nombre: string;
+  id_estado: number;
 }
 
-const bodegas: Bodega[] = [
-  { id: "BOD001", nombre: "Bodega Principal" },
-  { id: "BOD002", nombre: "Bodega Secundaria" },
-  { id: "BOD003", nombre: "Bodega Norte" },
-  { id: "BOD004", nombre: "Bodega Sur" },
-  { id: "BOD005", nombre: "Bodega Centro" },
-  { id: "BOD006", nombre: "Bodega Este" },
-];
-
-// Datos mock de inventario por bodega
+// Interface para productos de inventario
 interface ProductoInventario {
-  id: number;
-  consecutivo: number;
-  codigo: string;
-  nombre: string;
-  cantidad: number;
-  costo: number;
+  id_inventario: number;
+  id_producto: number;
+  id_bodega: number;
+  cantidad_lote: number;
+  costo_producto: number;
+  fecha_ingreso: string;
+  id_factura: number;
+  producto_codigo: string;
+  producto_nombre: string;
+  precio_unitario: number;
+  costo_unitario_con_impuesto: number;
+  iva_valor: number;
+  id_iva: number | null;
+  iva_nombre: string | null;
+  iva_porcentaje: number | null;
 }
-
-// Simular inventario por bodega con más información
-const inventarioPorBodega: Record<string, ProductoInventario[]> = {
-  BOD001: [
-    { id: 1, consecutivo: 1001, codigo: "PROD001", nombre: "Producto A", cantidad: 50, costo: 15000 },
-    { id: 2, consecutivo: 1002, codigo: "PROD002", nombre: "Producto B", cantidad: 30, costo: 25000 },
-    { id: 3, consecutivo: 1003, codigo: "PROD003", nombre: "Producto C", cantidad: 75, costo: 18000 },
-    { id: 4, consecutivo: 1004, codigo: "PROD004", nombre: "Producto D", cantidad: 20, costo: 32000 },
-    { id: 5, consecutivo: 1005, codigo: "PROD005", nombre: "Producto E", cantidad: 100, costo: 12000 },
-    { id: 6, consecutivo: 1006, codigo: "PROD006", nombre: "Producto F", cantidad: 45, costo: 22000 },
-  ],
-  BOD002: [
-    { id: 1, consecutivo: 2001, codigo: "PROD001", nombre: "Producto A", cantidad: 25, costo: 15000 },
-    { id: 2, consecutivo: 2002, codigo: "PROD002", nombre: "Producto B", cantidad: 40, costo: 25000 },
-    { id: 3, consecutivo: 2003, codigo: "PROD006", nombre: "Producto F", cantidad: 60, costo: 22000 },
-    { id: 4, consecutivo: 2004, codigo: "PROD007", nombre: "Producto G", cantidad: 35, costo: 28000 },
-    { id: 5, consecutivo: 2005, codigo: "PROD008", nombre: "Producto H", cantidad: 55, costo: 19000 },
-  ],
-  BOD003: [
-    { id: 1, consecutivo: 3001, codigo: "PROD003", nombre: "Producto C", cantidad: 15, costo: 18000 },
-    { id: 2, consecutivo: 3002, codigo: "PROD008", nombre: "Producto H", cantidad: 80, costo: 19000 },
-    { id: 3, consecutivo: 3003, codigo: "PROD009", nombre: "Producto I", cantidad: 45, costo: 35000 },
-    { id: 4, consecutivo: 3004, codigo: "PROD010", nombre: "Producto J", cantidad: 30, costo: 42000 },
-  ],
-  BOD004: [
-    { id: 1, consecutivo: 4001, codigo: "PROD001", nombre: "Producto A", cantidad: 10, costo: 15000 },
-    { id: 2, consecutivo: 4002, codigo: "PROD010", nombre: "Producto J", cantidad: 90, costo: 42000 },
-    { id: 3, consecutivo: 4003, codigo: "PROD011", nombre: "Producto K", cantidad: 25, costo: 38000 },
-  ],
-  BOD005: [
-    { id: 1, consecutivo: 5001, codigo: "PROD002", nombre: "Producto B", cantidad: 55, costo: 25000 },
-    { id: 2, consecutivo: 5002, codigo: "PROD011", nombre: "Producto K", cantidad: 70, costo: 38000 },
-    { id: 3, consecutivo: 5003, codigo: "PROD012", nombre: "Producto L", cantidad: 40, costo: 29000 },
-  ],
-  BOD006: [
-    { id: 1, consecutivo: 6001, codigo: "PROD001", nombre: "Producto A", cantidad: 5, costo: 15000 },
-    { id: 2, consecutivo: 6002, codigo: "PROD004", nombre: "Producto D", cantidad: 25, costo: 32000 },
-    { id: 3, consecutivo: 6003, codigo: "PROD013", nombre: "Producto M", cantidad: 60, costo: 27000 },
-  ],
-};
 
 const VerInventarioBodegas = () => {
-  const [bodegaSeleccionada, setBodegaSeleccionada] = useState<string>("BOD001"); // Por defecto Bodega Principal
+  const { toast } = useToast();
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
+  const [bodegaSeleccionada, setBodegaSeleccionada] = useState<string>("");
+  const [productosBodega, setProductosBodega] = useState<ProductoInventario[]>([]);
   const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadingProductos, setLoadingProductos] = useState(false);
 
-  // Obtener productos de la bodega seleccionada
-  const productosBodega = useMemo(() => {
-    return bodegaSeleccionada ? (inventarioPorBodega[bodegaSeleccionada] || []) : [];
-  }, [bodegaSeleccionada]);
+  // Cargar bodegas al montar el componente
+  useEffect(() => {
+    const cargarBodegas = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("http://localhost:4000/api/compras/bodegas");
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+
+        if (data.success) {
+          setBodegas(data.bodegas || []);
+          // Seleccionar la primera bodega por defecto si hay bodegas
+          if (data.bodegas && data.bodegas.length > 0) {
+            setBodegaSeleccionada(data.bodegas[0].id_bodega.toString());
+          }
+        } else {
+          toast({
+            title: "Error",
+            description: data.message || "No se pudieron cargar las bodegas",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error al cargar bodegas:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al cargar las bodegas. Verifique que el servidor esté corriendo.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarBodegas();
+  }, [toast]);
+
+  // Cargar productos cuando se selecciona una bodega
+  useEffect(() => {
+    const cargarProductos = async () => {
+      if (!bodegaSeleccionada) {
+        setProductosBodega([]);
+        return;
+      }
+
+      try {
+        setLoadingProductos(true);
+        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaSeleccionada}/productos`);
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+
+        if (data.success) {
+          setProductosBodega(data.productos || []);
+        } else {
+          toast({
+            title: "Error",
+            description: data.message || "No se pudieron cargar los productos",
+            variant: "destructive",
+          });
+          setProductosBodega([]);
+        }
+      } catch (error) {
+        console.error("Error al cargar productos:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al cargar los productos.",
+          variant: "destructive",
+        });
+        setProductosBodega([]);
+      } finally {
+        setLoadingProductos(false);
+      }
+    };
+
+    cargarProductos();
+  }, [bodegaSeleccionada, toast]);
 
   // Filtrar productos según búsqueda
   const productosFiltrados = useMemo(() => {
@@ -97,12 +145,13 @@ const VerInventarioBodegas = () => {
     
     const query = busqueda.toLowerCase();
     return productosBodega.filter((producto) =>
-      producto.id.toString().includes(query) ||
-      producto.consecutivo.toString().includes(query) ||
-      producto.codigo.toLowerCase().includes(query) ||
-      producto.nombre.toLowerCase().includes(query) ||
-      producto.cantidad.toString().includes(query) ||
-      producto.costo.toString().includes(query)
+      producto.id_inventario.toString().includes(query) ||
+      producto.id_producto.toString().includes(query) ||
+      producto.producto_codigo.toLowerCase().includes(query) ||
+      producto.producto_nombre.toLowerCase().includes(query) ||
+      producto.cantidad_lote.toString().includes(query) ||
+      producto.precio_unitario.toString().includes(query) ||
+      producto.costo_unitario_con_impuesto.toString().includes(query)
     );
   }, [productosBodega, busqueda]);
 
@@ -114,13 +163,17 @@ const VerInventarioBodegas = () => {
           <Label htmlFor="bodega-selector" className="sr-only">
             Seleccionar Bodega
           </Label>
-          <Select value={bodegaSeleccionada} onValueChange={setBodegaSeleccionada}>
+          <Select 
+            value={bodegaSeleccionada} 
+            onValueChange={setBodegaSeleccionada}
+            disabled={loading || bodegas.length === 0}
+          >
             <SelectTrigger id="bodega-selector">
-              <SelectValue placeholder="Seleccione una bodega" />
+              <SelectValue placeholder={loading ? "Cargando..." : bodegas.length === 0 ? "No hay bodegas" : "Seleccione una bodega"} />
             </SelectTrigger>
             <SelectContent>
               {bodegas.map((bodega) => (
-                <SelectItem key={bodega.id} value={bodega.id}>
+                <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
                   {bodega.nombre}
                 </SelectItem>
               ))}
@@ -138,38 +191,51 @@ const VerInventarioBodegas = () => {
 
       {/* Tabla de productos */}
       <TableCard
-        headers={["ID", "Consecutivo", "Código", "Nombre", "Cantidad", "Costo"]}
+        headers={["ID Inventario", "Código", "Nombre", "Cantidad", "Precio Unitario", "Costo Unitario con Impuesto", "IVA Valor"]}
         emptyMessage={
-          productosFiltrados.length === 0
-            ? productosBodega.length === 0
-              ? "No hay productos en esta bodega"
-              : "No se encontraron productos"
-            : undefined
+          loadingProductos
+            ? "Cargando productos..."
+            : productosFiltrados.length === 0
+              ? productosBodega.length === 0
+                ? "No hay productos en esta bodega"
+                : "No se encontraron productos"
+              : undefined
         }
-        colSpan={6}
+        colSpan={7}
       >
-        {productosFiltrados.map((producto) => (
-          <TableRow key={producto.id}>
-            <TableCell className="border-r border-border font-medium py-4 px-6">
-              {producto.id}
-            </TableCell>
-            <TableCell className="border-r border-border py-4 px-6">
-              {producto.consecutivo}
-            </TableCell>
-            <TableCell className="border-r border-border py-4 px-6">
-              {producto.codigo}
-            </TableCell>
-            <TableCell className="border-r border-border py-4 px-6">
-              {producto.nombre}
-            </TableCell>
-            <TableCell className="border-r border-border py-4 px-6">
-              {producto.cantidad}
-            </TableCell>
-            <TableCell className="py-4 px-6">
-              ${producto.costo.toLocaleString("es-CO")}
+        {loadingProductos ? (
+          <TableRow>
+            <TableCell colSpan={7} className="text-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin mx-auto" />
             </TableCell>
           </TableRow>
-        ))}
+        ) : (
+          productosFiltrados.map((producto) => (
+            <TableRow key={producto.id_inventario}>
+              <TableCell className="border-r border-border font-medium py-4 px-6">
+                {producto.id_inventario}
+              </TableCell>
+              <TableCell className="border-r border-border py-4 px-6">
+                {producto.producto_codigo}
+              </TableCell>
+              <TableCell className="border-r border-border py-4 px-6">
+                {producto.producto_nombre}
+              </TableCell>
+              <TableCell className="border-r border-border py-4 px-6">
+                {producto.cantidad_lote}
+              </TableCell>
+              <TableCell className="border-r border-border py-4 px-6">
+                ${producto.precio_unitario.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </TableCell>
+              <TableCell className="border-r border-border py-4 px-6 font-semibold">
+                ${producto.costo_unitario_con_impuesto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </TableCell>
+              <TableCell className="py-4 px-6">
+                ${producto.iva_valor.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </TableCell>
+            </TableRow>
+          ))
+        )}
       </TableCard>
     </PageContainer>
   );

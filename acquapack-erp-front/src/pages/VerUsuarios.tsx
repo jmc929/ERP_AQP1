@@ -1,71 +1,251 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   TableBody,
   TableCell,
   TableRow,
 } from "@/components/ui/table";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Archive } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Eye, Archive, Edit } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import ActionButton from "@/components/ActionButton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
-// Datos mock de usuarios
-interface Usuario {
-  id: number;
-  nombre: string;
-  rol: string;
+interface Rol {
+  id_rol: number;
+  nombre_rol: string;
 }
 
-const usuariosIniciales: Usuario[] = [
-  { id: 1, nombre: "Juan Pérez", rol: "Administrador" },
-  { id: 2, nombre: "María García", rol: "Usuario" },
-  { id: 3, nombre: "Carlos Rodríguez", rol: "Vendedor" },
-  { id: 4, nombre: "Ana Martínez", rol: "Contador" },
-  { id: 5, nombre: "Luis Fernández", rol: "Supervisor" },
-  { id: 6, nombre: "Laura Sánchez", rol: "Usuario" },
-  { id: 7, nombre: "Pedro López", rol: "Vendedor" },
-  { id: 8, nombre: "Sofía Ramírez", rol: "Administrador" },
-  { id: 9, nombre: "Diego Torres", rol: "Usuario" },
-  { id: 10, nombre: "Carmen Vargas", rol: "Contador" },
-  { id: 11, nombre: "Roberto Jiménez", rol: "Vendedor" },
-  { id: 12, nombre: "Patricia Herrera", rol: "Supervisor" },
-  { id: 13, nombre: "Fernando Castro", rol: "Usuario" },
-  { id: 14, nombre: "Isabel Morales", rol: "Administrador" },
-  { id: 15, nombre: "Jorge Ruiz", rol: "Vendedor" },
-];
+interface Usuario {
+  id_usuarios: number;
+  documento: string;
+  nombre: string;
+  apellido: string;
+  correo_electronico?: string;
+  id_estado: number;
+  estado_nombre?: string;
+  roles: Rol[];
+}
+
+interface UsuarioCompleto extends Usuario {
+  fecha_nacimiento?: string;
+  dia_ingreso?: string;
+  celular?: string;
+  direccion?: string;
+  nombre_contacto?: string;
+  telefono_contacto?: string;
+  tipo_identificacion_nombre?: string;
+  tipo_contrato_nombre?: string;
+  estado_civil_nombre?: string;
+  arl_nombre?: string;
+  arl_fecha_ingreso?: string;
+  eps_nombre?: string;
+  eps_fecha_ingreso?: string;
+  caja_compensacion_nombre?: string;
+  fondo_pensiones_nombre?: string;
+  induccion_sst?: boolean;
+  induccion_puesto_trabajo?: boolean;
+  afiliacion_a_beneficiarios?: boolean;
+  firma_reglamento_interno_trabajo?: boolean;
+  firma_elementos_proteccion?: boolean;
+  firma_contrato?: boolean;
+}
+
+interface Estado {
+  id_estado: number;
+  nombre: string;
+}
 
 const VerUsuarios = () => {
-  const [usuarios, setUsuarios] = useState<Usuario[]>(usuariosIniciales);
-  const [usuariosSeleccionados, setUsuariosSeleccionados] = useState<Set<number>>(new Set());
-  const [mostrarDialogoArchivar, setMostrarDialogoArchivar] = useState(false);
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<UsuarioCompleto | null>(null);
+  const [mostrarModal, setMostrarModal] = useState(false);
   const [busqueda, setBusqueda] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [cargandoUsuario, setCargandoUsuario] = useState(false);
+  const [estados, setEstados] = useState<Estado[]>([]);
+  const [nuevoEstado, setNuevoEstado] = useState<string>("");
+  const [actualizandoEstado, setActualizandoEstado] = useState(false);
+  const [usuarioActual, setUsuarioActual] = useState<any>(null);
+  const [esSuperAdministrador, setEsSuperAdministrador] = useState(false);
 
-  // Filtrar usuarios según búsqueda
-  const usuariosFiltrados = usuarios.filter((usuario) =>
-    usuario.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    usuario.rol.toLowerCase().includes(busqueda.toLowerCase())
-  );
-
-  const handleCheckbox = (usuarioId: number, checked: boolean) => {
-    setUsuariosSeleccionados((prev) => {
-      const nuevo = new Set(prev);
-      if (checked) {
-        nuevo.add(usuarioId);
-      } else {
-        nuevo.delete(usuarioId);
+  // Cargar usuario actual y verificar si es super administrador
+  useEffect(() => {
+    const usuarioStr = localStorage.getItem("usuario");
+    if (usuarioStr) {
+      try {
+        const usuario = JSON.parse(usuarioStr);
+        setUsuarioActual(usuario);
+        
+        // Verificar si tiene el rol de super administrador
+        const tieneRolSuperAdmin = usuario.roles?.some(
+          (rol: Rol) => 
+            rol.nombre_rol?.toLowerCase().includes("super administrador") ||
+            rol.nombre_rol?.toLowerCase().includes("superadministrador") ||
+            rol.nombre_rol?.toLowerCase() === "super admin"
+        );
+        setEsSuperAdministrador(!!tieneRolSuperAdmin);
+      } catch (error) {
+        console.error("Error al parsear usuario:", error);
       }
-      return nuevo;
-    });
+    }
+  }, []);
+
+  // Cargar usuarios y estados
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        const [usuariosRes, catalogosRes] = await Promise.all([
+          fetch("http://localhost:4000/api/usuarios"),
+          fetch("http://localhost:4000/api/usuarios/catalogos")
+        ]);
+
+        const usuariosData = await usuariosRes.json();
+        const catalogosData = await catalogosRes.json();
+
+        if (usuariosData.success) {
+          setUsuarios(usuariosData.usuarios);
+        }
+
+        if (catalogosData.success && catalogosData.catalogos.estados) {
+          setEstados(catalogosData.catalogos.estados);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los usuarios",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
+  }, [toast]);
+
+  // Cargar usuario completo al abrir el modal
+  const handleVerDetalles = async (idUsuario: number) => {
+    try {
+      setCargandoUsuario(true);
+      const response = await fetch(`http://localhost:4000/api/usuarios/${idUsuario}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setUsuarioSeleccionado(data.usuario);
+        setNuevoEstado(data.usuario.id_estado.toString());
+        setMostrarModal(true);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo cargar la información del usuario",
+        variant: "destructive",
+      });
+    } finally {
+      setCargandoUsuario(false);
+    }
   };
 
-  const handleArchivarConfirmado = () => {
-    setUsuarios(usuarios.filter((u) => !usuariosSeleccionados.has(u.id)));
-    setUsuariosSeleccionados(new Set());
-    setMostrarDialogoArchivar(false);
+  // Actualizar estado del usuario
+  const handleActualizarEstado = async () => {
+    if (!usuarioSeleccionado || !nuevoEstado) return;
+
+    try {
+      setActualizandoEstado(true);
+      const response = await fetch(
+        `http://localhost:4000/api/usuarios/${usuarioSeleccionado.id_usuarios}/estado`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id_estado: parseInt(nuevoEstado),
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast({
+          title: "Estado actualizado",
+          description: "El estado del usuario ha sido actualizado exitosamente",
+        });
+
+        // Actualizar la lista de usuarios
+        const usuariosRes = await fetch("http://localhost:4000/api/usuarios");
+        const usuariosData = await usuariosRes.json();
+        if (usuariosData.success) {
+          setUsuarios(usuariosData.usuarios);
+        }
+
+        // Actualizar el usuario en el modal
+        if (usuarioSeleccionado) {
+          const usuarioRes = await fetch(
+            `http://localhost:4000/api/usuarios/${usuarioSeleccionado.id_usuarios}`
+          );
+          const usuarioData = await usuarioRes.json();
+          if (usuarioData.success) {
+            setUsuarioSeleccionado(usuarioData.usuario);
+          }
+        }
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el estado del usuario",
+        variant: "destructive",
+      });
+    } finally {
+      setActualizandoEstado(false);
+    }
+  };
+
+  // Filtrar usuarios según búsqueda
+  const usuariosFiltrados = usuarios.filter((usuario) => {
+    const nombreCompleto = `${usuario.nombre} ${usuario.apellido}`.toLowerCase();
+    const documento = usuario.documento?.toLowerCase() || "";
+    const roles = usuario.roles?.map((r) => r.nombre_rol).join(" ").toLowerCase() || "";
+    const busquedaLower = busqueda.toLowerCase();
+    
+    return (
+      nombreCompleto.includes(busquedaLower) ||
+      documento.includes(busquedaLower) ||
+      roles.includes(busquedaLower)
+    );
+  });
+
+  const formatearFecha = (fecha: string | null | undefined) => {
+    if (!fecha) return "N/A";
+    try {
+      return new Date(fecha).toLocaleDateString("es-CO");
+    } catch {
+      return fecha;
+    }
   };
 
   return (
@@ -74,63 +254,319 @@ const VerUsuarios = () => {
 
       {/* Barra de búsqueda */}
       <SearchBar
-        placeholder="Buscar por nombre o rol..."
+        placeholder="Buscar por nombre, documento o rol..."
         value={busqueda}
         onChange={setBusqueda}
       />
 
       {/* Tabla de usuarios */}
       <TableCard
-        headers={["", "Nombre", "Rol"]}
+        headers={["", "Nombre", "Documento", "Roles", "Estado"]}
         emptyMessage={
-          usuariosFiltrados.length === 0
+          loading
+            ? "Cargando usuarios..."
+            : usuariosFiltrados.length === 0
             ? usuarios.length === 0
               ? "No hay usuarios registrados"
               : "No se encontraron usuarios"
             : undefined
         }
-        colSpan={3}
+        colSpan={5}
       >
         {usuariosFiltrados.map((usuario) => (
-          <TableRow key={usuario.id}>
+          <TableRow key={usuario.id_usuarios}>
             <TableCell className="border-r border-border w-12">
-              <Checkbox
-                checked={usuariosSeleccionados.has(usuario.id)}
-                onCheckedChange={(checked) =>
-                  handleCheckbox(usuario.id, checked as boolean)
-                }
-              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleVerDetalles(usuario.id_usuarios)}
+                disabled={cargandoUsuario}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
             </TableCell>
             <TableCell className="border-r border-border font-medium">
-              {usuario.nombre}
+              {usuario.nombre} {usuario.apellido}
             </TableCell>
-            <TableCell>{usuario.rol}</TableCell>
+            <TableCell className="border-r border-border">
+              {usuario.documento}
+            </TableCell>
+            <TableCell className="border-r border-border">
+              {usuario.roles && usuario.roles.length > 0
+                ? usuario.roles.map((r) => r.nombre_rol).join(", ")
+                : "Sin roles"}
+            </TableCell>
+            <TableCell>
+              <span
+                className={`px-2 py-1 rounded text-xs ${
+                  usuario.id_estado === 1
+                    ? "bg-green-100 text-green-800"
+                    : usuario.id_estado === 2
+                    ? "bg-red-100 text-red-800"
+                    : "bg-gray-100 text-gray-800"
+                }`}
+              >
+                {usuario.estado_nombre || "Sin estado"}
+              </span>
+            </TableCell>
           </TableRow>
         ))}
       </TableCard>
 
-      {/* Botón Archivar */}
-      {usuariosSeleccionados.size > 0 && (
-        <ActionButton
-          icon={Archive}
-          text="Archivar"
-          count={usuariosSeleccionados.size}
-          onClick={() => setMostrarDialogoArchivar(true)}
-        />
-      )}
+      {/* Modal de detalles del usuario */}
+      <Dialog open={mostrarModal} onOpenChange={setMostrarModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Información del Usuario</DialogTitle>
+            <DialogDescription>
+              Detalles completos del usuario seleccionado
+            </DialogDescription>
+          </DialogHeader>
 
-      {/* Diálogo de confirmación para archivar */}
-      <ConfirmDialog
-        open={mostrarDialogoArchivar}
-        onOpenChange={setMostrarDialogoArchivar}
-        description={`Se archivarán ${usuariosSeleccionados.size} usuario(s). Esta acción puede deshacerse más tarde.`}
-        confirmText="Sí, archivar"
-        cancelText="Cancelar"
-        onConfirm={handleArchivarConfirmado}
-      />
+          {usuarioSeleccionado && (
+            <div className="space-y-6">
+              {/* Datos Personales */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Datos Personales</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Nombre(s)</Label>
+                    <p>{usuarioSeleccionado.nombre}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Apellidos</Label>
+                    <p>{usuarioSeleccionado.apellido}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Fecha de Nacimiento</Label>
+                    <p>{formatearFecha(usuarioSeleccionado.fecha_nacimiento)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Estado Civil</Label>
+                    <p>{usuarioSeleccionado.estado_civil_nombre || "N/A"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Identificación */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Identificación</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Tipo de Documento</Label>
+                    <p>{usuarioSeleccionado.tipo_identificacion_nombre || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Número de Documento</Label>
+                    <p>{usuarioSeleccionado.documento}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Contacto */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Contacto</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Correo Electrónico</Label>
+                    <p>{usuarioSeleccionado.correo_electronico || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Celular</Label>
+                    <p>{usuarioSeleccionado.celular || "N/A"}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <Label className="text-sm font-semibold">Dirección</Label>
+                    <p>{usuarioSeleccionado.direccion || "N/A"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Datos del Contrato */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Datos del Contrato</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Fecha de Ingreso</Label>
+                    <p>{formatearFecha(usuarioSeleccionado.dia_ingreso)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Tipo de Contrato</Label>
+                    <p>{usuarioSeleccionado.tipo_contrato_nombre || "N/A"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Seguridad Social */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Seguridad Social</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">EPS</Label>
+                    <p>{usuarioSeleccionado.eps_nombre || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Fecha Afiliación EPS</Label>
+                    <p>{formatearFecha(usuarioSeleccionado.eps_fecha_ingreso)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">ARL</Label>
+                    <p>{usuarioSeleccionado.arl_nombre || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Fecha Afiliación ARL</Label>
+                    <p>{formatearFecha(usuarioSeleccionado.arl_fecha_ingreso)}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Fondo de Pensiones</Label>
+                    <p>{usuarioSeleccionado.fondo_pensiones_nombre || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Caja de Compensación</Label>
+                    <p>{usuarioSeleccionado.caja_compensacion_nombre || "N/A"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Contacto de Emergencia */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Contacto de Emergencia</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Nombre del Contacto</Label>
+                    <p>{usuarioSeleccionado.nombre_contacto || "N/A"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Teléfono del Contacto</Label>
+                    <p>{usuarioSeleccionado.telefono_contacto || "N/A"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Lista de Chequeo */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Lista de Chequeo</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-semibold">Inducción SST</Label>
+                    <p>{usuarioSeleccionado.induccion_sst ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Inducción Puesto de Trabajo</Label>
+                    <p>{usuarioSeleccionado.induccion_puesto_trabajo ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Afiliación a Beneficiarios</Label>
+                    <p>{usuarioSeleccionado.afiliacion_a_beneficiarios ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Firmó Reglamento Interno</Label>
+                    <p>{usuarioSeleccionado.firma_reglamento_interno_trabajo ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Firmó Elementos de Protección</Label>
+                    <p>{usuarioSeleccionado.firma_elementos_proteccion ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Firmó Contrato</Label>
+                    <p>{usuarioSeleccionado.firma_contrato ? "✓ Sí" : "✗ No"}</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Roles */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Roles</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    {usuarioSeleccionado.roles && usuarioSeleccionado.roles.length > 0
+                      ? usuarioSeleccionado.roles.map((rol) => (
+                          <span
+                            key={rol.id_rol}
+                            className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                          >
+                            {rol.nombre_rol}
+                          </span>
+                        ))
+                      : "Sin roles asignados"}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Separator />
+
+              {/* Cambiar Estado */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Cambiar Estado</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Label htmlFor="estado">Estado Actual</Label>
+                      <Select value={nuevoEstado} onValueChange={setNuevoEstado}>
+                        <SelectTrigger id="estado">
+                          <SelectValue placeholder="Seleccione un estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {estados.map((estado) => (
+                            <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
+                              {estado.nombre}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <Button
+                      onClick={handleActualizarEstado}
+                      disabled={actualizandoEstado || !nuevoEstado}
+                    >
+                      {actualizandoEstado ? "Actualizando..." : "Actualizar Estado"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Botón Editar (solo para super administradores) */}
+              {esSuperAdministrador && (
+                <>
+                  <Separator />
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => {
+                        setMostrarModal(false);
+                        navigate(`/dashboard/usuarios/editar-usuarios/${usuarioSeleccionado.id_usuarios}`);
+                      }}
+                      variant="default"
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Editar Usuario
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };
 
 export default VerUsuarios;
-

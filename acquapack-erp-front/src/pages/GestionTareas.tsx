@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TrabajadorCard from "@/components/TrabajadorCard";
 import TareaChecklist, { Tarea } from "@/components/TareaChecklist";
+import { useToast } from "@/hooks/use-toast";
 
 interface Trabajador {
   id: number;
@@ -12,67 +13,60 @@ interface Trabajador {
   tareas: Tarea[];
 }
 
-// Datos mock de trabajadores con sus tareas
-const trabajadoresIniciales: Trabajador[] = [
-  {
-    id: 1,
-    nombre: "Juan Pérez",
-    tareas: [
-      { id: 1, descripcion: "Revisar inventario de productos", completada: true },
-      { id: 2, descripcion: "Actualizar precios en el sistema", completada: false },
-      { id: 3, descripcion: "Preparar reporte de ventas", completada: false },
-    ],
-  },
-  {
-    id: 2,
-    nombre: "María García",
-    tareas: [
-      { id: 1, descripcion: "Contactar nuevos proveedores", completada: true },
-      { id: 2, descripcion: "Revisar facturas pendientes", completada: true },
-      { id: 3, descripcion: "Organizar documentos de compras", completada: false },
-    ],
-  },
-  {
-    id: 3,
-    nombre: "Carlos Rodríguez",
-    tareas: [
-      { id: 1, descripcion: "Capacitar nuevo personal", completada: false },
-      { id: 2, descripcion: "Revisar políticas de seguridad", completada: false },
-    ],
-  },
-  {
-    id: 4,
-    nombre: "Ana Martínez",
-    tareas: [
-      { id: 1, descripcion: "Revisar estados financieros", completada: true },
-      { id: 2, descripcion: "Preparar presupuesto mensual", completada: true },
-      { id: 3, descripcion: "Auditar gastos del mes", completada: true },
-      { id: 4, descripcion: "Enviar reporte a gerencia", completada: false },
-    ],
-  },
-  {
-    id: 5,
-    nombre: "Luis Fernández",
-    tareas: [
-      { id: 1, descripcion: "Supervisar producción", completada: true },
-      { id: 2, descripcion: "Revisar calidad de productos", completada: false },
-    ],
-  },
-  {
-    id: 6,
-    nombre: "Laura Sánchez",
-    tareas: [
-      { id: 1, descripcion: "Atender clientes VIP", completada: true },
-      { id: 2, descripcion: "Seguimiento de pedidos", completada: false },
-      { id: 3, descripcion: "Actualizar base de datos de clientes", completada: false },
-    ],
-  },
-];
-
 const GestionTareas = () => {
-  const [trabajadores, setTrabajadores] = useState<Trabajador[]>(trabajadoresIniciales);
+  const { toast } = useToast();
+  const [trabajadores, setTrabajadores] = useState<Trabajador[]>([]);
   const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState<Trabajador | null>(null);
   const [mostrarDialogo, setMostrarDialogo] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Cargar usuarios y sus tareas
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        const [usuariosRes, tareasRes] = await Promise.all([
+          fetch("http://localhost:4000/api/usuarios"),
+          fetch("http://localhost:4000/api/tareas")
+        ]);
+
+        const usuariosData = await usuariosRes.json();
+        const tareasData = await tareasRes.json();
+
+        if (usuariosData.success && tareasData.success) {
+          // Mapear usuarios a trabajadores con sus tareas
+          const trabajadoresConTareas: Trabajador[] = usuariosData.usuarios.map((usuario: any) => {
+            const tareasUsuario = tareasData.tareas
+              .filter((tarea: any) => tarea.id_usuarios === usuario.id_usuarios)
+              .map((tarea: any) => ({
+                id: tarea.id_tareas,
+                descripcion: tarea.descripcion,
+                completada: tarea.completada,
+                fecha_asignacion: tarea.fecha_asignacion
+              }));
+
+            return {
+              id: usuario.id_usuarios,
+              nombre: `${usuario.nombre} ${usuario.apellido}`,
+              tareas: tareasUsuario
+            };
+          });
+
+          setTrabajadores(trabajadoresConTareas);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los usuarios y tareas",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarDatos();
+  }, [toast]);
 
   const handleSeleccionarTrabajador = (trabajador: Trabajador) => {
     setTrabajadorSeleccionado(trabajador);
@@ -84,7 +78,8 @@ const GestionTareas = () => {
     setTrabajadorSeleccionado(null);
   };
 
-  const handleTareasChange = (trabajadorId: number, nuevasTareas: Tarea[]) => {
+  const handleTareasChange = async (trabajadorId: number, nuevasTareas: Tarea[]) => {
+    // Actualizar estado local
     setTrabajadores((prev) =>
       prev.map((trabajador) =>
         trabajador.id === trabajadorId
@@ -92,6 +87,7 @@ const GestionTareas = () => {
           : trabajador
       )
     );
+    
     // Actualizar también el trabajador seleccionado si está abierto
     if (trabajadorSeleccionado && trabajadorSeleccionado.id === trabajadorId) {
       setTrabajadorSeleccionado({ ...trabajadorSeleccionado, tareas: nuevasTareas });
@@ -106,22 +102,30 @@ const GestionTareas = () => {
       </p>
 
       {/* Grid de tarjetas de trabajadores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {trabajadores.map((trabajador) => {
-          const tareasCompletadas = trabajador.tareas.filter((t) => t.completada).length;
-          const tareasTotales = trabajador.tareas.length;
+      {loading ? (
+        <div className="text-center py-8">Cargando usuarios y tareas...</div>
+      ) : trabajadores.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No hay usuarios registrados
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {trabajadores.map((trabajador) => {
+            const tareasCompletadas = trabajador.tareas.filter((t) => t.completada).length;
+            const tareasTotales = trabajador.tareas.length;
 
-          return (
-            <TrabajadorCard
-              key={trabajador.id}
-              nombre={trabajador.nombre}
-              tareasCompletadas={tareasCompletadas}
-              tareasTotales={tareasTotales}
-              onClick={() => handleSeleccionarTrabajador(trabajador)}
-            />
-          );
-        })}
-      </div>
+            return (
+              <TrabajadorCard
+                key={trabajador.id}
+                nombre={trabajador.nombre}
+                tareasCompletadas={tareasCompletadas}
+                tareasTotales={tareasTotales}
+                onClick={() => handleSeleccionarTrabajador(trabajador)}
+              />
+            );
+          })}
+        </div>
+      )}
 
       {/* Dialog para mostrar la checklist de tareas */}
       <Dialog open={mostrarDialogo} onOpenChange={setMostrarDialogo}>
@@ -137,6 +141,7 @@ const GestionTareas = () => {
           </DialogHeader>
           {trabajadorSeleccionado && (
             <TareaChecklist
+              trabajadorId={trabajadorSeleccionado.id}
               trabajadorNombre={trabajadorSeleccionado.nombre}
               tareas={trabajadorSeleccionado.tareas}
               onTareasChange={(nuevasTareas) =>

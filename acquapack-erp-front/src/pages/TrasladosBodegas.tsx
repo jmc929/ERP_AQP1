@@ -15,109 +15,160 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
 import TableCard from "@/components/TableCard";
 import { useToast } from "@/hooks/use-toast";
 
-// Datos mock de bodegas
+// Interface de bodega desde la BD
 interface Bodega {
-  id: string;
+  id_bodega: number;
   nombre: string;
+  id_estado?: number;
+  estado_nombre?: string;
+  estado_color?: string;
 }
 
-const bodegas: Bodega[] = [
-  { id: "BOD001", nombre: "Bodega Principal" },
-  { id: "BOD002", nombre: "Bodega Secundaria" },
-  { id: "BOD003", nombre: "Bodega Norte" },
-  { id: "BOD004", nombre: "Bodega Sur" },
-  { id: "BOD005", nombre: "Bodega Centro" },
-  { id: "BOD006", nombre: "Bodega Este" },
-];
-
-// Datos mock de productos por bodega
+// Interface de producto en bodega
 interface ProductoBodega {
-  id: number;
-  codigo: string;
-  nombre: string;
-  cantidad: number;
+  id_inventario: number;
+  id_producto: number;
+  id_factura: number;
+  producto_codigo: string;
+  producto_nombre: string;
+  cantidad_lote: number;
+  precio_unitario: number;
+  costo_unitario_con_impuesto: number;
+  iva_valor: number;
 }
-
-// Simular inventario por bodega
-const inventarioPorBodega: Record<string, ProductoBodega[]> = {
-  BOD001: [
-    { id: 1, codigo: "PROD001", nombre: "Producto A", cantidad: 50 },
-    { id: 2, codigo: "PROD002", nombre: "Producto B", cantidad: 30 },
-    { id: 3, codigo: "PROD003", nombre: "Producto C", cantidad: 75 },
-    { id: 4, codigo: "PROD004", nombre: "Producto D", cantidad: 20 },
-    { id: 5, codigo: "PROD005", nombre: "Producto E", cantidad: 100 },
-  ],
-  BOD002: [
-    { id: 1, codigo: "PROD001", nombre: "Producto A", cantidad: 25 },
-    { id: 2, codigo: "PROD002", nombre: "Producto B", cantidad: 40 },
-    { id: 3, codigo: "PROD006", nombre: "Producto F", cantidad: 60 },
-    { id: 4, codigo: "PROD007", nombre: "Producto G", cantidad: 35 },
-  ],
-  BOD003: [
-    { id: 1, codigo: "PROD003", nombre: "Producto C", cantidad: 15 },
-    { id: 2, codigo: "PROD008", nombre: "Producto H", cantidad: 80 },
-    { id: 3, codigo: "PROD009", nombre: "Producto I", cantidad: 45 },
-  ],
-  BOD004: [
-    { id: 1, codigo: "PROD001", nombre: "Producto A", cantidad: 10 },
-    { id: 2, codigo: "PROD010", nombre: "Producto J", cantidad: 90 },
-  ],
-  BOD005: [
-    { id: 1, codigo: "PROD002", nombre: "Producto B", cantidad: 55 },
-    { id: 2, codigo: "PROD011", nombre: "Producto K", cantidad: 70 },
-  ],
-  BOD006: [
-    { id: 1, codigo: "PROD001", nombre: "Producto A", cantidad: 5 },
-    { id: 2, codigo: "PROD004", nombre: "Producto D", cantidad: 25 },
-  ],
-};
 
 interface ProductoSeleccionado {
-  productoId: number;
+  id_inventario: number;
+  id_producto: number;
+  id_factura: number;
   cantidad: string;
 }
 
 const TrasladosBodegas = () => {
   const { toast } = useToast();
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
+  const [loading, setLoading] = useState(true);
   const [bodegaOrigen, setBodegaOrigen] = useState<string>("");
   const [bodegaDestino, setBodegaDestino] = useState<string>("");
+  const [productosBodegaOrigen, setProductosBodegaOrigen] = useState<ProductoBodega[]>([]);
+  const [loadingProductos, setLoadingProductos] = useState(false);
   const [productosSeleccionados, setProductosSeleccionados] = useState<Map<number, ProductoSeleccionado>>(new Map());
 
-  // Obtener productos de la bodega origen
-  const productosBodegaOrigen = bodegaOrigen ? (inventarioPorBodega[bodegaOrigen] || []) : [];
+  // Cargar bodegas desde la BD
+  useEffect(() => {
+    const cargarBodegas = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("http://localhost:4000/api/bodegas");
+        const data = await response.json();
+
+        if (data.success) {
+          // Filtrar solo bodegas activas (estado 1 o 2, no eliminadas)
+          const bodegasActivas = data.bodegas.filter(
+            (bodega: Bodega) => bodega.id_estado === 1 || bodega.id_estado === 2
+          );
+          setBodegas(bodegasActivas);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las bodegas",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    cargarBodegas();
+  }, [toast]);
+
+  // Cargar productos cuando se selecciona bodega origen
+  useEffect(() => {
+    const cargarProductos = async () => {
+      if (!bodegaOrigen) {
+        setProductosBodegaOrigen([]);
+        setProductosSeleccionados(new Map());
+        return;
+      }
+
+      try {
+        setLoadingProductos(true);
+        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaOrigen}/productos`);
+        
+        if (!response.ok) {
+          throw new Error(`Error ${response.status}: ${response.statusText}`);
+        }
+        
+        const data = await response.json();
+
+        if (data.success) {
+          setProductosBodegaOrigen(data.productos || []);
+        } else {
+          toast({
+            title: "Error",
+            description: data.message || "No se pudieron cargar los productos",
+            variant: "destructive",
+          });
+          setProductosBodegaOrigen([]);
+        }
+      } catch (error) {
+        console.error("Error al cargar productos:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al cargar los productos.",
+          variant: "destructive",
+        });
+        setProductosBodegaOrigen([]);
+      } finally {
+        setLoadingProductos(false);
+      }
+    };
+
+    cargarProductos();
+    setProductosSeleccionados(new Map());
+  }, [bodegaOrigen, toast]);
 
   // Manejar selección de producto
-  const handleSeleccionarProducto = (productoId: number, checked: boolean) => {
+  const handleSeleccionarProducto = (idInventario: number, checked: boolean) => {
     const nuevo = new Map(productosSeleccionados);
     if (checked) {
-      nuevo.set(productoId, { productoId, cantidad: "" });
+      const producto = productosBodegaOrigen.find((p) => p.id_inventario === idInventario);
+      if (producto) {
+        nuevo.set(idInventario, { 
+          id_inventario: producto.id_inventario,
+          id_producto: producto.id_producto,
+          id_factura: producto.id_factura,
+          cantidad: "" 
+        });
+      }
     } else {
-      nuevo.delete(productoId);
+      nuevo.delete(idInventario);
     }
     setProductosSeleccionados(nuevo);
   };
 
   // Manejar cambio de cantidad
-  const handleCambiarCantidad = (productoId: number, cantidad: string) => {
+  const handleCambiarCantidad = (idInventario: number, cantidad: string) => {
     const nuevo = new Map(productosSeleccionados);
-    const producto = nuevo.get(productoId);
+    const producto = nuevo.get(idInventario);
     if (producto) {
-      nuevo.set(productoId, { ...producto, cantidad });
+      nuevo.set(idInventario, { ...producto, cantidad });
     }
     setProductosSeleccionados(nuevo);
   };
 
   // Obtener cantidad disponible de un producto
-  const obtenerCantidadDisponible = (productoId: number): number => {
-    const producto = productosBodegaOrigen.find((p) => p.id === productoId);
-    return producto?.cantidad || 0;
+  const obtenerCantidadDisponible = (idInventario: number): number => {
+    const producto = productosBodegaOrigen.find((p) => p.id_inventario === idInventario);
+    return producto?.cantidad_lote || 0;
   };
 
   // Validar y mover productos
@@ -151,15 +202,15 @@ const TrasladosBodegas = () => {
 
     // Validar que todas las cantidades estén ingresadas y sean válidas
     const productosInvalidos: string[] = [];
-    productosSeleccionados.forEach((producto, productoId) => {
+    productosSeleccionados.forEach((producto, idInventario) => {
       const cantidad = parseFloat(producto.cantidad);
-      const disponible = obtenerCantidadDisponible(productoId);
-      const productoInfo = productosBodegaOrigen.find((p) => p.id === productoId);
+      const disponible = obtenerCantidadDisponible(idInventario);
+      const productoInfo = productosBodegaOrigen.find((p) => p.id_inventario === idInventario);
 
       if (!producto.cantidad || cantidad <= 0) {
-        productosInvalidos.push(`${productoInfo?.nombre || "Producto"}: cantidad no válida`);
+        productosInvalidos.push(`${productoInfo?.producto_nombre || "Producto"}: cantidad no válida`);
       } else if (cantidad > disponible) {
-        productosInvalidos.push(`${productoInfo?.nombre || "Producto"}: cantidad excede el stock disponible (${disponible})`);
+        productosInvalidos.push(`${productoInfo?.producto_nombre || "Producto"}: cantidad excede el stock disponible (${disponible})`);
       }
     });
 
@@ -172,22 +223,68 @@ const TrasladosBodegas = () => {
       return;
     }
 
-    // Simular movimiento (aquí iría la llamada al backend)
-    toast({
-      title: "Traslado exitoso",
-      description: `${productosSeleccionados.size} producto(s) movido(s) de ${bodegas.find((b) => b.id === bodegaOrigen)?.nombre} a ${bodegas.find((b) => b.id === bodegaDestino)?.nombre}`,
-    });
+    // Realizar traslado
+    const realizarTraslado = async () => {
+      try {
+        setLoadingProductos(true);
+        const traslados = Array.from(productosSeleccionados.values()).map((p) => ({
+          id_inventario: p.id_inventario,
+          id_producto: p.id_producto,
+          id_factura: p.id_factura,
+          cantidad: parseFloat(p.cantidad)
+        }));
 
-    // Limpiar formulario
-    setProductosSeleccionados(new Map());
-    setBodegaOrigen("");
-    setBodegaDestino("");
+        const response = await fetch("http://localhost:4000/api/bodegas/traslado", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id_bodega_origen: parseInt(bodegaOrigen),
+            id_bodega_destino: parseInt(bodegaDestino),
+            traslados
+          }),
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          toast({
+            title: "Traslado exitoso",
+            description: `${productosSeleccionados.size} producto(s) movido(s) de ${bodegas.find((b) => b.id_bodega.toString() === bodegaOrigen)?.nombre} a ${bodegas.find((b) => b.id_bodega.toString() === bodegaDestino)?.nombre}`,
+          });
+
+          // Recargar productos de la bodega origen
+          const productosResponse = await fetch(`http://localhost:4000/api/bodegas/${bodegaOrigen}/productos`);
+          const productosData = await productosResponse.json();
+          if (productosData.success) {
+            setProductosBodegaOrigen(productosData.productos || []);
+          }
+
+          // Limpiar selección
+          setProductosSeleccionados(new Map());
+        } else {
+          toast({
+            title: "Error",
+            description: data.message || "No se pudo realizar el traslado",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error("Error al realizar traslado:", error);
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Error al realizar el traslado",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingProductos(false);
+      }
+    };
+
+    realizarTraslado();
   };
 
-  // Limpiar selección cuando cambia la bodega origen
-  useEffect(() => {
-    setProductosSeleccionados(new Map());
-  }, [bodegaOrigen]);
 
   return (
     <PageContainer>
@@ -198,13 +295,17 @@ const TrasladosBodegas = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="bodega-origen">Mover de</Label>
-            <Select value={bodegaOrigen} onValueChange={setBodegaOrigen}>
+            <Select 
+              value={bodegaOrigen} 
+              onValueChange={setBodegaOrigen}
+              disabled={loading || bodegas.length === 0}
+            >
               <SelectTrigger id="bodega-origen">
-                <SelectValue placeholder="Seleccione bodega origen" />
+                <SelectValue placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega origen"} />
               </SelectTrigger>
               <SelectContent>
                 {bodegas.map((bodega) => (
-                  <SelectItem key={bodega.id} value={bodega.id}>
+                  <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
                     {bodega.nombre}
                   </SelectItem>
                 ))}
@@ -214,15 +315,19 @@ const TrasladosBodegas = () => {
 
           <div className="space-y-2">
             <Label htmlFor="bodega-destino">Mover a</Label>
-            <Select value={bodegaDestino} onValueChange={setBodegaDestino}>
+            <Select 
+              value={bodegaDestino} 
+              onValueChange={setBodegaDestino}
+              disabled={loading || bodegas.length === 0}
+            >
               <SelectTrigger id="bodega-destino">
-                <SelectValue placeholder="Seleccione bodega destino" />
+                <SelectValue placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega destino"} />
               </SelectTrigger>
               <SelectContent>
                 {bodegas
-                  .filter((b) => b.id !== bodegaOrigen)
+                  .filter((b) => b.id_bodega.toString() !== bodegaOrigen)
                   .map((bodega) => (
-                    <SelectItem key={bodega.id} value={bodega.id}>
+                    <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
                       {bodega.nombre}
                     </SelectItem>
                   ))}
@@ -236,7 +341,7 @@ const TrasladosBodegas = () => {
       {bodegaOrigen && (
         <div className="space-y-4">
           <h3 className="text-lg font-semibold">
-            Productos en {bodegas.find((b) => b.id === bodegaOrigen)?.nombre}
+            Productos en {bodegas.find((b) => b.id_bodega.toString() === bodegaOrigen)?.nombre}
           </h3>
           <TableCard
             headers={["", "Código", "Producto", "Cantidad Disponible", "Cantidad a Mover"]}
@@ -247,56 +352,72 @@ const TrasladosBodegas = () => {
             }
             colSpan={5}
           >
-            {productosBodegaOrigen.map((producto) => {
-              const estaSeleccionado = productosSeleccionados.has(producto.id);
-              const productoSeleccionado = productosSeleccionados.get(producto.id);
+            {loadingProductos ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                </TableCell>
+              </TableRow>
+            ) : (
+              productosBodegaOrigen.map((producto) => {
+                const estaSeleccionado = productosSeleccionados.has(producto.id_inventario);
+                const productoSeleccionado = productosSeleccionados.get(producto.id_inventario);
 
-              return (
-                <TableRow key={producto.id}>
-                  <TableCell className="border-r border-border w-12">
-                    <Checkbox
-                      checked={estaSeleccionado}
-                      onCheckedChange={(checked) =>
-                        handleSeleccionarProducto(producto.id, checked as boolean)
-                      }
-                    />
-                  </TableCell>
-                  <TableCell className="border-r border-border font-medium">
-                    {producto.codigo}
-                  </TableCell>
-                  <TableCell className="border-r border-border">
-                    {producto.nombre}
-                  </TableCell>
-                  <TableCell className="border-r border-border">
-                    {producto.cantidad}
-                  </TableCell>
-                  <TableCell>
-                    {estaSeleccionado ? (
-                      <Input
-                        type="number"
-                        min="1"
-                        max={producto.cantidad}
-                        value={productoSeleccionado?.cantidad || ""}
-                        onChange={(e) =>
-                          handleCambiarCantidad(producto.id, e.target.value)
+                return (
+                  <TableRow key={producto.id_inventario}>
+                    <TableCell className="border-r border-border w-12">
+                      <Checkbox
+                        checked={estaSeleccionado}
+                        onCheckedChange={(checked) =>
+                          handleSeleccionarProducto(producto.id_inventario, checked as boolean)
                         }
-                        placeholder="Cantidad"
-                        className="w-32"
                       />
-                    ) : (
-                      <span className="text-muted-foreground">-</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                    </TableCell>
+                    <TableCell className="border-r border-border font-medium">
+                      {producto.producto_codigo}
+                    </TableCell>
+                    <TableCell className="border-r border-border">
+                      {producto.producto_nombre}
+                    </TableCell>
+                    <TableCell className="border-r border-border">
+                      {producto.cantidad_lote}
+                    </TableCell>
+                    <TableCell>
+                      {estaSeleccionado ? (
+                        <Input
+                          type="number"
+                          min="1"
+                          max={producto.cantidad_lote}
+                          value={productoSeleccionado?.cantidad || ""}
+                          onChange={(e) =>
+                            handleCambiarCantidad(producto.id_inventario, e.target.value)
+                          }
+                          placeholder="Cantidad"
+                          className="w-32"
+                        />
+                      ) : (
+                        <span className="text-muted-foreground">-</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableCard>
 
           {/* Botón Mover */}
           {productosSeleccionados.size > 0 && (
             <div className="flex justify-end">
-              <Button onClick={handleMover} className="flex items-center gap-2">
-                <ArrowRight className="h-4 w-4" />
+              <Button 
+                onClick={handleMover} 
+                className="flex items-center gap-2"
+                disabled={loadingProductos || !bodegaDestino}
+              >
+                {loadingProductos ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowRight className="h-4 w-4" />
+                )}
                 Mover Productos
               </Button>
             </div>

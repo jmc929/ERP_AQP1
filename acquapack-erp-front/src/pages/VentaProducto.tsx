@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,11 +40,6 @@ interface Cliente {
   nombre: string;
 }
 
-interface Vendedor {
-  id: string;
-  nombre: string;
-}
-
 const productos: Producto[] = [
   { codigo: "PROD001", nombre: "Producto A" },
   { codigo: "PROD002", nombre: "Producto B" },
@@ -68,12 +63,6 @@ const clientes: Cliente[] = [
   { id: "CLI005", nombre: "Cliente E" },
 ];
 
-const vendedores: Vendedor[] = [
-  { id: "VEN001", nombre: "Vendedor A" },
-  { id: "VEN002", nombre: "Vendedor B" },
-  { id: "VEN003", nombre: "Vendedor C" },
-];
-
 interface FilaVenta {
   id: number;
   productoCodigo: string;
@@ -85,6 +74,9 @@ interface FilaVenta {
   iva19: boolean;
   impuestoRetencion: boolean;
   valorTotal: number;
+  ivaMonto?: number;
+  retencionMonto?: number;
+  montoDescuento?: number;
 }
 
 const VentaProducto = () => {
@@ -92,7 +84,6 @@ const VentaProducto = () => {
   const [ventaNumero] = useState(3);
   const [fechaElaboracion, setFechaElaboracion] = useState(new Date().toISOString().split("T")[0]);
   const [cliente, setCliente] = useState("");
-  const [vendedor, setVendedor] = useState("");
   const [descuentoEnPorcentaje, setDescuentoEnPorcentaje] = useState(false);
   const [filas, setFilas] = useState<FilaVenta[]>([
     {
@@ -106,11 +97,14 @@ const VentaProducto = () => {
       iva19: false,
       impuestoRetencion: false,
       valorTotal: 0,
+      ivaMonto: 0,
+      retencionMonto: 0,
+      montoDescuento: 0,
     },
   ]);
 
-  // Calcular valor total de una fila
-  const calcularValorTotal = async (fila: FilaVenta): Promise<number> => {
+  // Calcular valor total de una fila y obtener desglose
+  const calcularValorTotal = async (fila: FilaVenta): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number }> => {
     try {
       const response = await fetch("http://localhost:4000/api/ventas/calcular-valor-total", {
         method: "POST",
@@ -132,7 +126,12 @@ const VentaProducto = () => {
       }
 
       const data = await response.json();
-      return data.valorTotal;
+      return {
+        valorTotal: data.valorTotal,
+        ivaMonto: data.desglose?.ivaMonto || 0,
+        retencionMonto: data.desglose?.retencionMonto || 0,
+        montoDescuento: data.desglose?.montoDescuento || 0,
+      };
     } catch (error) {
       console.error("Error al calcular valor total:", error);
       // Fallback al cálculo local si el backend no está disponible
@@ -141,25 +140,43 @@ const VentaProducto = () => {
   };
 
   // Cálculo local como fallback
-  const calcularValorTotalLocal = (fila: FilaVenta): number => {
+  const calcularValorTotalLocal = (fila: FilaVenta): { valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number } => {        
     const cantidad = parseFloat(fila.cantidad) || 0;
     const valorUnitario = parseFloat(fila.valorUnitario) || 0;
     const descuento = parseFloat(fila.descuento) || 0;
 
     let subtotal = cantidad * valorUnitario;
-    subtotal = subtotal - descuento;
+    
+    let montoDescuento = 0;
+    if (descuentoEnPorcentaje) {
+      montoDescuento = (subtotal * descuento) / 100;
+    } else {
+      montoDescuento = descuento;
+    }
+    subtotal = subtotal - montoDescuento;
 
+    // Guardar el subtotal después del descuento para calcular impuestos
+    const subtotalDespuesDescuento = subtotal;
+
+    let ivaMonto = 0;
     if (fila.iva19) {
+      ivaMonto = subtotalDespuesDescuento * 0.19;
       subtotal = subtotal * 1.19;
     }
 
+    let retencionMonto = 0;
     if (fila.impuestoRetencion) {
-      // Se suma el 2.5% del valor unitario por cada unidad
-      const retencion = (valorUnitario * 0.025) * cantidad;
-      subtotal = subtotal + retencion;
+      // Se resta el 2.5% del subtotal (después del descuento)
+      retencionMonto = subtotalDespuesDescuento * 0.025;
+      subtotal = subtotal - retencionMonto;
     }
 
-    return Math.round(subtotal * 100) / 100; // Redondear a 2 decimales
+    return {
+      valorTotal: Math.round(subtotal * 100) / 100,
+      ivaMonto: Math.round(ivaMonto * 100) / 100,
+      retencionMonto: Math.round(retencionMonto * 100) / 100,
+      montoDescuento: Math.round(montoDescuento * 100) / 100,
+    };
   };
 
   const handleAgregarFila = () => {
@@ -194,14 +211,17 @@ const VentaProducto = () => {
       productoCodigo: codigo,
       productoNombre: producto ? producto.nombre : "",
     };
-    const valorTotal = await calcularValorTotal(nuevaFila);
+    const calculo = await calcularValorTotal(nuevaFila);
     
     setFilas(
       filas.map((fila) => {
         if (fila.id === id) {
           return {
             ...nuevaFila,
-            valorTotal,
+            valorTotal: calculo.valorTotal,
+            ivaMonto: calculo.ivaMonto,
+            retencionMonto: calculo.retencionMonto,
+            montoDescuento: calculo.montoDescuento,
           };
         }
         return fila;
@@ -215,14 +235,17 @@ const VentaProducto = () => {
     valor: string | boolean
   ) => {
     const nuevaFila = { ...filas.find((f) => f.id === id)!, [campo]: valor };
-    const valorTotal = await calcularValorTotal(nuevaFila);
+    const calculo = await calcularValorTotal(nuevaFila);
     
     setFilas(
       filas.map((fila) => {
         if (fila.id === id) {
           return {
             ...nuevaFila,
-            valorTotal,
+            valorTotal: calculo.valorTotal,
+            ivaMonto: calculo.ivaMonto,
+            retencionMonto: calculo.retencionMonto,
+            montoDescuento: calculo.montoDescuento,
           };
         }
         return fila;
@@ -230,13 +253,42 @@ const VentaProducto = () => {
     );
   };
 
+  // Recalcular todas las filas cuando cambie el tipo de descuento (porcentaje o fijo)
+  useEffect(() => {
+    const recalcularTodasLasFilas = async () => {
+      const filasActualizadas = await Promise.all(
+        filas.map(async (fila) => {
+          // Solo recalcular si la fila tiene datos suficientes
+          if (fila.cantidad && fila.valorUnitario) {
+            const calculo = await calcularValorTotal(fila);
+            return {
+              ...fila,
+              valorTotal: calculo.valorTotal,
+              ivaMonto: calculo.ivaMonto,
+              retencionMonto: calculo.retencionMonto,
+              montoDescuento: calculo.montoDescuento,
+            };
+          }
+          return fila;
+        })
+      );
+      setFilas(filasActualizadas);
+    };
+
+    // Solo recalcular si hay filas con datos
+    if (filas.some(f => f.cantidad && f.valorUnitario)) {
+      recalcularTodasLasFilas();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descuentoEnPorcentaje]);
+
   return (
     <PageContainer>
       <PageTitle title="Venta de Producto" />
 
       {/* Formulario principal */}
       <FormCard title="Datos de la Venta">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="space-y-2">
             <Label htmlFor="fechaElaboracion">Fecha de Elaboración</Label>
             <Input
@@ -257,22 +309,6 @@ const VentaProducto = () => {
                 {clientes.map((cli) => (
                   <SelectItem key={cli.id} value={cli.id}>
                     {cli.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="vendedor">Vendedor</Label>
-            <Select value={vendedor} onValueChange={setVendedor}>
-              <SelectTrigger id="vendedor">
-                <SelectValue placeholder="Seleccione vendedor" />
-              </SelectTrigger>
-              <SelectContent>
-                {vendedores.map((ven) => (
-                  <SelectItem key={ven.id} value={ven.id}>
-                    {ven.nombre}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -324,6 +360,7 @@ const VentaProducto = () => {
                   <TableHead className="border-r border-border">Cantidad</TableHead>
                   <TableHead className="border-r border-border">Valor Unitario</TableHead>
                   <TableHead className="border-r border-border">Descuento</TableHead>
+                  <TableHead className="border-r border-border">Subtotal</TableHead>
                   <TableHead className="border-r border-border">IVA 19%</TableHead>
                   <TableHead className="border-r border-border">Imp. Retención 2.5%</TableHead>
                   <TableHead className="border-r border-border">Valor Total</TableHead>
@@ -412,25 +449,47 @@ const VentaProducto = () => {
                         placeholder={descuentoEnPorcentaje ? "0%" : "0"}
                       />
                     </TableCell>
-                    <TableCell className="border-r border-border text-center">
-                      <Checkbox
-                        checked={fila.iva19}
-                        onCheckedChange={(checked) =>
-                          handleCambioCampo(fila.id, "iva19", checked as boolean)
-                        }
-                      />
+                    <TableCell className="border-r border-border font-medium text-center">
+                      ${(() => {
+                        const cantidad = parseFloat(fila.cantidad) || 0;
+                        const valorUnitario = parseFloat(fila.valorUnitario) || 0;
+                        const subtotal = (cantidad * valorUnitario) - (fila.montoDescuento || 0);
+                        return subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                      })()}
                     </TableCell>
-                    <TableCell className="border-r border-border text-center">
-                      <Checkbox
-                        checked={fila.impuestoRetencion}
-                        onCheckedChange={(checked) =>
-                          handleCambioCampo(
-                            fila.id,
-                            "impuestoRetencion",
-                            checked as boolean
-                          )
-                        }
-                      />
+                    <TableCell className="border-r border-border">
+                      <div className="flex flex-col items-center gap-1">
+                        <Checkbox
+                          checked={fila.iva19}
+                          onCheckedChange={(checked) =>
+                            handleCambioCampo(fila.id, "iva19", checked as boolean)
+                          }
+                        />
+                        {fila.iva19 && fila.ivaMonto && fila.ivaMonto > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ${fila.ivaMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell className="border-r border-border">
+                      <div className="flex flex-col items-center gap-1">
+                        <Checkbox
+                          checked={fila.impuestoRetencion}
+                          onCheckedChange={(checked) =>
+                            handleCambioCampo(
+                              fila.id,
+                              "impuestoRetencion",
+                              checked as boolean
+                            )
+                          }
+                        />
+                        {fila.impuestoRetencion && fila.retencionMonto && fila.retencionMonto > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ${fila.retencionMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        )}
+                      </div>
                     </TableCell>
                     <TableCell className="border-r border-border font-medium">
                       ${fila.valorTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -448,6 +507,40 @@ const VentaProducto = () => {
                     </TableCell>
                   </TableRow>
                 ))}
+                {/* Fila de totales */}
+                <TableRow className="bg-muted/50 font-bold">
+                  <TableCell colSpan={5} className="border-r border-border text-right pr-4">
+                    TOTAL
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-center">
+                    ${filas.reduce((sum, fila) => {
+                      const cantidad = parseFloat(fila.cantidad) || 0;
+                      const valorUnitario = parseFloat(fila.valorUnitario) || 0;
+                      return sum + (cantidad * valorUnitario);
+                    }, 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-center">
+                    ${filas.reduce((sum, fila) => sum + (fila.montoDescuento || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-center">
+                    ${filas.reduce((sum, fila) => {
+                      const cantidad = parseFloat(fila.cantidad) || 0;
+                      const valorUnitario = parseFloat(fila.valorUnitario) || 0;
+                      const subtotal = (cantidad * valorUnitario) - (fila.montoDescuento || 0);
+                      return sum + subtotal;
+                    }, 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-center">
+                    ${filas.reduce((sum, fila) => sum + (fila.ivaMonto || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-center">
+                    ${filas.reduce((sum, fila) => sum + (fila.retencionMonto || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border font-bold text-lg text-center">
+                    ${filas.reduce((sum, fila) => sum + fila.valorTotal, 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </div>

@@ -5,43 +5,143 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
 
 export interface Tarea {
   id: number;
   descripcion: string;
   completada: boolean;
+  fecha_asignacion?: string;
 }
 
 interface TareaChecklistProps {
+  trabajadorId: number;
   trabajadorNombre: string;
   tareas: Tarea[];
   onTareasChange: (tareas: Tarea[]) => void;
 }
 
-const TareaChecklist = ({ trabajadorNombre, tareas, onTareasChange }: TareaChecklistProps) => {
+const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange }: TareaChecklistProps) => {
+  const { toast } = useToast();
   const [nuevaTarea, setNuevaTarea] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleToggleTarea = (tareaId: number) => {
-    const tareasActualizadas = tareas.map((tarea) =>
-      tarea.id === tareaId ? { ...tarea, completada: !tarea.completada } : tarea
-    );
-    onTareasChange(tareasActualizadas);
-  };
+  const handleToggleTarea = async (tareaId: number) => {
+    const tarea = tareas.find((t) => t.id === tareaId);
+    if (!tarea) return;
 
-  const handleAgregarTarea = () => {
-    if (nuevaTarea.trim()) {
-      const nueva: Tarea = {
-        id: Date.now(),
-        descripcion: nuevaTarea.trim(),
-        completada: false,
-      };
-      onTareasChange([...tareas, nueva]);
-      setNuevaTarea("");
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          completada: !tarea.completada,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al actualizar la tarea");
+      }
+
+      const tareasActualizadas = tareas.map((t) =>
+        t.id === tareaId ? { ...t, completada: !t.completada } : t
+      );
+      onTareasChange(tareasActualizadas);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar la tarea",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleEliminarTarea = (tareaId: number) => {
-    onTareasChange(tareas.filter((tarea) => tarea.id !== tareaId));
+  const handleAgregarTarea = async () => {
+    if (!nuevaTarea.trim()) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:4000/api/tareas", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id_usuarios: trabajadorId,
+          descripcion: nuevaTarea.trim(),
+          completada: false,
+          fecha_asignacion: new Date().toISOString().split('T')[0],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al crear la tarea");
+      }
+
+      const nueva: Tarea = {
+        id: data.tarea.id_tareas,
+        descripcion: data.tarea.descripcion,
+        completada: data.tarea.completada,
+        fecha_asignacion: data.tarea.fecha_asignacion,
+      };
+
+      onTareasChange([...tareas, nueva]);
+      setNuevaTarea("");
+
+      toast({
+        title: "Tarea creada",
+        description: "La tarea se ha creado exitosamente",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al crear la tarea",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEliminarTarea = async (tareaId: number) => {
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al eliminar la tarea");
+      }
+
+      onTareasChange(tareas.filter((tarea) => tarea.id !== tareaId));
+
+      toast({
+        title: "Tarea eliminada",
+        description: "La tarea se ha eliminado exitosamente",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar la tarea",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const tareasCompletadas = tareas.filter((t) => t.completada).length;
@@ -63,13 +163,14 @@ const TareaChecklist = ({ trabajadorNombre, tareas, onTareasChange }: TareaCheck
             value={nuevaTarea}
             onChange={(e) => setNuevaTarea(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && !loading) {
                 handleAgregarTarea();
               }
             }}
             className="flex-1"
+            disabled={loading}
           />
-          <Button onClick={handleAgregarTarea} className="flex items-center gap-2">
+          <Button onClick={handleAgregarTarea} className="flex items-center gap-2" disabled={loading}>
             <Plus className="h-4 w-4" />
             Agregar
           </Button>
@@ -91,6 +192,7 @@ const TareaChecklist = ({ trabajadorNombre, tareas, onTareasChange }: TareaCheck
                   checked={tarea.completada}
                   onCheckedChange={() => handleToggleTarea(tarea.id)}
                   id={`tarea-${tarea.id}`}
+                  disabled={loading}
                 />
                 <Label
                   htmlFor={`tarea-${tarea.id}`}
@@ -105,6 +207,7 @@ const TareaChecklist = ({ trabajadorNombre, tareas, onTareasChange }: TareaCheck
                   size="icon"
                   onClick={() => handleEliminarTarea(tarea.id)}
                   className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  disabled={loading}
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>

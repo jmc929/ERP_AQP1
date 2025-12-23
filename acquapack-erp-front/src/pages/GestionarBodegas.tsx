@@ -1,59 +1,110 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  TableBody,
   TableCell,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Archive } from "lucide-react";
+import { Plus, Archive, Edit, RefreshCw } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
-import EmptyTableMessage from "@/components/EmptyTableMessage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// Datos mock de bodegas
 interface Bodega {
-  id: number;
+  id_bodega: number;
   nombre: string;
+  id_estado?: number;
+  estado_nombre?: string;
+  estado_color?: string;
 }
 
-const bodegasIniciales: Bodega[] = [
-  { id: 1, nombre: "Bodega Principal" },
-  { id: 2, nombre: "Bodega Secundaria" },
-  { id: 3, nombre: "Bodega Norte" },
-  { id: 4, nombre: "Bodega Sur" },
-  { id: 5, nombre: "Bodega Centro" },
-  { id: 6, nombre: "Bodega Este" },
-  { id: 7, nombre: "Bodega Oeste" },
-  { id: 8, nombre: "Bodega Almacén 1" },
-  { id: 9, nombre: "Bodega Almacén 2" },
-  { id: 10, nombre: "Bodega Distribución" },
-  { id: 11, nombre: "Bodega Temporal" },
-  { id: 12, nombre: "Bodega Frigorífica" },
-  { id: 13, nombre: "Bodega Seca" },
-  { id: 14, nombre: "Bodega Húmeda" },
-  { id: 15, nombre: "Bodega Exterior" },
-];
+interface Catalogos {
+  estados: Array<{ id_estado: number; nombre: string; color: string }>;
+}
 
 const GestionarBodegas = () => {
-  const [bodegas, setBodegas] = useState<Bodega[]>(bodegasIniciales);
+  const { toast } = useToast();
+  const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [bodegasSeleccionadas, setBodegasSeleccionadas] = useState<Set<number>>(new Set());
   const [mostrarDialogoArchivar, setMostrarDialogoArchivar] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
-  const [formId, setFormId] = useState("");
-  const [formNombre, setFormNombre] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadingCatalogos, setLoadingCatalogos] = useState(true);
+  const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  
+  // Estados del formulario
+  const [nombre, setNombre] = useState("");
+  const [idEstado, setIdEstado] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [bodegaEditando, setBodegaEditando] = useState<Bodega | null>(null);
+  
+  // Estados para cambiar estado
+  const [mostrarDialogoCambiarEstado, setMostrarDialogoCambiarEstado] = useState(false);
+  const [bodegaCambiandoEstado, setBodegaCambiandoEstado] = useState<Bodega | null>(null);
+  const [nuevoEstadoId, setNuevoEstadoId] = useState("");
+
+  // Cargar bodegas y catálogos
+  useEffect(() => {
+    const cargarDatos = async () => {
+      try {
+        setLoading(true);
+        setLoadingCatalogos(true);
+        const [bodegasRes, catalogosRes] = await Promise.all([
+          fetch("http://localhost:4000/api/bodegas"),
+          fetch("http://localhost:4000/api/bodegas/catalogos")
+        ]);
+
+        const bodegasData = await bodegasRes.json();
+        const catalogosData = await catalogosRes.json();
+
+        if (bodegasData.success) {
+          setBodegas(bodegasData.bodegas);
+        }
+
+        if (catalogosData.success) {
+          setCatalogos(catalogosData.catalogos);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar las bodegas",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+        setLoadingCatalogos(false);
+      }
+    };
+
+    cargarDatos();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Filtrar bodegas según búsqueda
   const bodegasFiltradas = bodegas.filter((bodega) =>
-    bodega.id.toString().includes(busqueda) ||
+    bodega.id_bodega.toString().includes(busqueda) ||
     bodega.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
 
@@ -69,23 +120,193 @@ const GestionarBodegas = () => {
     });
   };
 
-  const handleAgregarBodega = () => {
-    if (formId.trim() && formNombre.trim()) {
-      const nuevaBodega: Bodega = {
-        id: parseInt(formId) || Math.max(...bodegas.map((b) => b.id), 0) + 1,
-        nombre: formNombre.trim(),
-      };
-      setBodegas([...bodegas, nuevaBodega]);
-      setFormId("");
-      setFormNombre("");
+  const limpiarFormulario = () => {
+    setNombre("");
+    setIdEstado("");
+    setBodegaEditando(null);
+  };
+
+  const handleAgregarBodega = async () => {
+    if (!nombre.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre es obligatorio",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setGuardando(true);
+      const url = bodegaEditando 
+        ? `http://localhost:4000/api/bodegas/${bodegaEditando.id_bodega}`
+        : "http://localhost:4000/api/bodegas";
+      
+      const method = bodegaEditando ? "PUT" : "POST";
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nombre: nombre.trim(),
+          id_estado: idEstado ? parseInt(idEstado) : null,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al guardar la bodega");
+      }
+
+      toast({
+        title: "Éxito",
+        description: bodegaEditando 
+          ? "Bodega actualizada exitosamente"
+          : "Bodega creada exitosamente",
+      });
+
+      // Recargar bodegas
+      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasData = await bodegasRes.json();
+      if (bodegasData.success) {
+        setBodegas(bodegasData.bodegas);
+      }
+
       setMostrarFormulario(false);
+      limpiarFormulario();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al guardar la bodega",
+        variant: "destructive",
+      });
+    } finally {
+      setGuardando(false);
     }
   };
 
-  const handleArchivarConfirmado = () => {
-    setBodegas(bodegas.filter((b) => !bodegasSeleccionadas.has(b.id)));
-    setBodegasSeleccionadas(new Set());
-    setMostrarDialogoArchivar(false);
+  const handleEditarBodega = (bodega: Bodega) => {
+    setBodegaEditando(bodega);
+    setNombre(bodega.nombre || "");
+    setIdEstado(bodega.id_estado?.toString() || "");
+    setMostrarFormulario(true);
+  };
+
+  const handleCambiarEstado = (bodega: Bodega) => {
+    setBodegaCambiandoEstado(bodega);
+    setNuevoEstadoId(bodega.id_estado?.toString() || "");
+    setMostrarDialogoCambiarEstado(true);
+  };
+
+  const handleConfirmarCambioEstado = async () => {
+    if (!bodegaCambiandoEstado || !nuevoEstadoId) {
+      toast({
+        title: "Error",
+        description: "Debe seleccionar un estado",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaCambiandoEstado.id_bodega}/estado`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id_estado: parseInt(nuevoEstadoId),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Error al cambiar el estado de la bodega");
+      }
+
+      toast({
+        title: "Éxito",
+        description: "Estado de bodega cambiado exitosamente",
+      });
+
+      // Recargar bodegas
+      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasData = await bodegasRes.json();
+      if (bodegasData.success) {
+        setBodegas(bodegasData.bodegas);
+      }
+
+      setMostrarDialogoCambiarEstado(false);
+      setBodegaCambiandoEstado(null);
+      setNuevoEstadoId("");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al cambiar el estado de la bodega",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchivarConfirmado = async () => {
+    // Obtener el estado "Eliminado" (id 3) o el estado con id 3
+    const estadoEliminado = catalogos?.estados.find(e => e.id_estado === 3);
+    
+    if (!estadoEliminado) {
+      toast({
+        title: "Error",
+        description: "No se encontró el estado para archivar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const promesas = Array.from(bodegasSeleccionadas).map((id) =>
+        fetch(`http://localhost:4000/api/bodegas/${id}/estado`, {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            id_estado: 3, // Estado eliminado
+          }),
+        })
+      );
+
+      await Promise.all(promesas);
+
+      toast({
+        title: "Éxito",
+        description: `${bodegasSeleccionadas.size} bodega(s) archivada(s) exitosamente`,
+      });
+
+      // Recargar bodegas
+      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasData = await bodegasRes.json();
+      if (bodegasData.success) {
+        setBodegas(bodegasData.bodegas);
+      }
+
+      setBodegasSeleccionadas(new Set());
+      setMostrarDialogoArchivar(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error al archivar las bodegas",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -101,41 +322,50 @@ const GestionarBodegas = () => {
         </Button>
       </div>
 
-      {/* Formulario para agregar bodega */}
+      {/* Formulario para agregar/editar bodega */}
       {mostrarFormulario && (
-        <FormCard title="Agregar Nueva Bodega">
+        <FormCard title={bodegaEditando ? "Editar Bodega" : "Agregar Nueva Bodega"}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="id">ID</Label>
-              <Input
-                id="id"
-                type="number"
-                value={formId}
-                onChange={(e) => setFormId(e.target.value)}
-                placeholder="Ingrese el ID de la bodega"
-              />
-            </div>
             <div className="space-y-2">
               <Label htmlFor="nombre">Nombre</Label>
               <Input
                 id="nombre"
-                value={formNombre}
-                onChange={(e) => setFormNombre(e.target.value)}
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
                 placeholder="Ingrese el nombre de la bodega"
               />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="estado">Estado</Label>
+              <Select value={idEstado} onValueChange={setIdEstado} disabled={loadingCatalogos}>
+                <SelectTrigger id="estado">
+                  <SelectValue placeholder="Seleccione el estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {catalogos?.estados.map((estado) => (
+                    <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
+                      {estado.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex gap-2">
-            <Button onClick={handleAgregarBodega} className="flex-1">
-              Guardar Bodega
+            <Button 
+              onClick={handleAgregarBodega} 
+              className="flex-1"
+              disabled={guardando}
+            >
+              {guardando ? "Guardando..." : bodegaEditando ? "Actualizar Bodega" : "Guardar Bodega"}
             </Button>
             <Button
               variant="outline"
               onClick={() => {
                 setMostrarFormulario(false);
-                setFormId("");
-                setFormNombre("");
+                limpiarFormulario();
               }}
+              disabled={guardando}
             >
               Cancelar
             </Button>
@@ -152,30 +382,67 @@ const GestionarBodegas = () => {
 
       {/* Tabla de bodegas */}
       <TableCard
-        headers={["", "ID", "Nombre"]}
+        headers={["", "ID", "Nombre", "Estado", "Acciones"]}
         emptyMessage={
-          bodegasFiltradas.length === 0
+          loading
+            ? "Cargando bodegas..."
+            : bodegasFiltradas.length === 0
             ? bodegas.length === 0
               ? "No hay bodegas registradas"
               : "No se encontraron bodegas"
             : undefined
         }
-        colSpan={3}
+        colSpan={5}
       >
         {bodegasFiltradas.map((bodega) => (
-          <TableRow key={bodega.id}>
+          <TableRow key={bodega.id_bodega}>
             <TableCell className="border-r border-border w-12">
               <Checkbox
-                checked={bodegasSeleccionadas.has(bodega.id)}
+                checked={bodegasSeleccionadas.has(bodega.id_bodega)}
                 onCheckedChange={(checked) =>
-                  handleCheckbox(bodega.id, checked as boolean)
+                  handleCheckbox(bodega.id_bodega, checked as boolean)
                 }
               />
             </TableCell>
             <TableCell className="border-r border-border font-medium">
-              {bodega.id}
+              {bodega.id_bodega}
             </TableCell>
-            <TableCell>{bodega.nombre}</TableCell>
+            <TableCell className="border-r border-border">
+              {bodega.nombre}
+            </TableCell>
+            <TableCell className="border-r border-border">
+              {bodega.estado_nombre ? (
+                <span 
+                  className="px-2 py-1 rounded text-xs font-medium"
+                  style={{ 
+                    backgroundColor: bodega.estado_color ? `${bodega.estado_color}20` : '#f3f4f6',
+                    color: bodega.estado_color || '#374151'
+                  }}
+                >
+                  {bodega.estado_nombre}
+                </span>
+              ) : "N/A"}
+            </TableCell>
+            <TableCell>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditarBodega(bodega)}
+                  title="Editar bodega"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleCambiarEstado(bodega)}
+                  title="Cambiar estado"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
+              </div>
+            </TableCell>
           </TableRow>
         ))}
       </TableCard>
@@ -194,11 +461,59 @@ const GestionarBodegas = () => {
       <ConfirmDialog
         open={mostrarDialogoArchivar}
         onOpenChange={setMostrarDialogoArchivar}
-        description={`Se archivarán ${bodegasSeleccionadas.size} bodega(s). Esta acción puede deshacerse más tarde.`}
+        description={`Se cambiará el estado de ${bodegasSeleccionadas.size} bodega(s) a "Eliminado". Esta acción puede deshacerse más tarde.`}
         confirmText="Sí, archivar"
         cancelText="Cancelar"
         onConfirm={handleArchivarConfirmado}
       />
+
+      {/* Diálogo para cambiar estado de una bodega */}
+      <Dialog open={mostrarDialogoCambiarEstado} onOpenChange={setMostrarDialogoCambiarEstado}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cambiar Estado de Bodega</DialogTitle>
+            <DialogDescription>
+              Seleccione el nuevo estado para la bodega "{bodegaCambiandoEstado?.nombre}"
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="nuevo-estado">Estado</Label>
+              <Select value={nuevoEstadoId} onValueChange={setNuevoEstadoId} disabled={loadingCatalogos}>
+                <SelectTrigger id="nuevo-estado">
+                  <SelectValue placeholder="Seleccione el estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {catalogos?.estados.map((estado) => (
+                    <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
+                      {estado.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setMostrarDialogoCambiarEstado(false);
+                  setBodegaCambiandoEstado(null);
+                  setNuevoEstadoId("");
+                }}
+                disabled={loading}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmarCambioEstado}
+                disabled={loading || !nuevoEstadoId}
+              >
+                {loading ? "Cambiando..." : "Cambiar Estado"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </PageContainer>
   );
 };

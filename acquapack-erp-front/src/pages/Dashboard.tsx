@@ -8,7 +8,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare } from "lucide-react";
+import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare, BookOpen, Edit, Cog, Tag, Archive } from "lucide-react";
 import ModuleCard from "@/components/ModuleCard";
 import { Input } from "@/components/ui/input";
 
@@ -36,14 +36,23 @@ const Dashboard = () => {
 
   // Mapeo de rutas a módulos y opciones
   const routeToModuleAndOption = (pathname: string): { module: Module; option: string | null } => {
-    if (pathname.includes("/productos/gestion")) {
-      return { module: "productos", option: "Gestión Productos" };
+    if (pathname.includes("/productos/catalogo-general")) {
+      return { module: "productos", option: "Catálogo General" };
     }
-    if (pathname.includes("/productos/categorias-familia")) {
-      return { module: "productos", option: "Categorías y Familia" };
+    if (pathname.includes("/productos/crear-editar")) {
+      return { module: "productos", option: "Crear / Editar Productos" };
     }
-    if (pathname.includes("/productos/atributos")) {
-      return { module: "productos", option: "Atributos" };
+    if (pathname.includes("/productos/archivados")) {
+      return { module: "productos", option: "Ver Productos Archivados" };
+    }
+    if (pathname.includes("/productos/configuracion")) {
+      return { module: "productos", option: "Configuración de Productos" };
+    }
+    if (pathname.includes("/productos/etiqueta-codigos")) {
+      return { module: "productos", option: "Etiqueta y Códigos" };
+    }
+    if (pathname.includes("/productos/productos-x-proveedor") || pathname.includes("/compras/productos-x-proveedor")) {
+      return { module: "productos", option: "Productos x Proveedor" };
     }
     if (pathname.includes("/productos")) {
       return { module: "productos", option: null };
@@ -57,6 +66,12 @@ const Dashboard = () => {
     if (pathname.includes("/compras/gestionar-proveedores")) {
       return { module: "compras", option: "Gestionar Proveedores" };
     }
+    if (pathname.includes("/compras/configuracion-proveedores")) {
+      return { module: "compras", option: "Configuración de Proveedores" };
+    }
+    if (pathname.includes("/compras/productos-x-proveedor")) {
+      return { module: "compras", option: "Productos x Proveedor" };
+    }
     if (pathname.includes("/compras")) {
       return { module: "compras", option: null };
     }
@@ -69,6 +84,9 @@ const Dashboard = () => {
     if (pathname.includes("/ventas/gestionar-clientes")) {
       return { module: "ventas", option: "Gestionar Clientes" };
     }
+    if (pathname.includes("/ventas/configuracion-clientes")) {
+      return { module: "ventas", option: "Configuración de Clientes" };
+    }
     if (pathname.includes("/ventas")) {
       return { module: "ventas", option: null };
     }
@@ -77,6 +95,9 @@ const Dashboard = () => {
     }
     if (pathname.includes("/usuarios/ver-usuarios")) {
       return { module: "usuarios", option: "Ver Usuarios" };
+    }
+    if (pathname.includes("/usuarios/configuracion")) {
+      return { module: "usuarios", option: "Configuración de Usuarios" };
     }
     if (pathname.includes("/usuarios")) {
       return { module: "usuarios", option: null };
@@ -132,19 +153,25 @@ const Dashboard = () => {
 
   const moduleOptions: Record<Exclude<Module, null>, ModuleOption[]> = {
     productos: [
-      { title: "Gestión Productos", icon: Box },
-      { title: "Categorías y Familia", icon: Box },
-      { title: "Atributos", icon: Box },
+      { title: "Catálogo General", icon: BookOpen },
+      { title: "Crear / Editar Productos", icon: Edit },
+      { title: "Ver Productos Archivados", icon: Archive },
+      { title: "Configuración de Productos", icon: Cog },
+      { title: "Etiqueta y Códigos", icon: Tag },
+      { title: "Productos x Proveedor", icon: Package },
     ],
     compras: [
       { title: "Ingresar Factura", icon: ShoppingCart },
       { title: "Ver Factura", icon: ShoppingCart },
       { title: "Gestionar Proveedores", icon: User },
+      { title: "Configuración de Proveedores", icon: Cog },
+      { title: "Productos x Proveedor", icon: Package },
     ],
     ventas: [
       { title: "Venta de Producto", icon: TrendingUp },
       { title: "Ver Ventas", icon: TrendingUp },
       { title: "Gestionar Clientes", icon: User },
+      { title: "Configuración de Clientes", icon: Cog },
     ],
     inventario: [
       { title: "Ver Inventario (Bodegas)", icon: Package },
@@ -158,6 +185,7 @@ const Dashboard = () => {
     usuarios: [
       { title: "Crear Usuarios", icon: Users },
       { title: "Ver Usuarios", icon: Users },
+      { title: "Configuración de Usuarios", icon: Cog },
     ],
   };
 
@@ -243,28 +271,42 @@ const Dashboard = () => {
       // Si es una opción, seleccionar el módulo
       setSelectedModule(result.moduleId);
       // Navegar a la opción específica
-      if (result.moduleId === "productos" && result.title === "Gestión Productos") {
-        navigate("/dashboard/productos/gestion");
-      } else if (result.moduleId === "productos" && result.title === "Categorías y Familia") {
-        navigate("/dashboard/productos/categorias-familia");
-      } else if (result.moduleId === "productos" && result.title === "Atributos") {
-        navigate("/dashboard/productos/atributos");
+      if (result.moduleId === "productos" && result.title === "Catálogo General") {
+        navigate("/dashboard/productos/catalogo-general");
+      } else if (result.moduleId === "productos" && result.title === "Crear / Editar Productos") {
+        navigate("/dashboard/productos/crear-editar");
+      } else if (result.moduleId === "productos" && result.title === "Ver Productos Archivados") {
+        navigate("/dashboard/productos/archivados");
+      } else if (result.moduleId === "productos" && result.title === "Configuración de Productos") {
+        navigate("/dashboard/productos/configuracion");
+      } else if (result.moduleId === "productos" && result.title === "Etiqueta y Códigos") {
+        navigate("/dashboard/productos/etiqueta-codigos");
+      } else if (result.moduleId === "productos" && result.title === "Productos x Proveedor") {
+        navigate("/dashboard/compras/productos-x-proveedor");
       } else if (result.moduleId === "compras" && result.title === "Ingresar Factura") {
         navigate("/dashboard/compras/ingresar-factura");
       } else if (result.moduleId === "compras" && result.title === "Ver Factura") {
         navigate("/dashboard/compras/ver-factura");
       } else if (result.moduleId === "compras" && result.title === "Gestionar Proveedores") {
         navigate("/dashboard/compras/gestionar-proveedores");
+      } else if (result.moduleId === "compras" && result.title === "Configuración de Proveedores") {
+        navigate("/dashboard/compras/configuracion-proveedores");
+      } else if (result.moduleId === "compras" && result.title === "Productos x Proveedor") {
+        navigate("/dashboard/compras/productos-x-proveedor");
       } else if (result.moduleId === "ventas" && result.title === "Venta de Producto") {
         navigate("/dashboard/ventas/venta-producto");
       } else if (result.moduleId === "ventas" && result.title === "Ver Ventas") {
         navigate("/dashboard/ventas/ver-ventas");
       } else if (result.moduleId === "ventas" && result.title === "Gestionar Clientes") {
         navigate("/dashboard/ventas/gestionar-clientes");
+      } else if (result.moduleId === "ventas" && result.title === "Configuración de Clientes") {
+        navigate("/dashboard/ventas/configuracion-clientes");
       } else if (result.moduleId === "usuarios" && result.title === "Crear Usuarios") {
         navigate("/dashboard/usuarios/crear-usuarios");
       } else if (result.moduleId === "usuarios" && result.title === "Ver Usuarios") {
         navigate("/dashboard/usuarios/ver-usuarios");
+      } else if (result.moduleId === "usuarios" && result.title === "Configuración de Usuarios") {
+        navigate("/dashboard/usuarios/configuracion");
       } else if (result.moduleId === "inventario" && result.title === "Gestionar Bodegas") {
         navigate("/dashboard/inventario/gestionar-bodegas");
       } else if (result.moduleId === "inventario" && result.title === "Traslados entre Bodegas") {
@@ -446,28 +488,42 @@ const Dashboard = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {moduleOptions[selectedModule].map((option, index) => {
                 const handleClick = () => {
-                  if (selectedModule === "productos" && option.title === "Gestión Productos") {
-                    navigate("/dashboard/productos/gestion");
-                  } else if (selectedModule === "productos" && option.title === "Categorías y Familia") {
-                    navigate("/dashboard/productos/categorias-familia");
-                  } else if (selectedModule === "productos" && option.title === "Atributos") {
-                    navigate("/dashboard/productos/atributos");
+                  if (selectedModule === "productos" && option.title === "Catálogo General") {
+                    navigate("/dashboard/productos/catalogo-general");
+                  } else if (selectedModule === "productos" && option.title === "Crear / Editar Productos") {
+                    navigate("/dashboard/productos/crear-editar");
+                  } else if (selectedModule === "productos" && option.title === "Ver Productos Archivados") {
+                    navigate("/dashboard/productos/archivados");
+                  } else if (selectedModule === "productos" && option.title === "Configuración de Productos") {
+                    navigate("/dashboard/productos/configuracion");
+                  } else if (selectedModule === "productos" && option.title === "Etiqueta y Códigos") {
+                    navigate("/dashboard/productos/etiqueta-codigos");
+                  } else if (selectedModule === "productos" && option.title === "Productos x Proveedor") {
+                    navigate("/dashboard/compras/productos-x-proveedor");
                   } else if (selectedModule === "compras" && option.title === "Ingresar Factura") {
                     navigate("/dashboard/compras/ingresar-factura");
                   } else if (selectedModule === "compras" && option.title === "Ver Factura") {
                     navigate("/dashboard/compras/ver-factura");
                   } else if (selectedModule === "compras" && option.title === "Gestionar Proveedores") {
                     navigate("/dashboard/compras/gestionar-proveedores");
+                  } else if (selectedModule === "compras" && option.title === "Configuración de Proveedores") {
+                    navigate("/dashboard/compras/configuracion-proveedores");
+                  } else if (selectedModule === "compras" && option.title === "Productos x Proveedor") {
+                    navigate("/dashboard/compras/productos-x-proveedor");
                   } else if (selectedModule === "ventas" && option.title === "Venta de Producto") {
                     navigate("/dashboard/ventas/venta-producto");
                   } else if (selectedModule === "ventas" && option.title === "Ver Ventas") {
                     navigate("/dashboard/ventas/ver-ventas");
                   } else if (selectedModule === "ventas" && option.title === "Gestionar Clientes") {
                     navigate("/dashboard/ventas/gestionar-clientes");
+                  } else if (selectedModule === "ventas" && option.title === "Configuración de Clientes") {
+                    navigate("/dashboard/ventas/configuracion-clientes");
                   } else if (selectedModule === "usuarios" && option.title === "Crear Usuarios") {
                     navigate("/dashboard/usuarios/crear-usuarios");
                   } else if (selectedModule === "usuarios" && option.title === "Ver Usuarios") {
                     navigate("/dashboard/usuarios/ver-usuarios");
+                  } else if (selectedModule === "usuarios" && option.title === "Configuración de Usuarios") {
+                    navigate("/dashboard/usuarios/configuracion");
                   } else if (selectedModule === "inventario" && option.title === "Gestionar Bodegas") {
                     navigate("/dashboard/inventario/gestionar-bodegas");
                   } else if (selectedModule === "inventario" && option.title === "Traslados entre Bodegas") {
