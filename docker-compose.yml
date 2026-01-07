@@ -1,62 +1,40 @@
 version: '3.8'
 
 services:
-
-  # ============================================
-  # BACKEND (Node.js + Express)
-  # ============================================
+  # ==============================
+  # BACKEND (Tu código Node)
+  # ==============================
   backend:
-    build:
-      context: ./acquapack-erp-back
-      dockerfile: Dockerfile
-    container_name: erp_backend
+    build: ./acquapack-erp-back  # Busca tu carpeta de código
+    container_name: erp_backend_dev
     restart: always
     ports:
       - "4000:4000"
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      NODE_ENV: production
-      PORT: 4000
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_NAME: ERP_ACQ
-      DB_USER: postgres
-      DB_PASSWORD: 1478
-      CORS_ORIGIN: "http://localhost:8080,http://localhost:5173"
     volumes:
-      - ./acquapack-erp-back:/app
+      - ./acquapack-erp-back:/app       # <--- ¡LA MAGIA! (Espejo)
       - /app/node_modules
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+    environment:
+      # AQUÍ APUNTAS AL SERVIDOR LINUX
+      - DB_HOST=100.xx.yy.zz   # <--- IP TAILSCALE DEL SERVIDOR
+      - DB_PORT=5432
+      - DB_NAME=ERP_ACQ
+      - DB_USER=postgres
+      - DB_PASSWORD=1478
+      - CORS_ORIGIN=http://localhost:8080
 
-  # ============================================
-  # FRONTEND (React + Vite)
-  # ============================================
+  # ==============================
+  # FRONTEND (Tu código React)
+  # ==============================
   frontend:
-    build:
-      context: ./acquapack-erp-front
-      dockerfile: Dockerfile
-    container_name: erp_frontend
-    restart: always
+    build: ./acquapack-erp-front
+    container_name: erp_frontend_dev
     ports:
       - "8080:8080"
-    depends_on:
-      - backend
+    volumes:
+      - ./acquapack-erp-front:/app      # <--- ¡LA MAGIA! (Espejo)
+      - /app/node_modules
     environment:
       - VITE_API_URL=http://localhost:4000
-    volumes:
-      - ./acquapack-erp-front:/app
-      - /app/node_modules
 
-# ============================================
-# NETWORKS (Opcional - Docker crea una por defecto)
-# ============================================
-networks:
-  default:
-    name: erp_network
+# ¡NOTA QUE NO HAY SERVICIO "DB"!
+# Porque usamos la del servidor Linux.
