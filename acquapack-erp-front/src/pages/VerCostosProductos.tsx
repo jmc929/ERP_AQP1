@@ -1,88 +1,211 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  TableBody,
   TableCell,
   TableRow,
 } from "@/components/ui/table";
+import { Loader2 } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
+import Pagination from "@/components/Pagination";
+import { useToast } from "@/hooks/use-toast";
 
-// Datos mock de productos con costos y proveedores
-interface ProductoCosto {
-  id: number;
-  nombre: string;
-  proveedor: string;
-  costo: number;
+interface CostoProducto {
+  id_producto: number;
+  codigo: string;
+  producto: string;
+  stock_total: number;
+  costo_promedio_unitario: number;
+  ultimo_costo_compra: number;
+  valor_total_inventario: number;
 }
 
-const productosIniciales: ProductoCosto[] = [
-  { id: 1, nombre: "Producto A", proveedor: "Distribuidora Acuática S.A.", costo: 15000 },
-  { id: 2, nombre: "Producto B", proveedor: "Suministros Marítimos del Caribe", costo: 25000 },
-  { id: 3, nombre: "Producto C", proveedor: "Aqua Supplies Colombia", costo: 18000 },
-  { id: 4, nombre: "Producto D", proveedor: "Proveedores Oceánicos Ltda.", costo: 32000 },
-  { id: 5, nombre: "Producto E", proveedor: "Marine Equipment Solutions", costo: 12000 },
-  { id: 6, nombre: "Producto F", proveedor: "Distribuidora Náutica del Pacífico", costo: 22000 },
-  { id: 7, nombre: "Producto G", proveedor: "Suministros Acuáticos Premium", costo: 28000 },
-  { id: 8, nombre: "Producto H", proveedor: "AquaTech Internacional", costo: 19000 },
-  { id: 9, nombre: "Producto I", proveedor: "Proveedores de Equipos Acuáticos", costo: 35000 },
-  { id: 10, nombre: "Producto J", proveedor: "Distribuidora Marina Central", costo: 42000 },
-  { id: 11, nombre: "Producto K", proveedor: "Ocean Supplies & More", costo: 38000 },
-  { id: 12, nombre: "Producto L", proveedor: "Aqua Distribuciones del Norte", costo: 29000 },
-  { id: 13, nombre: "Producto M", proveedor: "Suministros para Piscinas S.A.", costo: 27000 },
-  { id: 14, nombre: "Producto N", proveedor: "Proveedores Acuáticos del Sur", costo: 31000 },
-  { id: 15, nombre: "Producto O", proveedor: "Marine World Distributors", costo: 24000 },
-];
-
 const VerCostosProductos = () => {
+  const { toast } = useToast();
   const [busqueda, setBusqueda] = useState("");
+  const [costos, setCostos] = useState<CostoProducto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [pagina, setPagina] = useState(1);
+  const productosPorPagina = 40;
 
-  // Filtrar productos según búsqueda (busca en ID, nombre, proveedor y costo)
-  const productosFiltrados = productosIniciales.filter((producto) =>
-    producto.id.toString().includes(busqueda) ||
-    producto.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-    producto.proveedor.toLowerCase().includes(busqueda.toLowerCase()) ||
-    producto.costo.toString().includes(busqueda)
-  );
+  useEffect(() => {
+    cargarCostos();
+  }, []);
+
+  const cargarCostos = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:4000/api/productos/costos");
+      
+      if (!response.ok) {
+        throw new Error("Error al cargar los costos");
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        setCostos(data.costos || []);
+      } else {
+        throw new Error(data.message || "Error al cargar los costos");
+      }
+    } catch (error) {
+      console.error("Error al cargar costos:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudieron cargar los costos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtrar costos por búsqueda
+  const costosFiltrados = useMemo(() => {
+    if (!busqueda.trim()) {
+      return costos;
+    }
+
+    const busquedaLower = busqueda.toLowerCase();
+    return costos.filter(
+      (costo) =>
+        costo.codigo?.toLowerCase().includes(busquedaLower) ||
+        costo.producto?.toLowerCase().includes(busquedaLower)
+    );
+  }, [costos, busqueda]);
+
+  // Calcular paginación
+  const totalPaginas = Math.ceil(costosFiltrados.length / productosPorPagina);
+  const inicio = (pagina - 1) * productosPorPagina;
+  const fin = inicio + productosPorPagina;
+  const costosPaginados = costosFiltrados.slice(inicio, fin);
+
+  // Resetear a página 1 cuando cambia la búsqueda
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda]);
+
+  // Formatear números con separadores de miles y decimales
+  const formatearNumero = (valor: number, decimales: number = 2): string => {
+    return new Intl.NumberFormat("es-CO", {
+      minimumFractionDigits: decimales,
+      maximumFractionDigits: decimales,
+    }).format(valor);
+  };
+
+  // Calcular totales (de todos los productos filtrados, no solo de la página actual)
+  const totales = useMemo(() => {
+    return {
+      stockTotal: costosFiltrados.reduce((sum, c) => sum + c.stock_total, 0),
+      valorTotalInventario: costosFiltrados.reduce(
+        (sum, c) => sum + c.valor_total_inventario,
+        0
+      ),
+    };
+  }, [costosFiltrados]);
 
   return (
     <PageContainer>
-      <PageTitle title="Ver Costos por Productos" />
+      <PageTitle>Ver Costos por Productos</PageTitle>
 
-      {/* Barra de búsqueda */}
-      <SearchBar
-        placeholder="Buscar por ID, nombre, proveedor o costo..."
-        value={busqueda}
-        onChange={setBusqueda}
-      />
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <SearchBar
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por código o nombre de producto..."
+            className="max-w-md"
+          />
+          <div className="text-sm text-muted-foreground">
+            Mostrando {costosPaginados.length > 0 ? inicio + 1 : 0}-{Math.min(fin, costosFiltrados.length)} de {costosFiltrados.length} productos
+            {costos.length !== costosFiltrados.length && ` (${costos.length} total)`}
+          </div>
+        </div>
 
-      {/* Tabla */}
-      <TableCard
-        headers={["ID", "Nombre", "Proveedor", "Costo"]}
-        emptyMessage={productosFiltrados.length === 0 ? "No se encontraron productos" : undefined}
-        colSpan={4}
-      >
-        {productosFiltrados.map((producto) => (
-          <TableRow key={producto.id}>
-            <TableCell className="font-medium py-4 px-6 border-r border-border">
-              {producto.id}
-            </TableCell>
-            <TableCell className="py-4 px-6 border-r border-border">
-              {producto.nombre}
-            </TableCell>
-            <TableCell className="py-4 px-6 border-r border-border">
-              {producto.proveedor}
-            </TableCell>
-            <TableCell className="py-4 px-6">
-              ${producto.costo.toLocaleString("es-CO")}
-            </TableCell>
-          </TableRow>
-        ))}
-      </TableCard>
+        <TableCard
+          headers={[
+            "Código",
+            "Producto",
+            "Stock Total",
+            "Costo Promedio (Unitario)",
+            "Último Costo Compra",
+            "Valor Total Inventario",
+          ]}
+          emptyMessage={
+            loading
+              ? undefined
+              : costosFiltrados.length === 0
+              ? busqueda
+                ? "No se encontraron productos que coincidan con la búsqueda"
+                : "No hay productos con costos registrados"
+              : undefined
+          }
+          colSpan={6}
+        >
+          {loading ? (
+            <TableRow>
+              <TableCell colSpan={6} className="text-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+              </TableCell>
+            </TableRow>
+          ) : (
+            <>
+              {costosPaginados.map((costo) => (
+                <TableRow key={costo.id_producto}>
+                  <TableCell className="font-medium">{costo.codigo || "-"}</TableCell>
+                  <TableCell>{costo.producto}</TableCell>
+                  <TableCell className="text-right">
+                    {formatearNumero(costo.stock_total, 2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${formatearNumero(costo.costo_promedio_unitario, 2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    ${formatearNumero(costo.ultimo_costo_compra, 2)}
+                  </TableCell>
+                  <TableCell className="text-right font-semibold">
+                    ${formatearNumero(costo.valor_total_inventario, 2)}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </>
+          )}
+        </TableCard>
+
+        {/* Totales - Fuera de TableCard */}
+        {!loading && costosFiltrados.length > 0 && (
+          <div className="border-t bg-muted/50 px-6 py-4 rounded-b-lg border border-t-0">
+            <div className="flex justify-end gap-8">
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Stock Total General</div>
+                <div className="text-lg font-semibold">
+                  {formatearNumero(totales.stockTotal, 2)}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Valor Total Inventario</div>
+                <div className="text-lg font-semibold text-primary">
+                  ${formatearNumero(totales.valorTotalInventario, 2)}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Paginación */}
+        {!loading && costosFiltrados.length > 0 && totalPaginas > 1 && (
+          <div className="mt-4">
+            <Pagination
+              paginaActual={pagina}
+              totalPaginas={totalPaginas}
+              onPageChange={setPagina}
+            />
+          </div>
+        )}
+      </div>
     </PageContainer>
   );
 };
 
 export default VerCostosProductos;
-

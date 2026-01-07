@@ -12,6 +12,7 @@ const { tareasRoutes } = require("../modules/tareas");
 const { proveedoresRoutes } = require("../modules/proveedores");
 const { clientesRoutes } = require("../modules/clientes");
 const { bodegasRoutes } = require("../modules/bodegas");
+const { ventasRouter } = require("../modules/ventas");
 const { logger } = require("../common/logger");
 
 const routes = express.Router();
@@ -29,9 +30,10 @@ routes.use("/tareas", tareasRoutes);
 routes.use("/proveedores", proveedoresRoutes);
 routes.use("/clientes", clientesRoutes);
 routes.use("/bodegas", bodegasRoutes);
+routes.use("/ventas", ventasRouter);
 
 // Log para verificar que las rutas se cargaron
-logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /tareas, /proveedores, /clientes, /bodegas");
+logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /tareas, /proveedores, /clientes, /bodegas, /ventas");
 
 module.exports = { routes };
 

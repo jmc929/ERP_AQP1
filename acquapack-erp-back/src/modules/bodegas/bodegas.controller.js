@@ -251,6 +251,37 @@ async function realizarTraslado(req, res) {
 	}
 }
 
+async function obtenerMovimientosKardex(req, res) {
+	try {
+		const { id } = req.params; // id de bodega
+		const { id_producto } = req.query;
+
+		if (!id_producto) {
+			return res.status(400).json({
+				success: false,
+				message: "Debe especificar el id_producto"
+			});
+		}
+
+		const movimientos = await bodegasService.obtenerMovimientosKardex(
+			parseInt(id),
+			parseInt(id_producto)
+		);
+
+		res.json({
+			success: true,
+			movimientos: movimientos
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerMovimientosKardex controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	obtenerBodegas,
 	obtenerBodegaPorId,
@@ -259,6 +290,7 @@ module.exports = {
 	actualizarBodega,
 	cambiarEstadoBodega,
 	obtenerProductosPorBodega,
-	realizarTraslado
+	realizarTraslado,
+	obtenerMovimientosKardex
 };
 

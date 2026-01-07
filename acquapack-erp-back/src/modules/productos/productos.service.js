@@ -482,6 +482,62 @@ class ProductosService {
 			client.release();
 		}
 	}
+
+	/**
+	 * Obtiene los costos por productos con información de inventario
+	 * @returns {Promise<Array>} Lista de productos con sus costos
+	 */
+	async obtenerCostosPorProductos() {
+		try {
+			// IMPORTANTE: costo_producto en inventario es el costo TOTAL del lote (cantidad_lote * costo_unitario)
+			// Por lo tanto:
+			// - Costo Promedio Unitario = SUM(costo_producto) / SUM(cantidad_lote)
+			// - Valor Total Inventario = SUM(costo_producto)
+			const query = `
+				SELECT 
+					p.id_producto,
+					p.codigo,
+					p.nombre,
+					COALESCE(SUM(i.cantidad_lote), 0) as stock_total,
+					CASE 
+						WHEN SUM(i.cantidad_lote) > 0 
+						THEN ROUND(SUM(i.costo_producto) / SUM(i.cantidad_lote), 2)
+						ELSE 0 
+					END as costo_promedio_unitario,
+					COALESCE(ultimo_costo.ultimo_costo_compra, 0) as ultimo_costo_compra,
+					COALESCE(SUM(i.costo_producto), 0) as valor_total_inventario
+				FROM public.producto p
+				LEFT JOIN public.inventario i ON p.id_producto = i.id_producto
+				LEFT JOIN LATERAL (
+					SELECT df.costo_unitario_con_impuesto as ultimo_costo_compra
+					FROM public.detalle_factura df
+					INNER JOIN public.facturas f ON df.id_factura = f.id_facturas
+					WHERE df.id_producto = p.id_producto
+					ORDER BY f.fecha_creacion DESC
+					LIMIT 1
+				) ultimo_costo ON true
+				GROUP BY p.id_producto, p.codigo, p.nombre, ultimo_costo.ultimo_costo_compra
+				ORDER BY p.nombre
+			`;
+
+			const result = await pool.query(query);
+			
+			logger.info({ count: result.rows.length }, "Costos por productos obtenidos exitosamente");
+			
+			return result.rows.map(row => ({
+				id_producto: row.id_producto,
+				codigo: row.codigo || '',
+				producto: row.nombre || '',
+				stock_total: parseFloat(row.stock_total) || 0,
+				costo_promedio_unitario: parseFloat(row.costo_promedio_unitario) || 0,
+				ultimo_costo_compra: parseFloat(row.ultimo_costo_compra) || 0,
+				valor_total_inventario: parseFloat(row.valor_total_inventario) || 0
+			}));
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener costos por productos");
+			throw error;
+		}
+	}
 }
 
 module.exports = new ProductosService();

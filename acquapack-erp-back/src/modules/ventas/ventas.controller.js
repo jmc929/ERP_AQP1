@@ -1,4 +1,4 @@
-const comprasService = require("./compras.service");
+const ventasService = require("./ventas.service");
 const { logger } = require("../../common/logger");
 
 async function calcularValorTotal(req, res) {
@@ -39,8 +39,8 @@ async function calcularValorTotal(req, res) {
     let ivaMonto = 0;
     let porcentajeIva = 0;
     if (idIva) {
-      const iva = await comprasService.obtenerIvas();
-      const ivaSeleccionado = iva.find(i => i.id_iva === parseInt(idIva));
+      const ivas = await ventasService.obtenerIvas();
+      const ivaSeleccionado = ivas.find(i => i.id_iva === parseInt(idIva));
       if (ivaSeleccionado) {
         porcentajeIva = parseFloat(ivaSeleccionado.valor) || 0;
         ivaMonto = (subtotalDespuesDescuento * porcentajeIva) / 100;
@@ -52,7 +52,7 @@ async function calcularValorTotal(req, res) {
     let retencionMonto = 0;
     let porcentajeRetencion = 0;
     if (idRetencion) {
-      const retenciones = await comprasService.obtenerRetenciones();
+      const retenciones = await ventasService.obtenerRetenciones();
       const retencionSeleccionada = retenciones.find(r => r.id_retefuente === parseInt(idRetencion));
       if (retencionSeleccionada) {
         porcentajeRetencion = parseFloat(retencionSeleccionada.valor) || 0;
@@ -90,15 +90,15 @@ async function calcularValorTotal(req, res) {
   }
 }
 
-async function obtenerSiguienteIdFactura(req, res) {
+async function obtenerSiguienteIdSalida(req, res) {
   try {
-    const siguienteId = await comprasService.obtenerSiguienteIdFactura();
+    const siguienteId = await ventasService.obtenerSiguienteIdSalida();
     res.json({
       success: true,
       siguienteId: siguienteId
     });
   } catch (error) {
-    logger.error({ err: error }, "Error en obtenerSiguienteIdFactura");
+    logger.error({ err: error }, "Error en obtenerSiguienteIdSalida");
     res.status(500).json({
       error: "Error interno del servidor",
       message: error.message
@@ -106,15 +106,15 @@ async function obtenerSiguienteIdFactura(req, res) {
   }
 }
 
-async function obtenerProveedores(req, res) {
+async function obtenerClientes(req, res) {
   try {
-    const proveedores = await comprasService.obtenerProveedores();
+    const clientes = await ventasService.obtenerClientes();
     res.json({
       success: true,
-      proveedores: proveedores
+      clientes: clientes
     });
   } catch (error) {
-    logger.error({ err: error }, "Error en obtenerProveedores");
+    logger.error({ err: error }, "Error en obtenerClientes");
     res.status(500).json({
       error: "Error interno del servidor",
       message: error.message
@@ -124,11 +124,19 @@ async function obtenerProveedores(req, res) {
 
 async function obtenerProductos(req, res) {
   try {
+    const idBodega = parseInt(req.query.id_bodega) || null;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 50;
     const busqueda = req.query.busqueda || "";
     
-    const resultado = await comprasService.obtenerProductos(page, limit, busqueda);
+    if (!idBodega) {
+      return res.status(400).json({
+        success: false,
+        error: "El parámetro id_bodega es requerido"
+      });
+    }
+    
+    const resultado = await ventasService.obtenerProductos(idBodega, page, limit, busqueda);
     res.json({
       success: true,
       productos: resultado.productos,
@@ -145,7 +153,7 @@ async function obtenerProductos(req, res) {
 
 async function obtenerBodegas(req, res) {
   try {
-    const bodegas = await comprasService.obtenerBodegas();
+    const bodegas = await ventasService.obtenerBodegas();
     res.json({
       success: true,
       bodegas: bodegas
@@ -161,7 +169,7 @@ async function obtenerBodegas(req, res) {
 
 async function obtenerIvas(req, res) {
   try {
-    const ivas = await comprasService.obtenerIvas();
+    const ivas = await ventasService.obtenerIvas();
     res.json({
       success: true,
       ivas: ivas
@@ -177,7 +185,7 @@ async function obtenerIvas(req, res) {
 
 async function obtenerRetenciones(req, res) {
   try {
-    const retenciones = await comprasService.obtenerRetenciones();
+    const retenciones = await ventasService.obtenerRetenciones();
     res.json({
       success: true,
       retenciones: retenciones
@@ -191,23 +199,20 @@ async function obtenerRetenciones(req, res) {
   }
 }
 
-async function crearFactura(req, res) {
+async function crearSalida(req, res) {
   try {
     const {
-      id_usuarios,
+      id_usuario,
       fecha_creacion,
-      id_proveedor,
-      numeroFacturaLetras,
-      numeroFacturaNumeros,
-      descuentoEnPorcentaje,
+      id_cliente,
       detalles
     } = req.body;
 
     // Validaciones básicas
-    if (!id_usuarios) {
+    if (!id_usuario) {
       return res.status(400).json({
         error: "Campo requerido faltante",
-        message: "El id_usuarios es obligatorio"
+        message: "El id_usuario es obligatorio"
       });
     }
 
@@ -218,10 +223,10 @@ async function crearFactura(req, res) {
       });
     }
 
-    if (!id_proveedor) {
+    if (!id_cliente) {
       return res.status(400).json({
         error: "Campo requerido faltante",
-        message: "El proveedor es obligatorio"
+        message: "El cliente es obligatorio"
       });
     }
 
@@ -243,13 +248,10 @@ async function crearFactura(req, res) {
     const total_retencion = detalles.reduce((sum, d) => sum + (parseFloat(d.retefuente_valor) || 0), 0);
     const total_factura = detalles.reduce((sum, d) => sum + (parseFloat(d.valor_total) || 0), 0);
 
-    const resultado = await comprasService.crearFactura({
-      id_usuarios: parseInt(id_usuarios),
+    const resultado = await ventasService.crearSalida({
+      id_usuario: parseInt(id_usuario),
       fecha_creacion,
-      id_proveedor: parseInt(id_proveedor),
-      numeroFacturaLetras: numeroFacturaLetras || "",
-      numeroFacturaNumeros: numeroFacturaNumeros || "",
-      descuentoEnPorcentaje: descuentoEnPorcentaje || false,
+      id_cliente: parseInt(id_cliente),
       total_subtotal,
       total_descuento,
       total_iva,
@@ -272,12 +274,12 @@ async function crearFactura(req, res) {
 
     res.status(201).json({
       success: true,
-      message: "Factura creada exitosamente",
-      factura: resultado.factura,
+      message: "Salida creada exitosamente",
+      salida: resultado.salida,
       detalles: resultado.detalles
     });
   } catch (error) {
-    logger.error({ err: error }, "Error en crearFactura");
+    logger.error({ err: error }, "Error en crearSalida");
     res.status(500).json({
       error: "Error interno del servidor",
       message: error.message
@@ -285,15 +287,15 @@ async function crearFactura(req, res) {
   }
 }
 
-async function obtenerFacturas(req, res) {
+async function obtenerSalidas(req, res) {
   try {
-    const facturas = await comprasService.obtenerFacturas();
+    const salidas = await ventasService.obtenerSalidas();
     res.status(200).json({
       success: true,
-      facturas
+      salidas
     });
   } catch (error) {
-    logger.error({ err: error }, "Error en obtenerFacturas");
+    logger.error({ err: error }, "Error en obtenerSalidas");
     res.status(500).json({
       success: false,
       error: "Error interno del servidor",
@@ -302,44 +304,24 @@ async function obtenerFacturas(req, res) {
   }
 }
 
-async function obtenerDetalleFactura(req, res) {
+async function obtenerDetalleSalida(req, res) {
   try {
     const { id } = req.params;
     
     if (!id || isNaN(parseInt(id))) {
       return res.status(400).json({
         success: false,
-        message: "ID de factura inválido"
+        message: "ID de salida inválido"
       });
     }
 
-    const detalleFactura = await comprasService.obtenerDetalleFactura(parseInt(id));
+    const detalleSalida = await ventasService.obtenerDetalleSalida(parseInt(id));
     res.status(200).json({
       success: true,
-      ...detalleFactura
+      ...detalleSalida
     });
   } catch (error) {
-    logger.error({ err: error }, "Error en obtenerDetalleFactura");
-    res.status(500).json({
-      success: false,
-      error: "Error interno del servidor",
-      message: error.message
-    });
-  }
-}
-
-async function obtenerProductosXProveedor(req, res) {
-  try {
-    const { id_proveedor } = req.query;
-    const idProveedor = id_proveedor ? parseInt(id_proveedor) : null;
-    
-    const productosXProveedor = await comprasService.obtenerProductosXProveedor(idProveedor);
-    res.status(200).json({
-      success: true,
-      productosXProveedor
-    });
-  } catch (error) {
-    logger.error({ err: error }, "Error en obtenerProductosXProveedor");
+    logger.error({ err: error }, "Error en obtenerDetalleSalida");
     res.status(500).json({
       success: false,
       error: "Error interno del servidor",
@@ -350,15 +332,14 @@ async function obtenerProductosXProveedor(req, res) {
 
 module.exports = {
   calcularValorTotal,
-  obtenerSiguienteIdFactura,
-  obtenerProveedores,
+  obtenerSiguienteIdSalida,
+  obtenerClientes,
   obtenerProductos,
   obtenerBodegas,
   obtenerIvas,
   obtenerRetenciones,
-  crearFactura,
-  obtenerFacturas,
-  obtenerDetalleFactura,
-  obtenerProductosXProveedor
+  crearSalida,
+  obtenerSalidas,
+  obtenerDetalleSalida
 };
 

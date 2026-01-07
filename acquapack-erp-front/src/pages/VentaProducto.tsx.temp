@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,7 +30,6 @@ interface Producto {
   id_producto: number;
   codigo: string;
   nombre: string;
-  stock_disponible?: number;
 }
 
 interface Bodega {
@@ -38,7 +37,7 @@ interface Bodega {
   nombre: string;
 }
 
-interface Cliente {
+interface cliente {
   id_cliente: number;
   razon_social: string;
   nombre_comercial?: string;
@@ -56,11 +55,11 @@ interface Retencion {
   valor: number;
 }
 
-interface FilaVenta {
+interface Filasalida {
   id: number;
   productoCodigo: string;
   productoNombre: string;
-  idProducto?: number;
+  idProducto?: number; // Guardar el ID del producto para evitar bÃºsquedas
   bodega: string;
   cantidad: string;
   valorUnitario: string;
@@ -75,38 +74,39 @@ interface FilaVenta {
   porcentajeRetencion?: number;
 }
 
-const VentaProducto = () => {
+const Ingresarsalida = () => {
   const { toast } = useToast();
-  const [salidaId, setSalidaId] = useState<number | null>(null);
+  const [salidaId, setsalidaId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [guardando, setGuardando] = useState(false);
-  const [fechaElaboracion, setFechaElaboracion] = useState(new Date().toISOString().split("T")[0]);
-  const [cliente, setCliente] = useState("");
+  const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
+  const [cliente, setcliente] = useState("");
+  const [numerosalidaLetras, setNumerosalidaLetras] = useState("");
+  const [numerosalidaNumeros, setNumerosalidaNumeros] = useState("");
   const [descuentoEnPorcentaje, setDescuentoEnPorcentaje] = useState(false);
   
   // Obtener usuario logueado
-  const [usuarioLogueado, setUsuarioLogueado] = useState<{ id_usuarios: number } | null>(null);
+  const [usuarioLogueado, setUsuarioLogueado] = useState<{ id_usuario: number } | null>(null);
   
   // Datos desde la BD
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientees, setclientees] = useState<cliente[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [ivas, setIvas] = useState<Iva[]>([]);
   const [retenciones, setRetenciones] = useState<Retencion[]>([]);
   
-  // Estados para búsqueda y paginación de productos por fila
+  // Estados para bÃºsqueda y paginaciÃ³n de productos
   const [busquedaProductos, setBusquedaProductos] = useState<Map<number, string>>(new Map());
-  const [productosPorFila, setProductosPorFila] = useState<Map<number, Producto[]>>(new Map());
-  const [paginacionPorFila, setPaginacionPorFila] = useState<Map<number, {
-    paginaActual: number;
-    totalPaginas: number;
-    hayMas: boolean;
-    cargando: boolean;
-  }>>(new Map());
-  const [timeoutBusqueda, setTimeoutBusqueda] = useState<Map<number, NodeJS.Timeout>>(new Map());
+  const [productosCargados, setProductosCargados] = useState<Producto[]>([]);
+  const [paginacionProductos, setPaginacionProductos] = useState({
+    paginaActual: 1,
+    totalPaginas: 1,
+    hayMas: false,
+    cargando: false
+  });
+  const [timeoutBusqueda, setTimeoutBusqueda] = useState<NodeJS.Timeout | null>(null);
   
-  const [defaultIvaId, setDefaultIvaId] = useState("0");
-  const [defaultRetencionId, setDefaultRetencionId] = useState("0");
-  const [filas, setFilas] = useState<FilaVenta[]>([
+  const [filas, setFilas] = useState<Filasalida[]>([
     {
       id: 1,
       productoCodigo: "",
@@ -116,8 +116,8 @@ const VentaProducto = () => {
       cantidad: "",
       valorUnitario: "",
       descuento: "",
-      idIva: "",
-      idRetencion: "",
+      idIva: "0",
+      idRetencion: "0",
       valorTotal: 0,
       ivaMonto: 0,
       retencionMonto: 0,
@@ -143,54 +143,48 @@ const VentaProducto = () => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
-        const [salidaRes, clientesRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
+        const [salidaRes, clienteesRes, productosRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
           fetch("http://localhost:4000/api/ventas/siguiente-id-salida"),
-          fetch("http://localhost:4000/api/ventas/clientes"),
+          fetch("http://localhost:4000/api/ventas/clientees"),
+          fetch("http://localhost:4000/api/ventas/productos?page=1&limit=50"),
           fetch("http://localhost:4000/api/ventas/bodegas"),
           fetch("http://localhost:4000/api/ventas/ivas"),
           fetch("http://localhost:4000/api/ventas/retenciones")
         ]);
 
         const salidaData = await salidaRes.json();
-        const clientesData = await clientesRes.json();
+        const clienteesData = await clienteesRes.json();
+        const productosData = await productosRes.json();
         const bodegasData = await bodegasRes.json();
         const ivasData = await ivasRes.json();
         const retencionesData = await retencionesRes.json();
 
         if (salidaData.success) {
-          setSalidaId(salidaData.siguienteId);
+          setsalidaId(salidaData.siguienteId);
         }
-        if (clientesData.success) {
-          setClientes(clientesData.clientes);
+        if (clienteesData.success) {
+          setclientees(clienteesData.clientees);
+        }
+        if (productosData.success) {
+          setProductosCargados(productosData.productos || []);
+          setPaginacionProductos({
+            paginaActual: productosData.paginacion?.paginaActual || 1,
+            totalPaginas: productosData.paginacion?.totalPaginas || 1,
+            hayMas: productosData.paginacion?.hayMas || false,
+            cargando: false
+          });
         }
         if (bodegasData.success) {
           setBodegas(bodegasData.bodegas);
         }
         if (ivasData.success) {
           setIvas(ivasData.ivas);
-          const ivaExento = ivasData.ivas.find((i: Iva) => i.valor === 0 || i.nombre.toLowerCase().includes("exento"));
-          if (ivaExento) {
-            setDefaultIvaId(ivaExento.id_iva.toString());
-            // Actualizar la fila inicial con el IVA por defecto
-            setFilas(prev => prev.map(f => f.id === 1 ? { ...f, idIva: ivaExento.id_iva.toString() } : f));
-          }
         }
         if (retencionesData.success) {
           setRetenciones(retencionesData.retenciones);
-          const retencionNoAplica = retencionesData.retenciones.find((r: Retencion) => r.valor === 0 || r.nombre.toLowerCase().includes("no aplica"));
-          if (retencionNoAplica) {
-            setDefaultRetencionId(retencionNoAplica.id_retefuente.toString());
-            // Actualizar la fila inicial con la Retención por defecto
-            setFilas(prev => prev.map(f => f.id === 1 ? { ...f, idRetencion: retencionNoAplica.id_retefuente.toString() } : f));
-          }
         }
       } catch (error) {
         console.error("Error al cargar datos:", error);
-        toast({
-          title: "Error",
-          description: "Error al cargar los datos iniciales",
-          variant: "destructive",
-        });
       } finally {
         setLoading(false);
       }
@@ -198,85 +192,78 @@ const VentaProducto = () => {
 
     cargarDatos();
 
+    // Limpiar timeout al desmontar
     return () => {
-      // Limpiar todos los timeouts
-      timeoutBusqueda.forEach((timeout) => clearTimeout(timeout));
+      if (timeoutBusqueda) {
+        clearTimeout(timeoutBusqueda);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Función para cargar productos de una bodega específica para una fila
-  const cargarProductosPorFila = async (filaId: number, idBodega: string, busqueda: string = "") => {
-    if (!idBodega) {
-      const nuevo = new Map(productosPorFila);
-      nuevo.delete(filaId);
-      setProductosPorFila(nuevo);
-      return;
-    }
+  // FunciÃ³n para cargar mÃ¡s productos (scroll infinito)
+  const cargarMasProductos = async (filaId: number, busqueda: string = "") => {
+    if (paginacionProductos.cargando || !paginacionProductos.hayMas) return;
 
     try {
-      const nuevoPaginacion = new Map(paginacionPorFila);
-      nuevoPaginacion.set(filaId, {
-        paginaActual: 1,
-        totalPaginas: 1,
-        hayMas: false,
-        cargando: true
-      });
-      setPaginacionPorFila(nuevoPaginacion);
-
-      const url = `http://localhost:4000/api/ventas/productos?id_bodega=${idBodega}&page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      setPaginacionProductos(prev => ({ ...prev, cargando: true }));
+      const siguientePagina = paginacionProductos.paginaActual + 1;
+      const url = `http://localhost:4000/api/ventas/productos?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      
       const response = await fetch(url);
       const data = await response.json();
 
       if (data.success) {
-        const nuevo = new Map(productosPorFila);
-        nuevo.set(filaId, data.productos || []);
-        setProductosPorFila(nuevo);
-
-        nuevoPaginacion.set(filaId, {
-          paginaActual: data.paginacion?.page || 1,
-          totalPaginas: data.paginacion?.totalPages || 1,
-          hayMas: (data.paginacion?.page || 1) < (data.paginacion?.totalPages || 1),
+        setProductosCargados(prev => [...prev, ...(data.productos || [])]);
+        setPaginacionProductos({
+          paginaActual: data.paginacion?.paginaActual || siguientePagina,
+          totalPaginas: data.paginacion?.totalPaginas || 1,
+          hayMas: data.paginacion?.hayMas || false,
           cargando: false
         });
-        setPaginacionPorFila(nuevoPaginacion);
       }
     } catch (error) {
-      console.error("Error al cargar productos:", error);
-      const nuevoPaginacion = new Map(paginacionPorFila);
-      nuevoPaginacion.set(filaId, {
-        paginaActual: 1,
-        totalPaginas: 1,
-        hayMas: false,
-        cargando: false
-      });
-      setPaginacionPorFila(nuevoPaginacion);
+      console.error("Error al cargar mÃ¡s productos:", error);
+      setPaginacionProductos(prev => ({ ...prev, cargando: false }));
     }
   };
 
-  // Función para buscar productos con debounce por fila
+  // FunciÃ³n para buscar productos con debounce
   const buscarProductos = async (filaId: number, busqueda: string) => {
-    const fila = filas.find(f => f.id === filaId);
-    if (!fila || !fila.bodega) return;
-
-    // Limpiar timeout anterior de esta fila
-    const timeoutAnterior = timeoutBusqueda.get(filaId);
-    if (timeoutAnterior) {
-      clearTimeout(timeoutAnterior);
+    // Limpiar timeout anterior
+    if (timeoutBusqueda) {
+      clearTimeout(timeoutBusqueda);
     }
 
     // Crear nuevo timeout para debounce (500ms)
     const nuevoTimeout = setTimeout(async () => {
-      await cargarProductosPorFila(filaId, fila.bodega, busqueda);
+      try {
+        setPaginacionProductos(prev => ({ ...prev, cargando: true }));
+        const url = `http://localhost:4000/api/ventas/productos?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          setProductosCargados(data.productos || []);
+          setPaginacionProductos({
+            paginaActual: data.paginacion?.paginaActual || 1,
+            totalPaginas: data.paginacion?.totalPaginas || 1,
+            hayMas: data.paginacion?.hayMas || false,
+            cargando: false
+          });
+        }
+      } catch (error) {
+        console.error("Error al buscar productos:", error);
+        setPaginacionProductos(prev => ({ ...prev, cargando: false }));
+      }
     }, 500);
 
-    const nuevo = new Map(timeoutBusqueda);
-    nuevo.set(filaId, nuevoTimeout);
-    setTimeoutBusqueda(nuevo);
+    setTimeoutBusqueda(nuevoTimeout);
   };
 
   // Calcular valor total de una fila y obtener desglose
-  const calcularValorTotal = async (fila: FilaVenta): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
+  const calcularValorTotal = async (fila: Filasalida): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
     try {
       const response = await fetch("http://localhost:4000/api/ventas/calcular-valor-total", {
         method: "POST",
@@ -288,8 +275,8 @@ const VentaProducto = () => {
           valorUnitario: parseFloat(fila.valorUnitario) || 0,
           descuento: parseFloat(fila.descuento) || 0,
           descuentoEnPorcentaje: descuentoEnPorcentaje,
-          idIva: fila.idIva ? parseInt(fila.idIva) : null,
-          idRetencion: fila.idRetencion ? parseInt(fila.idRetencion) : null,
+        idIva: fila.idIva && fila.idIva !== "0" ? fila.idIva : null,
+        idRetencion: fila.idRetencion && fila.idRetencion !== "0" ? fila.idRetencion : null,
         }),
       });
 
@@ -308,13 +295,13 @@ const VentaProducto = () => {
       };
     } catch (error) {
       console.error("Error al calcular valor total:", error);
-      // Fallback al cálculo local si el backend no está disponible
+      // Fallback al cÃ¡lculo local si el backend no estÃ¡ disponible
       return calcularValorTotalLocal(fila);
     }
   };
 
-  // Cálculo local como fallback
-  const calcularValorTotalLocal = (fila: FilaVenta): { valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number } => {        
+  // CÃ¡lculo local como fallback
+  const calcularValorTotalLocal = (fila: Filasalida): { valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number } => {
     const cantidad = parseFloat(fila.cantidad) || 0;
     const valorUnitario = parseFloat(fila.valorUnitario) || 0;
     const descuento = parseFloat(fila.descuento) || 0;
@@ -329,12 +316,12 @@ const VentaProducto = () => {
     }
     subtotal = subtotal - montoDescuento;
 
-    // Guardar el subtotal después del descuento para calcular impuestos
+    // Guardar el subtotal despuÃ©s del descuento para calcular impuestos
     const subtotalDespuesDescuento = subtotal;
 
     let ivaMonto = 0;
     let porcentajeIva = 0;
-    if (fila.idIva) {
+    if (fila.idIva && fila.idIva !== "0") {
       const ivaSeleccionado = ivas.find(i => i.id_iva.toString() === fila.idIva);
       if (ivaSeleccionado) {
         porcentajeIva = parseFloat(ivaSeleccionado.valor.toString()) || 0;
@@ -345,7 +332,7 @@ const VentaProducto = () => {
 
     let retencionMonto = 0;
     let porcentajeRetencion = 0;
-    if (fila.idRetencion) {
+    if (fila.idRetencion && fila.idRetencion !== "0") {
       const retencionSeleccionada = retenciones.find(r => r.id_retefuente.toString() === fila.idRetencion);
       if (retencionSeleccionada) {
         porcentajeRetencion = parseFloat(retencionSeleccionada.valor.toString()) || 0;
@@ -364,6 +351,7 @@ const VentaProducto = () => {
     };
   };
 
+
   const handleAgregarFila = () => {
     const nuevoId = Math.max(...filas.map((f) => f.id), 0) + 1;
     setFilas([
@@ -377,36 +365,35 @@ const VentaProducto = () => {
         cantidad: "",
         valorUnitario: "",
         descuento: "",
-        idIva: defaultIvaId,
-        idRetencion: defaultRetencionId,
+        idIva: "0",
+        idRetencion: "0",
         valorTotal: 0,
       },
     ]);
+    // Limpiar bÃºsqueda para la nueva fila
+    const nuevo = new Map(busquedaProductos);
+    nuevo.delete(nuevoId);
+    setBusquedaProductos(nuevo);
   };
 
   const handleEliminarFila = (id: number) => {
     if (filas.length > 1) {
       setFilas(filas.filter((fila) => fila.id !== id));
+      // Limpiar bÃºsqueda de la fila eliminada
+      const nuevo = new Map(busquedaProductos);
+      nuevo.delete(id);
+      setBusquedaProductos(nuevo);
     }
   };
 
   const handleCambioProducto = async (id: number, codigo: string) => {
-    const fila = filas.find((f) => f.id === id);
-    if (!fila || !fila.bodega) {
-      toast({
-        title: "Advertencia",
-        description: "Debe seleccionar una bodega primero",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const productosFila = productosPorFila.get(id) || [];
-    let producto = productosFila.find((p) => p.codigo === codigo);
+    // Buscar el producto en productosCargados primero
+    let producto = productosCargados.find((p) => p.codigo === codigo);
     
+    // Si no estÃ¡ en productosCargados, buscarlo en la BD
     if (!producto) {
       try {
-        const response = await fetch(`http://localhost:4000/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
+        const response = await fetch(`http://localhost:4000/api/ventas/productos?page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
         const data = await response.json();
         if (data.success && data.productos && data.productos.length > 0) {
           producto = data.productos.find((p: Producto) => p.codigo === codigo);
@@ -417,7 +404,7 @@ const VentaProducto = () => {
     }
     
     const nuevaFila = {
-      ...fila,
+      ...filas.find((f) => f.id === id)!,
       productoCodigo: codigo,
       productoNombre: producto ? producto.nombre : "",
       idProducto: producto ? producto.id_producto : undefined,
@@ -441,7 +428,7 @@ const VentaProducto = () => {
       })
     );
     
-    // Limpiar búsqueda al seleccionar producto
+    // Limpiar bÃºsqueda al seleccionar producto
     const nuevo = new Map(busquedaProductos);
     nuevo.delete(id);
     setBusquedaProductos(nuevo);
@@ -449,33 +436,24 @@ const VentaProducto = () => {
 
   const handleCambioCampo = async (
     id: number,
-    campo: keyof FilaVenta,
+    campo: keyof Filasalida,
     valor: string | boolean
   ) => {
     const nuevaFila = { ...filas.find((f) => f.id === id)!, [campo]: valor };
-    
-    // Si cambió la bodega, cargar productos de esa bodega y limpiar producto seleccionado
-    if (campo === "bodega" && typeof valor === "string") {
-      nuevaFila.productoCodigo = "";
-      nuevaFila.productoNombre = "";
-      nuevaFila.idProducto = undefined;
-      await cargarProductosPorFila(id, valor);
-    }
-    
     const calculo = await calcularValorTotal(nuevaFila);
     
     setFilas(
       filas.map((fila) => {
         if (fila.id === id) {
-          return {
-            ...nuevaFila,
-            valorTotal: calculo.valorTotal,
-            ivaMonto: calculo.ivaMonto,
-            retencionMonto: calculo.retencionMonto,
-            montoDescuento: calculo.montoDescuento,
-            porcentajeIva: calculo.porcentajeIva,
-            porcentajeRetencion: calculo.porcentajeRetencion,
-          };
+            return {
+              ...nuevaFila,
+              valorTotal: calculo.valorTotal,
+              ivaMonto: calculo.ivaMonto,
+              retencionMonto: calculo.retencionMonto,
+              montoDescuento: calculo.montoDescuento,
+              porcentajeIva: calculo.porcentajeIva,
+              porcentajeRetencion: calculo.porcentajeRetencion,
+            };
         }
         return fila;
       })
@@ -513,19 +491,19 @@ const VentaProducto = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [descuentoEnPorcentaje]);
 
-  // Función para guardar la salida
-  const handleGuardarSalida = async () => {
+  // FunciÃ³n para guardar la salida
+  const handleGuardarsalida = async () => {
     // Validaciones
-    if (!usuarioLogueado?.id_usuarios) {
+    if (!usuarioLogueado?.id_usuario) {
       toast({
         title: "Error",
-        description: "No se encontró el usuario logueado. Por favor, inicie sesión nuevamente.",
+        description: "No se encontrÃ³ el usuario logueado. Por favor, inicie sesiÃ³n nuevamente.",
         variant: "destructive",
       });
       return;
     }
 
-    if (!fechaElaboracion) {
+    if (!fecha) {
       toast({
         title: "Error",
         description: "La fecha es obligatoria",
@@ -543,11 +521,11 @@ const VentaProducto = () => {
       return;
     }
 
-    // Validar que todas las filas tengan bodega, producto, cantidad y valor unitario
+    // Validar que todas las filas tengan producto, bodega, cantidad y valor unitario
     const filasInvalidas = filas.filter(
       (f) =>
-        !f.bodega ||
         !f.productoCodigo ||
+        !f.bodega ||
         !f.cantidad ||
         parseFloat(f.cantidad) <= 0 ||
         !f.valorUnitario ||
@@ -557,7 +535,7 @@ const VentaProducto = () => {
     if (filasInvalidas.length > 0) {
       toast({
         title: "Error",
-        description: "Todas las filas deben tener bodega, producto, cantidad y valor unitario válidos",
+        description: "Todas las filas deben tener producto, bodega, cantidad y valor unitario vÃ¡lidos",
         variant: "destructive",
       });
       return;
@@ -566,18 +544,19 @@ const VentaProducto = () => {
     try {
       setGuardando(true);
 
-      // Preparar detalles
+      // Preparar detalles - buscar productos que no tengan idProducto guardado
       const detalles = await Promise.all(
         filas.map(async (fila) => {
           let idProducto = fila.idProducto;
           
+          // Si no tiene idProducto, buscarlo
           if (!idProducto) {
-            const productosFila = productosPorFila.get(fila.id) || [];
-            let producto = productosFila.find((p) => p.codigo === fila.productoCodigo);
+            let producto = productosCargados.find((p) => p.codigo === fila.productoCodigo);
             
-            if (!producto && fila.bodega) {
+            // Si no estÃ¡ en productosCargados, buscarlo en la BD
+            if (!producto) {
               try {
-                const response = await fetch(`http://localhost:4000/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
+                const response = await fetch(`http://localhost:4000/api/ventas/productos?page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
                 const data = await response.json();
                 if (data.success && data.productos && data.productos.length > 0) {
                   producto = data.productos.find((p: Producto) => p.codigo === fila.productoCodigo);
@@ -588,7 +567,7 @@ const VentaProducto = () => {
             }
             
             if (!producto) {
-              throw new Error(`Producto no encontrado para el código: ${fila.productoCodigo}`);
+              throw new Error(`Producto no encontrado para el cÃ³digo: ${fila.productoCodigo}`);
             }
             
             idProducto = producto.id_producto;
@@ -597,6 +576,7 @@ const VentaProducto = () => {
           const cantidad = parseFloat(fila.cantidad) || 0;
           const valorUnitario = parseFloat(fila.valorUnitario) || 0;
           const subtotalInicial = cantidad * valorUnitario;
+          const descuento = parseFloat(fila.descuento) || 0;
           const montoDescuento = fila.montoDescuento || 0;
           const subtotal = subtotalInicial - montoDescuento;
 
@@ -605,11 +585,11 @@ const VentaProducto = () => {
             id_bodega: parseInt(fila.bodega),
             cantidad: cantidad,
             precio_unitario: valorUnitario,
-            descuento: montoDescuento,
+            descuento: montoDescuento, // Enviar el monto calculado del descuento
             subtotal: subtotal,
-            id_iva: fila.idIva ? parseInt(fila.idIva) : null,
+            id_iva: fila.idIva && fila.idIva !== "0" ? parseInt(fila.idIva) : null,
             iva_valor: fila.ivaMonto || 0,
-            id_retefuente: fila.idRetencion ? parseInt(fila.idRetencion) : null,
+            id_retefuente: fila.idRetencion && fila.idRetencion !== "0" ? parseInt(fila.idRetencion) : null,
             retefuente_valor: fila.retencionMonto || 0,
             valor_total: fila.valorTotal || 0,
           };
@@ -622,9 +602,12 @@ const VentaProducto = () => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          id_usuario: usuarioLogueado.id_usuarios,
-          fecha_creacion: fechaElaboracion,
+          id_usuario: usuarioLogueado.id_usuario,
+          fecha_creacion: fecha,
           id_cliente: parseInt(cliente),
+          numerosalidaLetras: numerosalidaLetras,
+          numerosalidaNumeros: numerosalidaNumeros,
+          descuentoEnPorcentaje: descuentoEnPorcentaje,
           detalles: detalles,
         }),
       });
@@ -636,20 +619,22 @@ const VentaProducto = () => {
       }
 
       toast({
-        title: "Éxito",
-        description: "Venta guardada exitosamente",
+        title: "Ã‰xito",
+        description: "salida guardada exitosamente",
       });
 
       // Recargar el siguiente ID de salida
       const salidaRes = await fetch("http://localhost:4000/api/ventas/siguiente-id-salida");
       const salidaData = await salidaRes.json();
       if (salidaData.success) {
-        setSalidaId(salidaData.siguienteId);
+        setsalidaId(salidaData.siguienteId);
       }
 
       // Limpiar formulario
-      setFechaElaboracion(new Date().toISOString().split("T")[0]);
-      setCliente("");
+      setFecha(new Date().toISOString().split("T")[0]);
+      setcliente("");
+      setNumerosalidaLetras("");
+      setNumerosalidaNumeros("");
       setFilas([
         {
           id: 1,
@@ -660,18 +645,19 @@ const VentaProducto = () => {
           cantidad: "",
           valorUnitario: "",
           descuento: "",
-          idIva: defaultIvaId,
-          idRetencion: defaultRetencionId,
+          idIva: "0",
+          idRetencion: "0",
           valorTotal: 0,
+          ivaMonto: 0,
+          retencionMonto: 0,
+          montoDescuento: 0,
         },
       ]);
       setBusquedaProductos(new Map());
-      setProductosPorFila(new Map());
-      setPaginacionPorFila(new Map());
     } catch (error) {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Error al guardar la venta",
+        description: error instanceof Error ? error.message : "Error al guardar la salida",
         variant: "destructive",
       });
     } finally {
@@ -681,59 +667,78 @@ const VentaProducto = () => {
 
   return (
     <PageContainer>
-      <PageTitle title="Venta de Producto" />
+      <PageTitle title="Ingresar salida" />
 
       {/* Formulario principal */}
-      <FormCard title="Datos de la Venta">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="fechaElaboracion">Fecha de Elaboración</Label>
-            <Input
-              id="fechaElaboracion"
-              type="date"
-              value={fechaElaboracion}
-              onChange={(e) => setFechaElaboracion(e.target.value)}
-            />
-          </div>
+      <FormCard title="Datos de la salida">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="fecha">Fecha</Label>
+              <Input
+                id="fecha"
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+              />
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="cliente">Cliente</Label>
-            <Select value={cliente} onValueChange={setCliente} disabled={loading}>
-              <SelectTrigger id="cliente">
-                <SelectValue placeholder={loading ? "Cargando..." : "Seleccione cliente"} />
-              </SelectTrigger>
-              <SelectContent>
-                {clientes.map((cli) => (
-                  <SelectItem key={cli.id_cliente} value={cli.id_cliente.toString()}>
-                    {cli.razon_social || cli.nombre_comercial}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-2">
+              <Label htmlFor="cliente">cliente</Label>
+              <Select value={cliente} onValueChange={setcliente} disabled={loading}>
+                <SelectTrigger id="cliente">
+                  <SelectValue placeholder={loading ? "Cargando..." : "Seleccione cliente"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientees.map((prov) => (
+                    <SelectItem key={prov.id_cliente} value={prov.id_cliente.toString()}>
+                      {prov.razon_social || prov.nombre_comercial}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="salidaId">ID Salida</Label>
-            <Input
-              id="salidaId"
-              type="text"
-              value={salidaId ?? "Cargando..."}
-              disabled
-              className="bg-muted"
-            />
+            <div className="space-y-2">
+              <Label htmlFor="salidaId">ID salida</Label>
+              <Input
+                id="salidaId"
+                type="text"
+                value={salidaId ?? "Cargando..."}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>NÃºmero salida cliente</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Letras"
+                  value={numerosalidaLetras}
+                  onChange={(e) => setNumerosalidaLetras(e.target.value)}
+                  className="flex-1"
+                />
+                <Input
+                  placeholder="NÃºmeros"
+                  type="text"
+                  value={numerosalidaNumeros}
+                  onChange={(e) => setNumerosalidaNumeros(e.target.value)}
+                  className="flex-1"
+                />
+              </div>
+            </div>
           </div>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="descuentoPorcentaje"
-            checked={descuentoEnPorcentaje}
-            onCheckedChange={(checked) => setDescuentoEnPorcentaje(checked as boolean)}
-          />
-          <Label htmlFor="descuentoPorcentaje" className="cursor-pointer">
-            Descuento en porcentaje
-          </Label>
-        </div>
+          
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="descuentoPorcentaje"
+              checked={descuentoEnPorcentaje}
+              onCheckedChange={(checked) => setDescuentoEnPorcentaje(checked as boolean)}
+            />
+            <Label htmlFor="descuentoPorcentaje" className="cursor-pointer">
+              Descuento en porcentaje
+            </Label>
+          </div>
       </FormCard>
 
       {/* Tabla de productos */}
@@ -746,13 +751,13 @@ const VentaProducto = () => {
               Agregar Fila
             </Button>
             <Button 
-              onClick={handleGuardarSalida} 
+              onClick={handleGuardarsalida} 
               size="sm" 
               className="flex items-center gap-2"
               disabled={guardando || !usuarioLogueado}
             >
               <Save className="h-4 w-4" />
-              {guardando ? "Guardando..." : "Guardar Venta"}
+              {guardando ? "Guardando..." : "Guardar salida"}
             </Button>
           </div>
         </CardHeader>
@@ -762,16 +767,16 @@ const VentaProducto = () => {
               <TableHeader>
                 <TableRow>
                   <TableHead className="border-r border-border w-12">#</TableHead>
-                  <TableHead className="border-r border-border w-[150px]">Bodega</TableHead>
                   <TableHead className="border-r border-border w-[300px] min-w-[250px]">Producto</TableHead>
+                  <TableHead className="border-r border-border w-[150px]">Bodega</TableHead>
                   <TableHead className="border-r border-border">Cantidad</TableHead>
                   <TableHead className="border-r border-border">Valor Unitario</TableHead>
                   <TableHead className="border-r border-border">Descuento</TableHead>
                   <TableHead className="border-r border-border">Subtotal</TableHead>
                   <TableHead className="border-r border-border">IVA</TableHead>
-                  <TableHead className="border-r border-border">Retención</TableHead>
+                  <TableHead className="border-r border-border">RetenciÃ³n</TableHead>
                   <TableHead className="border-r border-border">Valor Total</TableHead>
-                  <TableHead className="w-16">Acción</TableHead>
+                  <TableHead className="w-16">AcciÃ³n</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -780,32 +785,14 @@ const VentaProducto = () => {
                     <TableCell className="border-r border-border text-center font-medium">
                       {index + 1}
                     </TableCell>
-                    <TableCell className="border-r border-border p-2 w-[150px]">
-                      <Select
-                        value={fila.bodega}
-                        onValueChange={(value) => handleCambioCampo(fila.id, "bodega", value)}
-                        disabled={loading}
-                      >
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder={loading ? "Cargando..." : "Bodega"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bodegas.map((bod) => (
-                            <SelectItem key={bod.id_bodega} value={bod.id_bodega.toString()}>
-                              {bod.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
                     <TableCell className="border-r border-border p-2 w-[300px] min-w-[250px]">
                       <Select
                         value={fila.productoCodigo}
                         onValueChange={(value) => handleCambioProducto(fila.id, value)}
-                        disabled={loading || !fila.bodega}
+                        disabled={loading}
                       >
                         <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder={loading ? "Cargando..." : !fila.bodega ? "Seleccione bodega primero" : "Seleccione producto"}>
+                          <SelectValue placeholder={loading ? "Cargando..." : "Seleccione producto"}>
                             {fila.productoCodigo && (
                               <div className="flex flex-col items-start text-left">
                                 <span className="font-bold text-sm truncate max-w-[280px]">{fila.productoNombre}</span>
@@ -819,7 +806,7 @@ const VentaProducto = () => {
                             <div className="relative">
                               <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                               <Input
-                                placeholder="Buscar por código o nombre..."
+                                placeholder="Buscar por cÃ³digo o nombre..."
                                 value={busquedaProductos.get(fila.id) || ""}
                                 onChange={(e) => {
                                   const busqueda = e.target.value;
@@ -834,31 +821,60 @@ const VentaProducto = () => {
                               />
                             </div>
                           </div>
-                          <div className="max-h-[200px] overflow-y-auto">
-                            {(productosPorFila.get(fila.id) || []).map((prod) => (
+                          <div 
+                            className="max-h-[200px] overflow-y-auto"
+                            onScroll={(e) => {
+                              const target = e.target as HTMLElement;
+                              // Cargar mÃ¡s cuando se acerca al final (80% del scroll)
+                              if (
+                                target.scrollTop + target.clientHeight >= target.scrollHeight * 0.8 &&
+                                paginacionProductos.hayMas &&
+                                !paginacionProductos.cargando
+                              ) {
+                                const busqueda = busquedaProductos.get(fila.id) || "";
+                                cargarMasProductos(fila.id, busqueda);
+                              }
+                            }}
+                          >
+                            {productosCargados.map((prod) => (
                               <SelectItem key={prod.codigo} value={prod.codigo}>
                                 <div className="flex flex-col">
                                   <span className="font-bold text-sm">{prod.nombre}</span>
-                                  <span className="text-xs text-muted-foreground">{prod.codigo} - Stock: {prod.stock_disponible || 0}</span>
+                                  <span className="text-xs text-muted-foreground">{prod.codigo}</span>
                                 </div>
                               </SelectItem>
                             ))}
-                            {paginacionPorFila.get(fila.id)?.cargando && (
+                            {paginacionProductos.cargando && (
                               <div className="p-2 text-center text-sm text-muted-foreground">
-                                Cargando productos...
+                                Cargando mÃ¡s productos...
                               </div>
                             )}
-                            {!fila.bodega && (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
-                                Seleccione una bodega primero
-                              </div>
-                            )}
-                            {fila.bodega && (productosPorFila.get(fila.id) || []).length === 0 && !paginacionPorFila.get(fila.id)?.cargando && (
-                              <div className="p-2 text-center text-sm text-muted-foreground">
-                                No hay productos disponibles
+                            {!paginacionProductos.hayMas && productosCargados.length > 0 && (
+                              <div className="p-2 text-center text-xs text-muted-foreground">
+                                No hay mÃ¡s productos
                               </div>
                             )}
                           </div>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell className="border-r border-border p-2 w-[150px]">
+                      <Select
+                        value={fila.bodega}
+                        onValueChange={(value) =>
+                          handleCambioCampo(fila.id, "bodega", value)
+                        }
+                        disabled={loading}
+                      >
+                        <SelectTrigger className="h-9 w-full">
+                          <SelectValue placeholder={loading ? "Cargando..." : "Bodega"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {bodegas.map((bod) => (
+                            <SelectItem key={bod.id_bodega} value={bod.id_bodega.toString()}>
+                              {bod.nombre}
+                            </SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </TableCell>
@@ -915,6 +931,7 @@ const VentaProducto = () => {
                           <SelectValue placeholder={loading ? "Cargando..." : "IVA"} />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="0">Sin IVA</SelectItem>
                           {ivas.map((iva) => (
                             <SelectItem key={iva.id_iva} value={iva.id_iva.toString()}>
                               {iva.nombre} ({iva.valor}%)
@@ -922,7 +939,7 @@ const VentaProducto = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {fila.idIva && fila.ivaMonto && fila.ivaMonto > 0 && (
+                      {fila.idIva && fila.idIva !== "0" && fila.ivaMonto && fila.ivaMonto > 0 && (
                         <div className="text-xs text-muted-foreground mt-1 text-center">
                           ${fila.ivaMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
@@ -937,9 +954,10 @@ const VentaProducto = () => {
                         disabled={loading}
                       >
                         <SelectTrigger className="h-9">
-                          <SelectValue placeholder={loading ? "Cargando..." : "Retención"} />
+                          <SelectValue placeholder={loading ? "Cargando..." : "RetenciÃ³n"} />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="0">Sin RetenciÃ³n</SelectItem>
                           {retenciones.map((retencion) => (
                             <SelectItem key={retencion.id_retefuente} value={retencion.id_retefuente.toString()}>
                               {retencion.nombre} ({retencion.valor}%)
@@ -947,7 +965,7 @@ const VentaProducto = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {fila.idRetencion && fila.retencionMonto && fila.retencionMonto > 0 && (
+                      {fila.idRetencion && fila.idRetencion !== "0" && fila.retencionMonto && fila.retencionMonto > 0 && (
                         <div className="text-xs text-muted-foreground mt-1 text-center">
                           ${fila.retencionMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
@@ -1012,5 +1030,5 @@ const VentaProducto = () => {
   );
 };
 
-export default VentaProducto;
+export default Ingresarsalida;
 

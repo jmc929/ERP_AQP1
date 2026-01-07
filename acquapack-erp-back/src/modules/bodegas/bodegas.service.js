@@ -302,13 +302,16 @@ class BodegasService {
 					COALESCE(df.precio_unitario, 0) as precio_unitario,
 					COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
 					COALESCE(df.iva_valor, 0) as iva_valor,
+					COALESCE(df.valor_total, 0) as valor_total,
 					df.id_iva,
 					i.nombre as iva_nombre,
-					i.valor as iva_porcentaje
+					i.valor as iva_porcentaje,
+					COALESCE(m.nombre, 'N/A') as unidad_medida
 				FROM public.inventario inv
 				LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
 				LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
 				LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
+				LEFT JOIN public.medida m ON p.id_medida = m.id_medida
 				WHERE inv.id_bodega = $1
 					AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
 				ORDER BY inv.fecha_ingreso DESC, p.nombre, inv.id_inventario
@@ -356,6 +359,42 @@ class BodegasService {
 			if (idBodegaOrigen === idBodegaDestino) {
 				throw new Error("La bodega de origen y destino no pueden ser la misma");
 			}
+
+			// Validar que el usuario exista
+			const usuarioCheck = await client.query(
+				"SELECT id_usuarios FROM public.usuarios WHERE id_usuarios = $1",
+				[idUsuario]
+			);
+			if (usuarioCheck.rows.length === 0) {
+				throw new Error("Usuario no encontrado");
+			}
+
+			// 1. Crear registro en la tabla traslados
+			const trasladoResult = await client.query(
+				`INSERT INTO public.traslados (
+					fecha_traslado,
+					id_usuario,
+					bodega_origen_id,
+					bodega_destino_id,
+					observacion
+				) VALUES (CURRENT_DATE, $1, $2, $3, $4)
+				RETURNING id_traslado`,
+				[idUsuario, idBodegaOrigen, idBodegaDestino, observacion]
+			);
+
+			if (trasladoResult.rows.length === 0) {
+				throw new Error("No se pudo crear el registro de traslado");
+			}
+
+			const idTraslado = trasladoResult.rows[0].id_traslado;
+
+			logger.info({ 
+				idTraslado: idTraslado,
+				idUsuario: idUsuario,
+				bodegaOrigen: idBodegaOrigen,
+				bodegaDestino: idBodegaDestino,
+				observacion: observacion
+			}, "Registro de traslado creado");
 
 			const resultados = [];
 
@@ -414,37 +453,222 @@ class BodegasService {
 					);
 				}
 
-				// 4. Verificar si existe el producto en la bodega destino (misma factura)
-				const inventarioDestino = await client.query(
-					`SELECT id_inventario, cantidad_lote, costo_producto
+				// 4. Verificar si existe el producto en la bodega destino
+				// Primero buscar por misma factura (mismo lote)
+				logger.info({ 
+					bodegaDestino: idBodegaDestino, 
+					idProducto: id_producto, 
+					idFactura: id_factura,
+					cantidad: cantidad
+				}, "Iniciando búsqueda de inventario destino");
+				
+				let inventarioDestino = await client.query(
+					`SELECT id_inventario, cantidad_lote, costo_producto, id_factura
 					 FROM public.inventario
 					 WHERE id_bodega = $1 AND id_producto = $2 AND id_factura = $3`,
 					[idBodegaDestino, id_producto, id_factura]
 				);
 
-				if (inventarioDestino.rows.length > 0) {
-					// Existe, sumar cantidad
-					const invDestino = inventarioDestino.rows[0];
-					const nuevoCostoTotal = invDestino.costo_producto + (costoUnitarioConImpuesto * cantidad);
-					const nuevaCantidad = invDestino.cantidad_lote + cantidad;
+				logger.info({ 
+					bodegaDestino: idBodegaDestino, 
+					idProducto: id_producto, 
+					idFactura: id_factura,
+					encontradosMismaFactura: inventarioDestino.rows.length,
+					registrosEncontrados: inventarioDestino.rows
+				}, "Búsqueda de inventario destino (misma factura)");
 
-					await client.query(
+				if (inventarioDestino.rows.length > 0) {
+					// Existe con la misma factura (mismo lote), sumar cantidad
+					const invDestino = inventarioDestino.rows[0];
+					// Convertir explícitamente a números, asegurando que sean números
+					const cantidadAnterior = Number(invDestino.cantidad_lote) || 0;
+					const costoAnterior = Number(invDestino.costo_producto) || 0;
+					const cantidadTrasladada = Number(cantidad) || 0;
+					const costoUnitario = Number(costoUnitarioConImpuesto) || 0;
+					
+					// Asegurar que son números antes de sumar
+					if (isNaN(cantidadAnterior) || isNaN(cantidadTrasladada)) {
+						throw new Error(`Error de conversión: cantidadAnterior=${cantidadAnterior}, cantidadTrasladada=${cantidadTrasladada}`);
+					}
+					
+					const nuevoCostoTotal = Number((costoAnterior + (costoUnitario * cantidadTrasladada)).toFixed(2));
+					const nuevaCantidad = Number((cantidadAnterior + cantidadTrasladada).toFixed(2));
+
+					logger.info({ 
+						idInventario: invDestino.id_inventario,
+						cantidadAnterior: cantidadAnterior,
+						cantidadTrasladada: cantidadTrasladada,
+						nuevaCantidad: nuevaCantidad,
+						costoAnterior: costoAnterior,
+						costoUnitario: costoUnitario,
+						nuevoCostoTotal: nuevoCostoTotal
+					}, "Datos para UPDATE en destino (mismo lote)");
+
+					const updateResult = await client.query(
 						`UPDATE public.inventario
 						 SET cantidad_lote = $1,
 						     costo_producto = $2
-						 WHERE id_inventario = $3`,
+						 WHERE id_inventario = $3
+						 RETURNING id_inventario, cantidad_lote, costo_producto, id_factura`,
 						[nuevaCantidad, nuevoCostoTotal, invDestino.id_inventario]
 					);
+					
+					// Validar que se actualizó correctamente
+					if (updateResult.rowCount === 0) {
+						throw new Error(`No se pudo actualizar el inventario destino con id_inventario ${invDestino.id_inventario}`);
+					}
+					
+					if (updateResult.rows.length === 0) {
+						throw new Error(`El UPDATE no devolvió datos para id_inventario ${invDestino.id_inventario}`);
+					}
+					
+					// Verificar que los valores se actualizaron correctamente
+					const cantidadActualizada = parseFloat(updateResult.rows[0].cantidad_lote);
+					if (Math.abs(cantidadActualizada - nuevaCantidad) > 0.01) {
+						throw new Error(`Error: La cantidad actualizada (${cantidadActualizada}) no coincide con la esperada (${nuevaCantidad})`);
+					}
+					
+					logger.info({ 
+						idInventario: invDestino.id_inventario, 
+						cantidadAnterior: cantidadAnterior, 
+						cantidadNueva: nuevaCantidad,
+						cantidadActualizada: cantidadActualizada,
+						cantidadTrasladada: cantidadTrasladada,
+						rowsUpdated: updateResult.rowCount,
+						datosActualizados: updateResult.rows[0]
+					}, "Inventario destino actualizado (mismo lote) - VERIFICADO");
 				} else {
-					// No existe, crear nuevo registro
-					await client.query(
-						`INSERT INTO public.inventario (
-							id_bodega, id_producto, id_proveedor, fecha_ingreso, id_factura, cantidad_lote, costo_producto
-						) VALUES ($1, $2, 
-							(SELECT id_proveedor FROM public.facturas WHERE id_facturas = $3),
-							NOW(), $3, $4, $5)`,
-						[idBodegaDestino, id_producto, id_factura, cantidad, costoUnitarioConImpuesto * cantidad]
+					// No existe con la misma factura, buscar si existe el producto en esa bodega (cualquier factura)
+					logger.info({ 
+						bodegaDestino: idBodegaDestino, 
+						idProducto: id_producto
+					}, "No se encontró con misma factura, buscando cualquier factura");
+					
+					const inventarioDestinoAlternativo = await client.query(
+						`SELECT id_inventario, cantidad_lote, costo_producto, id_factura
+						 FROM public.inventario
+						 WHERE id_bodega = $1 AND id_producto = $2
+						 ORDER BY fecha_ingreso DESC
+						 LIMIT 1`,
+						[idBodegaDestino, id_producto]
 					);
+
+					logger.info({ 
+						bodegaDestino: idBodegaDestino, 
+						idProducto: id_producto, 
+						encontradosCualquierFactura: inventarioDestinoAlternativo.rows.length,
+						registrosEncontrados: inventarioDestinoAlternativo.rows
+					}, "Búsqueda de inventario destino (cualquier factura)");
+
+					if (inventarioDestinoAlternativo.rows.length > 0) {
+						// Existe el producto pero de diferente factura, sumar cantidad al registro existente
+						const invDestino = inventarioDestinoAlternativo.rows[0];
+						// Convertir explícitamente a números, asegurando que sean números
+						const cantidadAnterior = Number(invDestino.cantidad_lote) || 0;
+						const costoAnterior = Number(invDestino.costo_producto) || 0;
+						const cantidadTrasladada = Number(cantidad) || 0;
+						const costoUnitario = Number(costoUnitarioConImpuesto) || 0;
+						
+						// Asegurar que son números antes de sumar
+						if (isNaN(cantidadAnterior) || isNaN(cantidadTrasladada)) {
+							throw new Error(`Error de conversión: cantidadAnterior=${cantidadAnterior}, cantidadTrasladada=${cantidadTrasladada}`);
+						}
+						
+						const nuevoCostoTotal = Number((costoAnterior + (costoUnitario * cantidadTrasladada)).toFixed(2));
+						const nuevaCantidad = Number((cantidadAnterior + cantidadTrasladada).toFixed(2));
+
+						logger.info({ 
+							idInventario: invDestino.id_inventario,
+							cantidadAnterior: cantidadAnterior,
+							cantidadTrasladada: cantidadTrasladada,
+							nuevaCantidad: nuevaCantidad,
+							costoAnterior: costoAnterior,
+							costoUnitario: costoUnitario,
+							nuevoCostoTotal: nuevoCostoTotal
+						}, "Datos para UPDATE en destino (diferente lote)");
+
+						const updateResult = await client.query(
+							`UPDATE public.inventario
+							 SET cantidad_lote = $1,
+							     costo_producto = $2
+							 WHERE id_inventario = $3
+							 RETURNING id_inventario, cantidad_lote, costo_producto, id_factura`,
+							[nuevaCantidad, nuevoCostoTotal, invDestino.id_inventario]
+						);
+						
+						// Validar que se actualizó correctamente
+						if (updateResult.rowCount === 0) {
+							throw new Error(`No se pudo actualizar el inventario destino con id_inventario ${invDestino.id_inventario}`);
+						}
+						
+						if (updateResult.rows.length === 0) {
+							throw new Error(`El UPDATE no devolvió datos para id_inventario ${invDestino.id_inventario}`);
+						}
+						
+						// Verificar que los valores se actualizaron correctamente
+						const cantidadActualizada = parseFloat(updateResult.rows[0].cantidad_lote);
+						if (Math.abs(cantidadActualizada - nuevaCantidad) > 0.01) {
+							throw new Error(`Error: La cantidad actualizada (${cantidadActualizada}) no coincide con la esperada (${nuevaCantidad})`);
+						}
+						
+						logger.info({ 
+							idInventario: invDestino.id_inventario, 
+							cantidadAnterior: cantidadAnterior, 
+							cantidadNueva: nuevaCantidad,
+							cantidadActualizada: cantidadActualizada,
+							cantidadTrasladada: cantidadTrasladada,
+							rowsUpdated: updateResult.rowCount,
+							datosActualizados: updateResult.rows[0],
+							facturaAnterior: invDestino.id_factura,
+							facturaNueva: id_factura
+						}, "Inventario destino actualizado (diferente lote) - VERIFICADO");
+					} else {
+						// No existe el producto en esa bodega, crear nuevo registro
+						logger.info({ 
+							idBodega: idBodegaDestino, 
+							idProducto: id_producto,
+							idFactura: id_factura,
+							cantidad: cantidad,
+							costoUnitarioConImpuesto: costoUnitarioConImpuesto
+						}, "No se encontró producto en destino, creando nuevo registro");
+						
+						// Obtener el proveedor de la factura
+						const proveedorResult = await client.query(
+							`SELECT id_proveedor FROM public.facturas WHERE id_facturas = $1`,
+							[id_factura]
+						);
+						
+						if (proveedorResult.rows.length === 0) {
+							throw new Error(`No se encontró la factura con id ${id_factura} para obtener el proveedor`);
+						}
+						
+						const idProveedor = proveedorResult.rows[0].id_proveedor;
+						const costoTotal = costoUnitarioConImpuesto * cantidad;
+						
+						logger.info({ 
+							idProveedor: idProveedor,
+							costoTotal: costoTotal
+						}, "Datos para INSERT en inventario destino");
+						
+						const insertResult = await client.query(
+							`INSERT INTO public.inventario (
+								id_bodega, id_producto, id_proveedor, fecha_ingreso, id_factura, cantidad_lote, costo_producto
+							) VALUES ($1, $2, $3, NOW(), $4, $5, $6)
+							RETURNING id_inventario, cantidad_lote, costo_producto`,
+							[idBodegaDestino, id_producto, idProveedor, id_factura, cantidad, costoTotal]
+						);
+						
+						if (insertResult.rows.length === 0) {
+							throw new Error(`No se pudo crear el registro de inventario en destino`);
+						}
+						
+						logger.info({ 
+							idBodega: idBodegaDestino, 
+							idProducto: id_producto, 
+							cantidad: cantidad,
+							nuevoRegistro: insertResult.rows[0]
+						}, "Nuevo registro de inventario creado en destino");
+					}
 				}
 
 				// 5. Crear movimiento de salida en kardex (bodega origen)
@@ -471,13 +695,39 @@ class BodegasService {
 				});
 			}
 
+			// Verificar el estado final antes de commit
+			logger.info({ 
+				bodegaOrigen: idBodegaOrigen, 
+				bodegaDestino: idBodegaDestino, 
+				cantidadTraslados: resultados.length,
+				resultados: resultados
+			}, "Estado antes de COMMIT");
+			
+			// Confirmar la transacción
 			await client.query("COMMIT");
-
+			
+			// Verificar el estado después del commit
+			for (const resultado of resultados) {
+				const verificacionDestino = await pool.query(
+					`SELECT id_inventario, cantidad_lote, costo_producto, id_factura
+					 FROM public.inventario
+					 WHERE id_bodega = $1 AND id_producto = $2`,
+					[idBodegaDestino, resultado.id_producto]
+				);
+				
+				logger.info({ 
+					bodegaDestino: idBodegaDestino,
+					idProducto: resultado.id_producto,
+					registrosEnDestino: verificacionDestino.rows.length,
+					detalles: verificacionDestino.rows
+				}, "Verificación POST-COMMIT en bodega destino");
+			}
+			
 			logger.info({ 
 				bodegaOrigen: idBodegaOrigen, 
 				bodegaDestino: idBodegaDestino, 
 				cantidadTraslados: resultados.length 
-			}, "Traslado realizado exitosamente");
+			}, "Traslado realizado exitosamente - TRANSACCIÓN COMMITADA");
 
 			return {
 				success: true,
@@ -489,6 +739,53 @@ class BodegasService {
 			throw error;
 		} finally {
 			client.release();
+		}
+	}
+
+	/**
+	 * Obtiene los movimientos de kardex de un producto en una bodega específica
+	 * @param {number} idBodega - ID de la bodega
+	 * @param {number} idProducto - ID del producto
+	 * @returns {Promise<Array>} Lista de movimientos de kardex
+	 */
+	async obtenerMovimientosKardex(idBodega, idProducto) {
+		try {
+			// Consulta usando los nombres de columnas que sabemos que existen
+			// Basado en el código de compras.service.js, sabemos que la columna de fecha es "fecha " (con espacio)
+			// y el ID es id_movimientos (según el RETURNING en compras.service.js línea 400)
+			const query = `
+				SELECT 
+					mk.id_movimientos as id_movimiento_kardex,
+					mk.id_bodega,
+					mk.id_producto,
+					mk.tipo_movimiento,
+					mk.tipo_flujo,
+					mk.cantidad,
+					mk.costo_unitario,
+					mk.costo_total_movimiento,
+					mk."fecha " as fecha,
+					COALESCE(b.nombre, 'N/A') as bodega_nombre,
+					COALESCE(p.codigo, '') as producto_codigo,
+					COALESCE(p.nombre, '') as producto_nombre
+				FROM public.movimientos_kardex mk
+				LEFT JOIN public.bodegas b ON mk.id_bodega = b.id_bodega
+				LEFT JOIN public.producto p ON mk.id_producto = p.id_producto
+				WHERE mk.id_bodega = $1 AND mk.id_producto = $2
+				ORDER BY mk."fecha " DESC, mk.id_movimientos DESC
+			`;
+
+			const result = await pool.query(query, [idBodega, idProducto]);
+			logger.info({ bodegaId: idBodega, productoId: idProducto, count: result.rows.length }, "Movimientos kardex obtenidos exitosamente");
+			return result.rows;
+		} catch (error) {
+			logger.error({ 
+				err: error, 
+				idBodega, 
+				idProducto, 
+				message: error.message,
+				stack: error.stack 
+			}, "Error al obtener movimientos kardex");
+			throw error;
 		}
 	}
 }

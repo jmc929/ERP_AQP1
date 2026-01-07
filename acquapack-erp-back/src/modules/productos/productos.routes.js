@@ -5,13 +5,15 @@ const {
 	obtenerSiguienteCodigoBarras,
 	obtenerProductoPorId,
 	actualizarProducto,
-	crearProducto
+	crearProducto,
+	obtenerCostosPorProductos
 } = require("./productos.controller");
 
 const productosRoutes = express.Router();
 
 productosRoutes.get("/catalogos", obtenerCatalogos);
 productosRoutes.get("/siguiente-codigo-barras", obtenerSiguienteCodigoBarras);
+productosRoutes.get("/costos", obtenerCostosPorProductos);
 productosRoutes.get("/:id", obtenerProductoPorId);
 productosRoutes.get("/", obtenerProductos);
 productosRoutes.put("/:id", actualizarProducto);

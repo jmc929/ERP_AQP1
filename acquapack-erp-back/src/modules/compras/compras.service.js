@@ -282,6 +282,7 @@ class ComprasService {
 				}
 
 				// Calcular costo_unitario_con_impuesto: (subtotal + iva_valor) / cantidad
+				// Este es el costo real que se pagó por unidad, incluyendo IVA
 				const costoUnitarioConImpuesto = detalle.cantidad > 0 
 					? (detalle.subtotal + (detalle.iva_valor || 0)) / detalle.cantidad 
 					: 0;
@@ -386,6 +387,7 @@ class ComprasService {
 				]);
 
 				// 4. Insertar en movimientos_kardex
+				// IMPORTANTE: Usar costo_unitario_con_impuesto (precio + IVA) para consistencia con traslados
 				const kardexQuery = `
 					INSERT INTO public.movimientos_kardex (
 						id_bodega,
@@ -400,14 +402,16 @@ class ComprasService {
 					RETURNING id_movimientos
 				`;
 
+				// Usar el costo_unitario_con_impuesto calculado (precio + IVA)
+				// Esto asegura consistencia con los movimientos de traslado
 				await client.query(kardexQuery, [
 					detalle.id_bodega,
 					detalle.id_producto,
 					"Entrada por Factura",
 					"Entrada",
 					detalle.cantidad,
-					detalle.precio_unitario,
-					detalle.cantidad * detalle.precio_unitario
+					costoUnitarioConImpuesto, // Usar el valor calculado con IVA
+					costoUnitarioConImpuesto * detalle.cantidad
 				]);
 
 				// 5. Actualizar cantidad_total en producto

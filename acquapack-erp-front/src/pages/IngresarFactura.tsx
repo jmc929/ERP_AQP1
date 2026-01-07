@@ -106,6 +106,9 @@ const IngresarFactura = () => {
   });
   const [timeoutBusqueda, setTimeoutBusqueda] = useState<NodeJS.Timeout | null>(null);
   
+  const [defaultIvaId, setDefaultIvaId] = useState<string>("");
+  const [defaultRetencionId, setDefaultRetencionId] = useState<string>("");
+  
   const [filas, setFilas] = useState<FilaFactura[]>([
     {
       id: 1,
@@ -116,8 +119,8 @@ const IngresarFactura = () => {
       cantidad: "",
       valorUnitario: "",
       descuento: "",
-      idIva: "0",
-      idRetencion: "0",
+      idIva: "",
+      idRetencion: "",
       valorTotal: 0,
       ivaMonto: 0,
       retencionMonto: 0,
@@ -179,9 +182,23 @@ const IngresarFactura = () => {
         }
         if (ivasData.success) {
           setIvas(ivasData.ivas);
+          // Buscar IVA con valor 0 (exento)
+          const ivaExento = ivasData.ivas.find((i: Iva) => i.valor === 0 || i.nombre.toLowerCase().includes("exento"));
+          if (ivaExento) {
+            setDefaultIvaId(ivaExento.id_iva.toString());
+            // Actualizar la fila inicial con el IVA por defecto
+            setFilas(prev => prev.map(f => f.id === 1 ? { ...f, idIva: ivaExento.id_iva.toString() } : f));
+          }
         }
         if (retencionesData.success) {
           setRetenciones(retencionesData.retenciones);
+          // Buscar Retención con valor 0 (no aplica)
+          const retencionNoAplica = retencionesData.retenciones.find((r: Retencion) => r.valor === 0 || r.nombre.toLowerCase().includes("no aplica"));
+          if (retencionNoAplica) {
+            setDefaultRetencionId(retencionNoAplica.id_retefuente.toString());
+            // Actualizar la fila inicial con la Retención por defecto
+            setFilas(prev => prev.map(f => f.id === 1 ? { ...f, idRetencion: retencionNoAplica.id_retefuente.toString() } : f));
+          }
         }
       } catch (error) {
         console.error("Error al cargar datos:", error);
@@ -275,8 +292,8 @@ const IngresarFactura = () => {
           valorUnitario: parseFloat(fila.valorUnitario) || 0,
           descuento: parseFloat(fila.descuento) || 0,
           descuentoEnPorcentaje: descuentoEnPorcentaje,
-        idIva: fila.idIva && fila.idIva !== "0" ? fila.idIva : null,
-        idRetencion: fila.idRetencion && fila.idRetencion !== "0" ? fila.idRetencion : null,
+        idIva: fila.idIva ? parseInt(fila.idIva) : null,
+        idRetencion: fila.idRetencion ? parseInt(fila.idRetencion) : null,
         }),
       });
 
@@ -321,7 +338,7 @@ const IngresarFactura = () => {
 
     let ivaMonto = 0;
     let porcentajeIva = 0;
-    if (fila.idIva && fila.idIva !== "0") {
+    if (fila.idIva) {
       const ivaSeleccionado = ivas.find(i => i.id_iva.toString() === fila.idIva);
       if (ivaSeleccionado) {
         porcentajeIva = parseFloat(ivaSeleccionado.valor.toString()) || 0;
@@ -332,7 +349,7 @@ const IngresarFactura = () => {
 
     let retencionMonto = 0;
     let porcentajeRetencion = 0;
-    if (fila.idRetencion && fila.idRetencion !== "0") {
+    if (fila.idRetencion) {
       const retencionSeleccionada = retenciones.find(r => r.id_retefuente.toString() === fila.idRetencion);
       if (retencionSeleccionada) {
         porcentajeRetencion = parseFloat(retencionSeleccionada.valor.toString()) || 0;
@@ -365,8 +382,8 @@ const IngresarFactura = () => {
         cantidad: "",
         valorUnitario: "",
         descuento: "",
-        idIva: "0",
-        idRetencion: "0",
+        idIva: defaultIvaId,
+        idRetencion: defaultRetencionId,
         valorTotal: 0,
       },
     ]);
@@ -587,9 +604,9 @@ const IngresarFactura = () => {
             precio_unitario: valorUnitario,
             descuento: montoDescuento, // Enviar el monto calculado del descuento
             subtotal: subtotal,
-            id_iva: fila.idIva && fila.idIva !== "0" ? parseInt(fila.idIva) : null,
+            id_iva: fila.idIva ? parseInt(fila.idIva) : null,
             iva_valor: fila.ivaMonto || 0,
-            id_retefuente: fila.idRetencion && fila.idRetencion !== "0" ? parseInt(fila.idRetencion) : null,
+            id_retefuente: fila.idRetencion ? parseInt(fila.idRetencion) : null,
             retefuente_valor: fila.retencionMonto || 0,
             valor_total: fila.valorTotal || 0,
           };
@@ -645,8 +662,8 @@ const IngresarFactura = () => {
           cantidad: "",
           valorUnitario: "",
           descuento: "",
-          idIva: "0",
-          idRetencion: "0",
+          idIva: defaultIvaId,
+          idRetencion: defaultRetencionId,
           valorTotal: 0,
           ivaMonto: 0,
           retencionMonto: 0,
@@ -931,7 +948,6 @@ const IngresarFactura = () => {
                           <SelectValue placeholder={loading ? "Cargando..." : "IVA"} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="0">Sin IVA</SelectItem>
                           {ivas.map((iva) => (
                             <SelectItem key={iva.id_iva} value={iva.id_iva.toString()}>
                               {iva.nombre} ({iva.valor}%)
@@ -939,7 +955,7 @@ const IngresarFactura = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {fila.idIva && fila.idIva !== "0" && fila.ivaMonto && fila.ivaMonto > 0 && (
+                      {fila.idIva && fila.ivaMonto && fila.ivaMonto > 0 && (
                         <div className="text-xs text-muted-foreground mt-1 text-center">
                           ${fila.ivaMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
@@ -957,7 +973,6 @@ const IngresarFactura = () => {
                           <SelectValue placeholder={loading ? "Cargando..." : "Retención"} />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="0">Sin Retención</SelectItem>
                           {retenciones.map((retencion) => (
                             <SelectItem key={retencion.id_retefuente} value={retencion.id_retefuente.toString()}>
                               {retencion.nombre} ({retencion.valor}%)
@@ -965,7 +980,7 @@ const IngresarFactura = () => {
                           ))}
                         </SelectContent>
                       </Select>
-                      {fila.idRetencion && fila.idRetencion !== "0" && fila.retencionMonto && fila.retencionMonto > 0 && (
+                      {fila.idRetencion && fila.retencionMonto && fila.retencionMonto > 0 && (
                         <div className="text-xs text-muted-foreground mt-1 text-center">
                           ${fila.retencionMonto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>

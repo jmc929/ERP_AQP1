@@ -194,12 +194,33 @@ async function crearProducto(req, res) {
 	}
 }
 
+/**
+ * Obtiene los costos por productos
+ */
+async function obtenerCostosPorProductos(req, res) {
+	try {
+		const costos = await productosService.obtenerCostosPorProductos();
+		
+		res.json({
+			success: true,
+			costos
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerCostosPorProductos controller");
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	obtenerProductos,
 	obtenerCatalogos,
 	obtenerSiguienteCodigoBarras,
 	obtenerProductoPorId,
 	actualizarProducto,
-	crearProducto
+	crearProducto,
+	obtenerCostosPorProductos
 };
 
