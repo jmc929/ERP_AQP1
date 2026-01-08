@@ -12,8 +12,9 @@ async function obtenerTareas(req, res) {
 			tareas
 		});
 	} catch (error) {
-		logger.error({ err: error }, "Error en obtenerTareas controller");
+		logger.error({ err: error, message: error.message, stack: error.stack }, "Error en obtenerTareas controller");
 		res.status(500).json({
+			success: false,
 			error: "Error interno del servidor",
 			message: error.message
 		});
@@ -45,7 +46,7 @@ async function obtenerTareasPorUsuario(req, res) {
  */
 async function crearTarea(req, res) {
 	try {
-		const { id_usuarios, descripcion, completada, fecha_asignacion } = req.body;
+		const { id_usuarios, descripcion, id_estado, fecha_asignacion } = req.body;
 
 		if (!id_usuarios || !descripcion) {
 			return res.status(400).json({
@@ -57,7 +58,7 @@ async function crearTarea(req, res) {
 		const tarea = await tareasService.crearTarea({
 			id_usuarios: parseInt(id_usuarios),
 			descripcion,
-			completada: completada || false,
+			id_estado: id_estado ? parseInt(id_estado) : 21, // Por defecto "Por hacer"
 			fecha_asignacion: fecha_asignacion || new Date().toISOString().split('T')[0]
 		});
 
@@ -107,6 +108,47 @@ async function actualizarTarea(req, res) {
 }
 
 /**
+ * Cambia el estado de una tarea
+ */
+async function cambiarEstadoTarea(req, res) {
+	try {
+		const { id } = req.params;
+		const { id_estado } = req.body;
+
+		if (!id_estado) {
+			return res.status(400).json({
+				error: "Campo requerido faltante",
+				message: "El id_estado es obligatorio"
+			});
+		}
+
+		const tarea = await tareasService.actualizarTarea(parseInt(id), {
+			id_estado: parseInt(id_estado)
+		});
+		
+		res.json({
+			success: true,
+			message: "Estado de tarea actualizado exitosamente",
+			tarea
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en cambiarEstadoTarea controller");
+		
+		if (error.message === "Tarea no encontrada") {
+			return res.status(404).json({
+				error: "No encontrado",
+				message: error.message
+			});
+		}
+
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+/**
  * Elimina una tarea
  */
 async function eliminarTarea(req, res) {
@@ -139,6 +181,7 @@ module.exports = {
 	obtenerTareasPorUsuario,
 	crearTarea,
 	actualizarTarea,
+	cambiarEstadoTarea,
 	eliminarTarea
 };
 

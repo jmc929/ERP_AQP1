@@ -4,7 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TrabajadorCard from "@/components/TrabajadorCard";
-import TareaChecklist, { Tarea } from "@/components/TareaChecklist";
+import TareaKanban, { Tarea } from "@/components/TareaKanban";
 import { useToast } from "@/hooks/use-toast";
 
 interface Trabajador {
@@ -25,41 +25,89 @@ const GestionTareas = () => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
-        const [usuariosRes, tareasRes] = await Promise.all([
-          fetch("http://localhost:4000/api/usuarios"),
-          fetch("http://localhost:4000/api/tareas")
-        ]);
+        
+        // Cargar usuarios
+        let usuariosData;
+        try {
+          const usuariosRes = await fetch("http://localhost:4000/api/usuarios");
+          usuariosData = await usuariosRes.json();
+          
+          if (!usuariosRes.ok) {
+            console.error("Error al cargar usuarios:", usuariosData);
+            throw new Error(usuariosData.message || "Error al cargar usuarios");
+          }
+        } catch (error) {
+          console.error("Error al hacer fetch de usuarios:", error);
+          toast({
+            title: "Error",
+            description: "No se pudieron cargar los usuarios",
+            variant: "destructive",
+          });
+          setTrabajadores([]);
+          return;
+        }
+        
+        // Cargar tareas (permitir que falle)
+        let tareas: any[] = [];
+        try {
+          const tareasRes = await fetch("http://localhost:4000/api/tareas");
+          if (tareasRes.ok) {
+            const tareasData = await tareasRes.json();
+            if (tareasData.success && Array.isArray(tareasData.tareas)) {
+              tareas = tareasData.tareas;
+            }
+          } else {
+            console.warn("Error al cargar tareas, continuando sin tareas");
+          }
+        } catch (error) {
+          console.warn("Error al cargar tareas (continuando sin tareas):", error);
+        }
 
-        const usuariosData = await usuariosRes.json();
-        const tareasData = await tareasRes.json();
+        // Validar que los datos sean arrays
+        if (!usuariosData.success || !Array.isArray(usuariosData.usuarios)) {
+          console.error("Datos de usuarios inválidos:", usuariosData);
+          toast({
+            title: "Error",
+            description: "Formato de datos inválido",
+            variant: "destructive",
+          });
+          setTrabajadores([]);
+          return;
+        }
 
-        if (usuariosData.success && tareasData.success) {
-          // Mapear usuarios a trabajadores con sus tareas
-          const trabajadoresConTareas: Trabajador[] = usuariosData.usuarios.map((usuario: any) => {
-            const tareasUsuario = tareasData.tareas
-              .filter((tarea: any) => tarea.id_usuarios === usuario.id_usuarios)
+        // Mapear usuarios a trabajadores con sus tareas
+        const trabajadoresConTareas: Trabajador[] = usuariosData.usuarios
+          .filter((usuario: any) => usuario && usuario.id_usuarios)
+          .map((usuario: any) => {
+            const tareasUsuario = tareas
+              .filter((tarea: any) => tarea && tarea.id_usuarios === usuario.id_usuarios)
               .map((tarea: any) => ({
                 id: tarea.id_tareas,
-                descripcion: tarea.descripcion,
-                completada: tarea.completada,
-                fecha_asignacion: tarea.fecha_asignacion
+                descripcion: tarea.descripcion || "",
+                id_estado: tarea.id_estado ?? 21,
+                fecha_asignacion: tarea.fecha_asignacion,
+                estado_nombre: tarea.estado_nombre || "Pendiente",
+                estado_color: tarea.estado_color || "#94a3b8",
               }));
 
             return {
               id: usuario.id_usuarios,
-              nombre: `${usuario.nombre} ${usuario.apellido}`,
-              tareas: tareasUsuario
+              nombre: `${usuario.nombre || ""} ${usuario.apellido || ""}`.trim() || `Usuario ${usuario.id_usuarios}`,
+              tareas: tareasUsuario || []
             };
-          });
+          })
+          .filter((trabajador) => trabajador && trabajador.id);
 
-          setTrabajadores(trabajadoresConTareas);
-        }
+        console.log("Trabajadores mapeados:", trabajadoresConTareas.length, trabajadoresConTareas);
+        setTrabajadores(trabajadoresConTareas);
       } catch (error) {
+        console.error("Error completo:", error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar los usuarios y tareas",
+          description: error instanceof Error ? error.message : "No se pudieron cargar los usuarios y tareas",
           variant: "destructive",
         });
+        setTrabajadores([]);
       } finally {
         setLoading(false);
       }
@@ -111,14 +159,14 @@ const GestionTareas = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {trabajadores.map((trabajador) => {
-            const tareasCompletadas = trabajador.tareas.filter((t) => t.completada).length;
             const tareasTotales = trabajador.tareas.length;
+            const tareasTerminadas = trabajador.tareas.filter((t) => t.id_estado === 23).length;
 
             return (
               <TrabajadorCard
                 key={trabajador.id}
                 nombre={trabajador.nombre}
-                tareasCompletadas={tareasCompletadas}
+                tareasCompletadas={tareasTerminadas}
                 tareasTotales={tareasTotales}
                 onClick={() => handleSeleccionarTrabajador(trabajador)}
               />
@@ -127,30 +175,30 @@ const GestionTareas = () => {
         </div>
       )}
 
-      {/* Dialog para mostrar la checklist de tareas */}
-      <Dialog open={mostrarDialogo} onOpenChange={setMostrarDialogo}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ArrowLeft
-                className="h-5 w-5 cursor-pointer hover:text-primary transition-colors"
-                onClick={handleCerrarDialogo}
-              />
-              {trabajadorSeleccionado?.nombre}
-            </DialogTitle>
-          </DialogHeader>
-          {trabajadorSeleccionado && (
-            <TareaChecklist
+      {/* Dialog para mostrar el board Kanban de tareas */}
+      {mostrarDialogo && trabajadorSeleccionado && (
+        <Dialog open={mostrarDialogo} onOpenChange={setMostrarDialogo}>
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowLeft
+                  className="h-5 w-5 cursor-pointer hover:text-primary transition-colors"
+                  onClick={handleCerrarDialogo}
+                />
+                {trabajadorSeleccionado.nombre}
+              </DialogTitle>
+            </DialogHeader>
+            <TareaKanban
               trabajadorId={trabajadorSeleccionado.id}
               trabajadorNombre={trabajadorSeleccionado.nombre}
-              tareas={trabajadorSeleccionado.tareas}
+              tareas={trabajadorSeleccionado.tareas || []}
               onTareasChange={(nuevasTareas) =>
                 handleTareasChange(trabajadorSeleccionado.id, nuevasTareas)
               }
             />
-          )}
-        </DialogContent>
-      </Dialog>
+          </DialogContent>
+        </Dialog>
+      )}
     </PageContainer>
   );
 };

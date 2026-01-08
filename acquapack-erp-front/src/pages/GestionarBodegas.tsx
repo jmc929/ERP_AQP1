@@ -22,6 +22,7 @@ import TableCard from "@/components/TableCard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
+import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -53,6 +54,8 @@ const GestionarBodegas = () => {
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const registrosPorPagina = 30;
   
   // Estados del formulario
   const [nombre, setNombre] = useState("");
@@ -107,6 +110,26 @@ const GestionarBodegas = () => {
     bodega.id_bodega.toString().includes(busqueda) ||
     bodega.nombre.toLowerCase().includes(busqueda.toLowerCase())
   );
+
+  // Calcular paginación
+  const totalPaginas = Math.ceil(bodegasFiltradas.length / registrosPorPagina);
+  const indiceInicio = (paginaActual - 1) * registrosPorPagina;
+  const indiceFin = indiceInicio + registrosPorPagina;
+  const bodegasPaginadas = bodegasFiltradas.slice(indiceInicio, indiceFin);
+
+  // Resetear a página 1 cuando cambie la búsqueda
+  useEffect(() => {
+    setPaginaActual(1);
+  }, [busqueda]);
+
+  // Ajustar página actual si excede el total de páginas después del filtrado
+  useEffect(() => {
+    if (totalPaginas > 0 && paginaActual > totalPaginas) {
+      setPaginaActual(totalPaginas);
+    } else if (totalPaginas === 0 && paginaActual > 1) {
+      setPaginaActual(1);
+    }
+  }, [totalPaginas, paginaActual]);
 
   const handleCheckbox = (bodegaId: number, checked: boolean) => {
     setBodegasSeleccionadas((prev) => {
@@ -394,7 +417,7 @@ const GestionarBodegas = () => {
         }
         colSpan={5}
       >
-        {bodegasFiltradas.map((bodega) => (
+        {bodegasPaginadas.map((bodega) => (
           <TableRow key={bodega.id_bodega}>
             <TableCell className="border-r border-border w-12">
               <Checkbox
@@ -446,6 +469,20 @@ const GestionarBodegas = () => {
           </TableRow>
         ))}
       </TableCard>
+
+      {/* Paginación */}
+      {totalPaginas > 1 && (
+        <div className="mt-4">
+          <div className="text-sm text-muted-foreground text-center mb-2">
+            Mostrando {bodegasPaginadas.length} de {bodegasFiltradas.length} bodega(s)
+          </div>
+          <Pagination
+            paginaActual={paginaActual}
+            totalPaginas={totalPaginas}
+            onPageChange={setPaginaActual}
+          />
+        </div>
+      )}
 
       {/* Botón Archivar */}
       {bodegasSeleccionadas.size > 0 && (

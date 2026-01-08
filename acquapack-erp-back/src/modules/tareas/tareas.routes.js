@@ -4,6 +4,7 @@ const {
 	obtenerTareasPorUsuario,
 	crearTarea,
 	actualizarTarea,
+	cambiarEstadoTarea,
 	eliminarTarea
 } = require("./tareas.controller");
 
@@ -13,6 +14,7 @@ tareasRoutes.get("/", obtenerTareas);
 tareasRoutes.get("/usuario/:idUsuario", obtenerTareasPorUsuario);
 tareasRoutes.post("/", crearTarea);
 tareasRoutes.put("/:id", actualizarTarea);
+tareasRoutes.patch("/:id/estado", cambiarEstadoTarea);
 tareasRoutes.delete("/:id", eliminarTarea);
 
 module.exports = { tareasRoutes };

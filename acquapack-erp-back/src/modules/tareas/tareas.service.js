@@ -11,24 +11,91 @@ class TareasService {
 	 */
 	async obtenerTareas() {
 		try {
+			// Query simple primero - manejar caso cuando la tabla está vacía
 			const query = `
 				SELECT 
 					t.id_tareas,
 					t.id_usuarios,
 					t.descripcion,
-					t.completada,
-					t.fecha_asignacion,
-					u.nombre || ' ' || u.apellido as nombre_usuario
+					t.id_estado,
+					t.fecha_asignacion
 				FROM public.tareas t
-				LEFT JOIN public.usuarios u ON t.id_usuarios = u.id_usuarios
 				ORDER BY t.fecha_asignacion DESC, t.id_tareas DESC
 			`;
 
-			const result = await pool.query(query);
-			logger.info({ count: result.rows.length }, "Tareas obtenidas exitosamente");
-			return result.rows;
+			let result;
+			try {
+				result = await pool.query(query);
+			} catch (queryError) {
+				logger.error({ err: queryError }, "Error en query de tareas");
+				// Si hay un error, devolver array vacío
+				return [];
+			}
+			
+			// Si no hay resultados, devolver array vacío
+			if (!result || !result.rows) {
+				return [];
+			}
+			
+			// Obtener usuarios
+			const usuariosMap = {};
+			try {
+				const usuariosQuery = await pool.query(`
+					SELECT id_usuarios, nombre, apellido 
+					FROM public.usuarios
+				`);
+				usuariosQuery.rows.forEach(usuario => {
+					usuariosMap[usuario.id_usuarios] = `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || 'Usuario desconocido';
+				});
+			} catch (usuariosError) {
+				logger.warn({ err: usuariosError }, "No se pudieron obtener usuarios");
+			}
+			
+			// Obtener información de estados
+			let estadosMap = {};
+			try {
+				const estadosQuery = await pool.query(`
+					SELECT id_estado, nombre, color 
+					FROM public.estado 
+					WHERE id_estado IN (21, 22, 23)
+				`);
+				
+				estadosQuery.rows.forEach(estado => {
+					estadosMap[estado.id_estado] = {
+						nombre: estado.nombre,
+						color: estado.color
+					};
+				});
+			} catch (estadosError) {
+				logger.warn({ err: estadosError }, "No se pudieron obtener estados, usando valores por defecto");
+			}
+			
+			// Valores por defecto si no se encontraron estados
+			const estadosDefault = {
+				21: { nombre: 'Pendiente', color: '#94a3b8' },
+				22: { nombre: 'En proceso', color: '#3b82f6' },
+				23: { nombre: 'Terminado', color: '#10b981' }
+			};
+			
+			// Mapear tareas con información de estado
+			const tareasConEstado = result.rows.map(tarea => {
+				const idEstado = tarea.id_estado ?? 21;
+				const estadoInfo = estadosMap[idEstado] || estadosDefault[idEstado] || estadosDefault[21];
+				const nombreUsuario = usuariosMap[tarea.id_usuarios] || 'Usuario desconocido';
+				
+				return {
+					...tarea,
+					id_estado: idEstado,
+					estado_nombre: estadoInfo.nombre,
+					estado_color: estadoInfo.color,
+					nombre_usuario: nombreUsuario
+				};
+			});
+			
+			logger.info({ count: tareasConEstado.length }, "Tareas obtenidas exitosamente");
+			return tareasConEstado;
 		} catch (error) {
-			logger.error({ err: error }, "Error al obtener tareas");
+			logger.error({ err: error, message: error.message, stack: error.stack }, "Error al obtener tareas");
 			throw error;
 		}
 	}
@@ -45,18 +112,58 @@ class TareasService {
 					t.id_tareas,
 					t.id_usuarios,
 					t.descripcion,
-					t.completada,
+					COALESCE(t.id_estado, 21) as id_estado,
 					t.fecha_asignacion
 				FROM public.tareas t
 				WHERE t.id_usuarios = $1
-				ORDER BY t.completada ASC, t.fecha_asignacion DESC, t.id_tareas DESC
+				ORDER BY COALESCE(t.id_estado, 21) ASC, t.fecha_asignacion DESC, t.id_tareas DESC
 			`;
 
 			const result = await pool.query(query, [idUsuario]);
-			logger.info({ idUsuario, count: result.rows.length }, "Tareas del usuario obtenidas exitosamente");
-			return result.rows;
+			
+			// Obtener información de estados
+			let estadosMap = {};
+			try {
+				const estadosQuery = await pool.query(`
+					SELECT id_estado, nombre, color 
+					FROM public.estado 
+					WHERE id_estado IN (21, 22, 23)
+				`);
+				
+				estadosQuery.rows.forEach(estado => {
+					estadosMap[estado.id_estado] = {
+						nombre: estado.nombre,
+						color: estado.color
+					};
+				});
+			} catch (estadosError) {
+				logger.warn({ err: estadosError }, "No se pudieron obtener estados, usando valores por defecto");
+			}
+			
+			// Valores por defecto si no se encontraron estados
+			const estadosDefault = {
+				21: { nombre: 'Pendiente', color: '#94a3b8' },
+				22: { nombre: 'En proceso', color: '#3b82f6' },
+				23: { nombre: 'Terminado', color: '#10b981' }
+			};
+			
+			// Mapear tareas con información de estado
+			const tareasConEstado = result.rows.map(tarea => {
+				const idEstado = tarea.id_estado ?? 21;
+				const estadoInfo = estadosMap[idEstado] || estadosDefault[idEstado] || estadosDefault[21];
+				
+				return {
+					...tarea,
+					id_estado: idEstado,
+					estado_nombre: estadoInfo.nombre,
+					estado_color: estadoInfo.color
+				};
+			});
+			
+			logger.info({ idUsuario, count: tareasConEstado.length }, "Tareas del usuario obtenidas exitosamente");
+			return tareasConEstado;
 		} catch (error) {
-			logger.error({ err: error, idUsuario }, "Error al obtener tareas del usuario");
+			logger.error({ err: error, idUsuario, message: error.message, stack: error.stack }, "Error al obtener tareas del usuario");
 			throw error;
 		}
 	}
@@ -79,17 +186,17 @@ class TareasService {
 					id_tareas,
 					id_usuarios,
 					descripcion,
-					completada,
+					id_estado,
 					fecha_asignacion
 				) VALUES ($1, $2, $3, $4, $5)
-				RETURNING id_tareas, id_usuarios, descripcion, completada, fecha_asignacion
+				RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
 			`;
 
 			const valores = [
 				nextId,
 				datosTarea.id_usuarios,
 				datosTarea.descripcion,
-				datosTarea.completada || false,
+				datosTarea.id_estado || 21, // Por defecto "Por hacer"
 				datosTarea.fecha_asignacion || new Date().toISOString().split('T')[0]
 			];
 
@@ -131,9 +238,9 @@ class TareasService {
 				contador++;
 			}
 
-			if (datosTarea.completada !== undefined) {
-				campos.push(`completada = $${contador}`);
-				valores.push(datosTarea.completada);
+			if (datosTarea.id_estado !== undefined) {
+				campos.push(`id_estado = $${contador}`);
+				valores.push(datosTarea.id_estado);
 				contador++;
 			}
 
@@ -152,7 +259,7 @@ class TareasService {
 				UPDATE public.tareas 
 				SET ${campos.join(", ")}
 				WHERE id_tareas = $${contador}
-				RETURNING id_tareas, id_usuarios, descripcion, completada, fecha_asignacion
+				RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
 			`;
 
 			const result = await pool.query(query, valores);

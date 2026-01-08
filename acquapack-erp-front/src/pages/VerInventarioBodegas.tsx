@@ -6,13 +6,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -25,6 +18,7 @@ import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
+import { BodegaSelect } from "@/components/BodegaSelect";
 import { useToast } from "@/hooks/use-toast";
 
 // Interface para bodegas desde la BD
@@ -322,25 +316,13 @@ const VerInventarioBodegas = () => {
       <div className="flex items-center justify-between mb-6">
         <PageTitle title="Ver Inventario (Bodegas)" />
         <div className="w-64">
-          <Label htmlFor="bodega-selector" className="sr-only">
-            Seleccionar Bodega
-          </Label>
-          <Select 
-            value={bodegaSeleccionada} 
+          <BodegaSelect
+            bodegas={bodegas}
+            value={bodegaSeleccionada}
             onValueChange={setBodegaSeleccionada}
+            placeholder={loading ? "Cargando..." : bodegas.length === 0 ? "No hay bodegas" : "Seleccione una bodega"}
             disabled={loading || bodegas.length === 0}
-          >
-            <SelectTrigger id="bodega-selector">
-              <SelectValue placeholder={loading ? "Cargando..." : bodegas.length === 0 ? "No hay bodegas" : "Seleccione una bodega"} />
-            </SelectTrigger>
-            <SelectContent>
-              {bodegas.map((bodega) => (
-                <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
-                  {bodega.nombre}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
         </div>
       </div>
 

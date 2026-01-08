@@ -15,7 +15,7 @@ services:
       - /app/node_modules
     environment:
       # AQUÍ APUNTAS AL SERVIDOR LINUX
-      - DB_HOST=100.xx.yy.zz   # <--- IP TAILSCALE DEL SERVIDOR
+      - DB_HOST=100.77.172.10   # <--- IP TAILSCALE DEL SERVIDOR
       - DB_PORT=5432
       - DB_NAME=ERP_ACQ
       - DB_USER=postgres

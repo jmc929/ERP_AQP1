@@ -8,18 +8,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ArrowRight, Loader2 } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
 import TableCard from "@/components/TableCard";
+import { BodegaSelect } from "@/components/BodegaSelect";
 import { useToast } from "@/hooks/use-toast";
 
 // Interface de bodega desde la BD
@@ -60,6 +54,20 @@ const TrasladosBodegas = () => {
   const [productosBodegaOrigen, setProductosBodegaOrigen] = useState<ProductoBodega[]>([]);
   const [loadingProductos, setLoadingProductos] = useState(false);
   const [productosSeleccionados, setProductosSeleccionados] = useState<Map<number, ProductoSeleccionado>>(new Map());
+  const [usuarioLogueado, setUsuarioLogueado] = useState<any>(null);
+
+  // Obtener usuario logueado
+  useEffect(() => {
+    const usuario = localStorage.getItem("usuario");
+    if (usuario) {
+      try {
+        const usuarioObj = JSON.parse(usuario);
+        setUsuarioLogueado(usuarioObj);
+      } catch (error) {
+        console.error("Error al parsear usuario:", error);
+      }
+    }
+  }, []);
 
   // Cargar bodegas desde la BD
   useEffect(() => {
@@ -225,6 +233,16 @@ const TrasladosBodegas = () => {
 
     // Realizar traslado
     const realizarTraslado = async () => {
+      // Validar que el usuario esté logueado
+      if (!usuarioLogueado || !usuarioLogueado.id_usuarios) {
+        toast({
+          title: "Error",
+          description: "Debe estar logueado para realizar un traslado",
+          variant: "destructive",
+        });
+        return;
+      }
+
       try {
         setLoadingProductos(true);
         const traslados = Array.from(productosSeleccionados.values()).map((p) => ({
@@ -242,6 +260,8 @@ const TrasladosBodegas = () => {
           body: JSON.stringify({
             id_bodega_origen: parseInt(bodegaOrigen),
             id_bodega_destino: parseInt(bodegaDestino),
+            id_usuario: usuarioLogueado?.id_usuarios || null,
+            observacion: null, // Opcional, se puede agregar un campo en el formulario más adelante
             traslados
           }),
         });
@@ -295,44 +315,24 @@ const TrasladosBodegas = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="bodega-origen">Mover de</Label>
-            <Select 
-              value={bodegaOrigen} 
+            <BodegaSelect
+              bodegas={bodegas}
+              value={bodegaOrigen}
               onValueChange={setBodegaOrigen}
+              placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega origen"}
               disabled={loading || bodegas.length === 0}
-            >
-              <SelectTrigger id="bodega-origen">
-                <SelectValue placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega origen"} />
-              </SelectTrigger>
-              <SelectContent>
-                {bodegas.map((bodega) => (
-                  <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
-                    {bodega.nombre}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="bodega-destino">Mover a</Label>
-            <Select 
-              value={bodegaDestino} 
+            <BodegaSelect
+              bodegas={bodegas.filter((b) => b.id_bodega.toString() !== bodegaOrigen)}
+              value={bodegaDestino}
               onValueChange={setBodegaDestino}
-              disabled={loading || bodegas.length === 0}
-            >
-              <SelectTrigger id="bodega-destino">
-                <SelectValue placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega destino"} />
-              </SelectTrigger>
-              <SelectContent>
-                {bodegas
-                  .filter((b) => b.id_bodega.toString() !== bodegaOrigen)
-                  .map((bodega) => (
-                    <SelectItem key={bodega.id_bodega} value={bodega.id_bodega.toString()}>
-                      {bodega.nombre}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
+              placeholder={loading ? "Cargando bodegas..." : "Seleccione bodega destino"}
+              disabled={loading || bodegas.length === 0 || !bodegaOrigen}
+            />
           </div>
         </div>
       </FormCard>

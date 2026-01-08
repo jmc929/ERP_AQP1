@@ -202,13 +202,20 @@ async function obtenerProductosPorBodega(req, res) {
 
 async function realizarTraslado(req, res) {
 	try {
-		const { id_bodega_origen, id_bodega_destino, traslados } = req.body;
+		const { id_bodega_origen, id_bodega_destino, id_usuario, observacion, traslados } = req.body;
 
 		// Validaciones
 		if (!id_bodega_origen || !id_bodega_destino) {
 			return res.status(400).json({
 				success: false,
 				message: "Debe especificar bodega de origen y destino"
+			});
+		}
+
+		if (!id_usuario) {
+			return res.status(400).json({
+				success: false,
+				message: "Debe especificar el usuario que realiza el traslado"
 			});
 		}
 
@@ -232,6 +239,8 @@ async function realizarTraslado(req, res) {
 		const resultado = await bodegasService.realizarTraslado(
 			parseInt(id_bodega_origen),
 			parseInt(id_bodega_destino),
+			parseInt(id_usuario),
+			observacion || null,
 			traslados.map(t => ({
 				id_inventario: parseInt(t.id_inventario),
 				id_producto: parseInt(t.id_producto),

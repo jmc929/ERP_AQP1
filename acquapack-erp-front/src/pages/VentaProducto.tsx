@@ -15,6 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
+import { BodegaSelect } from "@/components/BodegaSelect";
 import {
   Select,
   SelectContent,
@@ -781,22 +782,14 @@ const VentaProducto = () => {
                       {index + 1}
                     </TableCell>
                     <TableCell className="border-r border-border p-2 w-[150px]">
-                      <Select
+                      <BodegaSelect
+                        bodegas={bodegas}
                         value={fila.bodega}
                         onValueChange={(value) => handleCambioCampo(fila.id, "bodega", value)}
+                        placeholder={loading ? "Cargando..." : "Bodega"}
                         disabled={loading}
-                      >
-                        <SelectTrigger className="h-9 w-full">
-                          <SelectValue placeholder={loading ? "Cargando..." : "Bodega"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {bodegas.map((bod) => (
-                            <SelectItem key={bod.id_bodega} value={bod.id_bodega.toString()}>
-                              {bod.nombre}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                        className="h-9"
+                      />
                     </TableCell>
                     <TableCell className="border-r border-border p-2 w-[300px] min-w-[250px]">
                       <Select

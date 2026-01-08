@@ -330,10 +330,12 @@ class BodegasService {
 	 * Realiza un traslado de productos entre bodegas
 	 * @param {number} idBodegaOrigen - ID de la bodega de origen
 	 * @param {number} idBodegaDestino - ID de la bodega de destino
+	 * @param {number} idUsuario - ID del usuario que realiza el traslado
+	 * @param {string|null} observacion - Observación del traslado (opcional)
 	 * @param {Array} traslados - Array de objetos con id_inventario, id_producto, id_factura y cantidad
 	 * @returns {Promise<Object>} Resultado del traslado
 	 */
-	async realizarTraslado(idBodegaOrigen, idBodegaDestino, traslados) {
+	async realizarTraslado(idBodegaOrigen, idBodegaDestino, idUsuario, observacion, traslados) {
 		const client = await pool.connect();
 		
 		try {
