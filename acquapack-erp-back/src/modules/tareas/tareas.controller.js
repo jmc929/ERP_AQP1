@@ -44,7 +44,7 @@ async function obtenerTareasPorUsuario(req, res) {
 /**
  * Crea una nueva tarea
  */
-async function crearTarea(req, res) {
+	async function crearTarea(req, res) {
 	try {
 		const { id_usuarios, descripcion, id_estado, fecha_asignacion } = req.body;
 
@@ -55,11 +55,17 @@ async function crearTarea(req, res) {
 			});
 		}
 
+		// Solo usar fecha_asignacion si viene explícitamente y no está vacía
+		// Si no viene o está vacía, se usará NOW() en la BD
+		const fechaAsignacion = fecha_asignacion && fecha_asignacion.trim() !== "" 
+			? fecha_asignacion 
+			: null;
+
 		const tarea = await tareasService.crearTarea({
 			id_usuarios: parseInt(id_usuarios),
 			descripcion,
 			id_estado: id_estado ? parseInt(id_estado) : 21, // Por defecto "Por hacer"
-			fecha_asignacion: fecha_asignacion || new Date().toISOString().split('T')[0]
+			fecha_asignacion: fechaAsignacion
 		});
 
 		res.status(201).json({

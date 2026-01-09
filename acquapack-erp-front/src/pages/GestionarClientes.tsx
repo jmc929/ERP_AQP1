@@ -24,6 +24,7 @@ import EmptyTableMessage from "@/components/EmptyTableMessage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
+import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -80,6 +81,13 @@ const GestionarClientes = () => {
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [paginacion, setPaginacion] = useState<{
+    paginaActual: number;
+    totalPaginas: number;
+    totalRegistros: number;
+    limite: number;
+  } | null>(null);
 
   // Estados del formulario
   const [idTipoEntidad, setIdTipoEntidad] = useState("");
@@ -104,26 +112,49 @@ const GestionarClientes = () => {
   const [clienteEditando, setClienteEditando] = useState<Cliente | null>(null);
   const [cargandoCliente, setCargandoCliente] = useState(false);
 
-  // Cargar clientes y catálogos
+  // Cargar catálogos
   useEffect(() => {
-    const cargarDatos = async () => {
+    const cargarCatalogos = async () => {
       try {
-        setLoading(true);
         setLoadingCatalogos(true);
-        const [clientesRes, catalogosRes] = await Promise.all([
-          fetch("http://localhost:4000/api/clientes"),
-          fetch("http://localhost:4000/api/clientes/catalogos")
-        ]);
-
-        const clientesData = await clientesRes.json();
+        const catalogosRes = await fetch("http://localhost:4000/api/clientes/catalogos");
         const catalogosData = await catalogosRes.json();
-
-        if (clientesData.success) {
-          setClientes(clientesData.clientes);
-        }
 
         if (catalogosData.success) {
           setCatalogos(catalogosData.catalogos);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los catálogos",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingCatalogos(false);
+      }
+    };
+
+    cargarCatalogos();
+  }, [toast]);
+
+  // Cargar clientes con paginación
+  useEffect(() => {
+    const cargarClientes = async () => {
+      try {
+        setLoading(true);
+        const url = new URL("http://localhost:4000/api/clientes/paginados");
+        url.searchParams.append("page", paginaActual.toString());
+        url.searchParams.append("limit", "30");
+        if (busqueda.trim()) {
+          url.searchParams.append("busqueda", busqueda.trim());
+        }
+
+        const clientesRes = await fetch(url.toString());
+        const clientesData = await clientesRes.json();
+
+        if (clientesData.success) {
+          setClientes(clientesData.clientes);
+          setPaginacion(clientesData.paginacion);
         }
       } catch (error) {
         toast({
@@ -133,30 +164,18 @@ const GestionarClientes = () => {
         });
       } finally {
         setLoading(false);
-        setLoadingCatalogos(false);
       }
     };
 
-    cargarDatos();
-  }, [toast]);
+    cargarClientes();
+  }, [paginaActual, busqueda, toast]);
 
-  // Filtrar clientes según búsqueda
-  const clientesFiltrados = clientes.filter((cliente) => {
-    const busquedaLower = busqueda.toLowerCase();
-    const nombre = (cliente.razon_social || cliente.nombre_comercial || "").toLowerCase();
-    const identificacion = (cliente.identificacion || "").toLowerCase();
-    const contacto = `${cliente.nombre_contacto || ""} ${cliente.apellido_contacto || ""}`.toLowerCase().trim();
-    const ciudad = (cliente.ciudad_nombre || "").toLowerCase();
-    const tipoIdentificacion = (cliente.tipo_identificacion_nombre || "").toLowerCase();
-    
-    return (
-      nombre.includes(busquedaLower) ||
-      identificacion.includes(busquedaLower) ||
-      contacto.includes(busquedaLower) ||
-      ciudad.includes(busquedaLower) ||
-      tipoIdentificacion.includes(busquedaLower)
-    );
-  });
+  // Resetear a página 1 cuando cambia la búsqueda
+  useEffect(() => {
+    if (busqueda !== undefined) {
+      setPaginaActual(1);
+    }
+  }, [busqueda]);
 
   // Cargar cliente completo para ver o editar
   const cargarClienteCompleto = async (idCliente: number) => {
@@ -264,12 +283,8 @@ const GestionarClientes = () => {
         description: "El cliente se ha actualizado exitosamente",
       });
 
-      // Recargar clientes
-      const clientesRes = await fetch("http://localhost:4000/api/clientes");
-      const clientesData = await clientesRes.json();
-      if (clientesData.success) {
-        setClientes(clientesData.clientes);
-      }
+      // Recargar clientes (se recargará automáticamente por el useEffect)
+      setPaginaActual(1);
 
       limpiarFormulario();
       setMostrarFormulario(false);
@@ -364,12 +379,8 @@ const GestionarClientes = () => {
         description: "El cliente se ha creado exitosamente",
       });
 
-      // Recargar clientes
-      const clientesRes = await fetch("http://localhost:4000/api/clientes");
-      const clientesData = await clientesRes.json();
-      if (clientesData.success) {
-        setClientes(clientesData.clientes);
-      }
+      // Recargar clientes (se recargará automáticamente por el useEffect)
+      setPaginaActual(1);
 
       limpiarFormulario();
       setMostrarFormulario(false);
@@ -669,7 +680,7 @@ const GestionarClientes = () => {
 
       {/* Barra de búsqueda */}
       <SearchBar
-        placeholder="Buscar por ID o nombre..."
+        placeholder="Buscar por razón social, nombre comercial, identificación, contacto o ciudad..."
         value={busqueda}
         onChange={setBusqueda}
       />
@@ -680,15 +691,15 @@ const GestionarClientes = () => {
         emptyMessage={
           loading
             ? "Cargando clientes..."
-            : clientesFiltrados.length === 0
-            ? clientes.length === 0
-              ? "No hay clientes registrados"
-              : "No se encontraron clientes"
+            : clientes.length === 0
+            ? busqueda.trim()
+              ? "No se encontraron clientes"
+              : "No hay clientes registrados"
             : undefined
         }
         colSpan={8}
       >
-        {clientesFiltrados.map((cliente) => (
+        {clientes.map((cliente) => (
           <TableRow key={cliente.id_cliente}>
             <TableCell className="border-r border-border">
               {cliente.tipo_identificacion_nombre || "N/A"}
@@ -748,6 +759,22 @@ const GestionarClientes = () => {
           </TableRow>
         ))}
       </TableCard>
+
+      {/* Información de paginación y controles */}
+      {paginacion && (
+        <div className="mt-4">
+          <div className="text-sm text-muted-foreground text-center mb-2">
+            Mostrando {clientes.length} de {paginacion.totalRegistros} cliente{paginacion.totalRegistros !== 1 ? "s" : ""}
+          </div>
+          {paginacion.totalPaginas > 1 && (
+            <Pagination
+              paginaActual={paginacion.paginaActual}
+              totalPaginas={paginacion.totalPaginas}
+              onPageChange={setPaginaActual}
+            />
+          )}
+        </div>
+      )}
 
 
       {/* Modal para ver todos los datos del cliente */}

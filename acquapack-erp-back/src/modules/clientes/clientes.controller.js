@@ -21,6 +21,31 @@ async function obtenerClientes(req, res) {
 }
 
 /**
+ * Obtiene clientes con paginación
+ */
+async function obtenerClientesPaginados(req, res) {
+	try {
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 30;
+		const busqueda = req.query.busqueda || "";
+
+		const resultado = await clientesService.obtenerClientesPaginados(page, limit, busqueda);
+		res.json({
+			success: true,
+			clientes: resultado.clientes,
+			paginacion: resultado.paginacion
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerClientesPaginados controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+/**
  * Obtiene un cliente por ID
  */
 async function obtenerClientePorId(req, res) {
@@ -202,6 +227,7 @@ async function calcularDV(req, res) {
 
 module.exports = {
 	obtenerClientes,
+	obtenerClientesPaginados,
 	obtenerClientePorId,
 	obtenerCatalogos,
 	crearCliente,

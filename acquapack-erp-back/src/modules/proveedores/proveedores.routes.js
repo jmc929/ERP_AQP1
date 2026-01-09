@@ -1,6 +1,7 @@
 const express = require("express");
 const {
 	obtenerProveedores,
+	obtenerProveedoresPaginados,
 	obtenerProveedorPorId,
 	obtenerCatalogos,
 	crearProveedor,
@@ -13,6 +14,7 @@ const proveedoresRoutes = express.Router();
 
 proveedoresRoutes.get("/catalogos", obtenerCatalogos);
 proveedoresRoutes.get("/calcular-dv", calcularDV);
+proveedoresRoutes.get("/paginados", obtenerProveedoresPaginados);
 proveedoresRoutes.get("/", obtenerProveedores);
 proveedoresRoutes.get("/:id", obtenerProveedorPorId);
 proveedoresRoutes.post("/", crearProveedor);

@@ -79,7 +79,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
           id_usuarios: trabajadorId,
           descripcion: nuevaTarea.trim(),
           completada: false,
-          fecha_asignacion: new Date().toISOString().split('T')[0],
+          // No enviar fecha_asignacion, el backend usará NOW()
         }),
       });
 
@@ -194,14 +194,46 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
                   id={`tarea-${tarea.id}`}
                   disabled={loading}
                 />
-                <Label
-                  htmlFor={`tarea-${tarea.id}`}
-                  className={`flex-1 cursor-pointer ${
-                    tarea.completada ? "line-through text-muted-foreground" : ""
-                  }`}
-                >
-                  {tarea.descripcion}
-                </Label>
+                <div className="flex-1">
+                  <Label
+                    htmlFor={`tarea-${tarea.id}`}
+                    className={`cursor-pointer ${
+                      tarea.completada ? "line-through text-muted-foreground" : ""
+                    }`}
+                  >
+                    {tarea.descripcion}
+                  </Label>
+                  {tarea.fecha_asignacion && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {(() => {
+                        // Si el timestamp no tiene información de zona horaria, asumir que ya está en hora local (America/Bogota)
+                        const fechaStr = tarea.fecha_asignacion;
+                        let fecha = new Date(fechaStr);
+                        // Si el string no tiene Z ni offset, asumir que está en hora local de Colombia
+                        if (!fechaStr.includes('Z') && !fechaStr.includes('+') && !fechaStr.includes('-', 10)) {
+                          // Ya está en hora local, usar directamente
+                          return fecha.toLocaleString("es-CO", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            timeZone: "America/Bogota"
+                          });
+                        }
+                        // Si tiene información de zona horaria, convertir a hora local de Colombia
+                        return fecha.toLocaleString("es-CO", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "America/Bogota"
+                        });
+                      })()}
+                    </div>
+                  )}
+                </div>
                 <Button
                   variant="ghost"
                   size="icon"

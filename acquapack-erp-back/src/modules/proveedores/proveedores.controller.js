@@ -21,6 +21,31 @@ async function obtenerProveedores(req, res) {
 }
 
 /**
+ * Obtiene proveedores con paginación
+ */
+async function obtenerProveedoresPaginados(req, res) {
+	try {
+		const page = parseInt(req.query.page) || 1;
+		const limit = parseInt(req.query.limit) || 30;
+		const busqueda = req.query.busqueda || "";
+
+		const resultado = await proveedoresService.obtenerProveedoresPaginados(page, limit, busqueda);
+		res.json({
+			success: true,
+			proveedores: resultado.proveedores,
+			paginacion: resultado.paginacion
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerProveedoresPaginados controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+/**
  * Obtiene un proveedor por ID
  */
 async function obtenerProveedorPorId(req, res) {
@@ -202,6 +227,7 @@ async function calcularDV(req, res) {
 
 module.exports = {
 	obtenerProveedores,
+	obtenerProveedoresPaginados,
 	obtenerProveedorPorId,
 	obtenerCatalogos,
 	crearProveedor,

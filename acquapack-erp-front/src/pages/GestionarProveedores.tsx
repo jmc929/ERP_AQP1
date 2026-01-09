@@ -24,6 +24,7 @@ import EmptyTableMessage from "@/components/EmptyTableMessage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
+import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -80,6 +81,13 @@ const GestionarProveedores = () => {
   const [loadingCatalogos, setLoadingCatalogos] = useState(true);
   const [catalogos, setCatalogos] = useState<Catalogos | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [paginaActual, setPaginaActual] = useState(1);
+  const [paginacion, setPaginacion] = useState<{
+    paginaActual: number;
+    totalPaginas: number;
+    totalRegistros: number;
+    limite: number;
+  } | null>(null);
 
   // Estados del formulario
   const [idTipoEntidad, setIdTipoEntidad] = useState("");
@@ -104,26 +112,49 @@ const GestionarProveedores = () => {
   const [proveedorEditando, setProveedorEditando] = useState<Proveedor | null>(null);
   const [cargandoProveedor, setCargandoProveedor] = useState(false);
 
-  // Cargar proveedores y catálogos
+  // Cargar catálogos
   useEffect(() => {
-    const cargarDatos = async () => {
+    const cargarCatalogos = async () => {
       try {
-        setLoading(true);
         setLoadingCatalogos(true);
-        const [proveedoresRes, catalogosRes] = await Promise.all([
-          fetch("http://localhost:4000/api/proveedores"),
-          fetch("http://localhost:4000/api/proveedores/catalogos")
-        ]);
-
-        const proveedoresData = await proveedoresRes.json();
+        const catalogosRes = await fetch("http://localhost:4000/api/proveedores/catalogos");
         const catalogosData = await catalogosRes.json();
-
-        if (proveedoresData.success) {
-          setProveedores(proveedoresData.proveedores);
-        }
 
         if (catalogosData.success) {
           setCatalogos(catalogosData.catalogos);
+        }
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los catálogos",
+          variant: "destructive",
+        });
+      } finally {
+        setLoadingCatalogos(false);
+      }
+    };
+
+    cargarCatalogos();
+  }, [toast]);
+
+  // Cargar proveedores con paginación
+  useEffect(() => {
+    const cargarProveedores = async () => {
+      try {
+        setLoading(true);
+        const url = new URL("http://localhost:4000/api/proveedores/paginados");
+        url.searchParams.append("page", paginaActual.toString());
+        url.searchParams.append("limit", "30");
+        if (busqueda.trim()) {
+          url.searchParams.append("busqueda", busqueda.trim());
+        }
+
+        const proveedoresRes = await fetch(url.toString());
+        const proveedoresData = await proveedoresRes.json();
+
+        if (proveedoresData.success) {
+          setProveedores(proveedoresData.proveedores);
+          setPaginacion(proveedoresData.paginacion);
         }
       } catch (error) {
         toast({
@@ -133,30 +164,18 @@ const GestionarProveedores = () => {
         });
       } finally {
         setLoading(false);
-        setLoadingCatalogos(false);
       }
     };
 
-    cargarDatos();
-  }, [toast]);
+    cargarProveedores();
+  }, [paginaActual, busqueda, toast]);
 
-  // Filtrar proveedores según búsqueda
-  const proveedoresFiltrados = proveedores.filter((proveedor) => {
-    const busquedaLower = busqueda.toLowerCase();
-    const nombre = (proveedor.razon_social || proveedor.nombre_comercial || "").toLowerCase();
-    const identificacion = (proveedor.identificacion || "").toLowerCase();
-    const contacto = `${proveedor.nombre_contacto || ""} ${proveedor.apellido_contacto || ""}`.toLowerCase().trim();
-    const ciudad = (proveedor.ciudad_nombre || "").toLowerCase();
-    const tipoIdentificacion = (proveedor.tipo_identificacion_nombre || "").toLowerCase();
-    
-    return (
-      nombre.includes(busquedaLower) ||
-      identificacion.includes(busquedaLower) ||
-      contacto.includes(busquedaLower) ||
-      ciudad.includes(busquedaLower) ||
-      tipoIdentificacion.includes(busquedaLower)
-    );
-  });
+  // Resetear a página 1 cuando cambia la búsqueda
+  useEffect(() => {
+    if (busqueda !== undefined) {
+      setPaginaActual(1);
+    }
+  }, [busqueda]);
 
   // Cargar proveedor completo para ver o editar
   const cargarProveedorCompleto = async (idProveedor: number) => {
@@ -264,12 +283,8 @@ const GestionarProveedores = () => {
         description: "El proveedor se ha actualizado exitosamente",
       });
 
-      // Recargar proveedores
-      const proveedoresRes = await fetch("http://localhost:4000/api/proveedores");
-      const proveedoresData = await proveedoresRes.json();
-      if (proveedoresData.success) {
-        setProveedores(proveedoresData.proveedores);
-      }
+      // Recargar proveedores (se recargará automáticamente por el useEffect)
+      setPaginaActual(1);
 
       limpiarFormulario();
       setMostrarFormulario(false);
@@ -364,12 +379,8 @@ const GestionarProveedores = () => {
         description: "El proveedor se ha creado exitosamente",
       });
 
-      // Recargar proveedores
-      const proveedoresRes = await fetch("http://localhost:4000/api/proveedores");
-      const proveedoresData = await proveedoresRes.json();
-      if (proveedoresData.success) {
-        setProveedores(proveedoresData.proveedores);
-      }
+      // Recargar proveedores (se recargará automáticamente por el useEffect)
+      setPaginaActual(1);
 
       limpiarFormulario();
       setMostrarFormulario(false);
@@ -669,7 +680,7 @@ const GestionarProveedores = () => {
 
       {/* Barra de búsqueda */}
       <SearchBar
-        placeholder="Buscar por ID o nombre..."
+        placeholder="Buscar por razón social, nombre comercial, identificación, contacto o ciudad..."
         value={busqueda}
         onChange={setBusqueda}
       />
@@ -680,15 +691,15 @@ const GestionarProveedores = () => {
         emptyMessage={
           loading
             ? "Cargando proveedores..."
-            : proveedoresFiltrados.length === 0
-            ? proveedores.length === 0
-              ? "No hay proveedores registrados"
-              : "No se encontraron proveedores"
+            : proveedores.length === 0
+            ? busqueda.trim()
+              ? "No se encontraron proveedores"
+              : "No hay proveedores registrados"
             : undefined
         }
         colSpan={8}
       >
-        {proveedoresFiltrados.map((proveedor) => (
+        {proveedores.map((proveedor) => (
           <TableRow key={proveedor.id_proveedor}>
             <TableCell className="border-r border-border">
               {proveedor.tipo_identificacion_nombre || "N/A"}
@@ -749,6 +760,21 @@ const GestionarProveedores = () => {
         ))}
       </TableCard>
 
+      {/* Información de paginación y controles */}
+      {paginacion && (
+        <div className="mt-4">
+          <div className="text-sm text-muted-foreground text-center mb-2">
+            Mostrando {proveedores.length} de {paginacion.totalRegistros} proveedor{paginacion.totalRegistros !== 1 ? "es" : ""}
+          </div>
+          {paginacion.totalPaginas > 1 && (
+            <Pagination
+              paginaActual={paginacion.paginaActual}
+              totalPaginas={paginacion.totalPaginas}
+              onPageChange={setPaginaActual}
+            />
+          )}
+        </div>
+      )}
 
       {/* Modal para ver todos los datos del proveedor */}
       <Dialog open={mostrarModalVer} onOpenChange={setMostrarModalVer}>

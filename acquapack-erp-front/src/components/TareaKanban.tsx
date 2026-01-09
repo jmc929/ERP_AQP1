@@ -68,7 +68,7 @@ const TareaKanban = ({
           id_usuarios: trabajadorId,
           descripcion: nuevaTarea.trim(),
           id_estado: ESTADOS.POR_HACER, // 21 = Pendiente
-          fecha_asignacion: new Date().toISOString().split("T")[0],
+          // No enviar fecha_asignacion, el backend usará NOW()
         }),
       });
 
@@ -350,6 +350,22 @@ const TareaKanban = ({
                     ) : (
                       <>
                         <p className="text-sm mb-2">{tarea.descripcion}</p>
+                        {tarea.fecha_asignacion && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {(() => {
+                              const fechaStr = tarea.fecha_asignacion;
+                              const fecha = new Date(fechaStr);
+                              return fecha.toLocaleString("es-CO", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "America/Bogota"
+                              });
+                            })()}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex gap-2">
                             <Button
@@ -446,6 +462,22 @@ const TareaKanban = ({
                     ) : (
                       <>
                         <p className="text-sm mb-2">{tarea.descripcion}</p>
+                        {tarea.fecha_asignacion && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {(() => {
+                              const fechaStr = tarea.fecha_asignacion;
+                              const fecha = new Date(fechaStr);
+                              return fecha.toLocaleString("es-CO", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "America/Bogota"
+                              });
+                            })()}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between gap-2">
                           <Button
                             variant="outline"
@@ -551,6 +583,22 @@ const TareaKanban = ({
                     ) : (
                       <>
                         <p className="text-sm mb-2 line-through text-muted-foreground">{tarea.descripcion}</p>
+                        {tarea.fecha_asignacion && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            {(() => {
+                              const fechaStr = tarea.fecha_asignacion;
+                              const fecha = new Date(fechaStr);
+                              return fecha.toLocaleString("es-CO", {
+                                year: "numeric",
+                                month: "2-digit",
+                                day: "2-digit",
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                timeZone: "America/Bogota"
+                              });
+                            })()}
+                          </p>
+                        )}
                         <div className="flex items-center justify-between gap-2">
                           <Button
                             variant="outline"

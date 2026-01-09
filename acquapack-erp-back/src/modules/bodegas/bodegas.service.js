@@ -288,13 +288,42 @@ class BodegasService {
 	 */
 	async obtenerProductosPorBodega(idBodega) {
 		try {
-			// Primero intentar obtener id_traslado si existe, si no, usar NULL
-			let query;
+			// Verificar qué columnas existen en las tablas
+			let tieneIdTraslado = false;
+			let nombreColumnaFecha = 'fecha'; // Por defecto
+			
 			try {
-				// Intentar una consulta simple para verificar si la columna existe
+				// Verificar si existe id_traslado en inventario
 				await pool.query("SELECT id_traslado FROM public.inventario LIMIT 1");
-				// Si llegamos aquí, la columna existe
-				query = `
+				tieneIdTraslado = true;
+			} catch (e) {
+				logger.warn("Columna id_traslado no encontrada en inventario");
+			}
+			
+			// Verificar el nombre real de la columna de fecha en movimientos_kardex
+			try {
+				const fechaCheck = await pool.query(`
+					SELECT column_name 
+					FROM information_schema.columns 
+					WHERE table_schema = 'public' 
+					AND table_name = 'movimientos_kardex' 
+					AND column_name LIKE '%fecha%'
+				`);
+				if (fechaCheck.rows.length > 0) {
+					nombreColumnaFecha = fechaCheck.rows[0].column_name;
+					logger.info({ nombreColumnaFecha }, "Columna de fecha encontrada en movimientos_kardex");
+				}
+			} catch (e) {
+				logger.warn({ err: e }, "No se pudo verificar la columna de fecha, usando 'fecha' por defecto");
+			}
+			
+			// Construir el nombre de la columna con comillas si tiene espacios
+			const fechaCol = nombreColumnaFecha.includes(' ') ? `"${nombreColumnaFecha}"` : nombreColumnaFecha;
+			
+			let query;
+			if (tieneIdTraslado) {
+				// Consulta completa con id_traslado - usar placeholder para la columna de fecha
+				const queryTemplate = `
 					SELECT 
 						inv.id_inventario,
 						inv.id_producto,
@@ -314,70 +343,65 @@ class BodegasService {
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
-					-- Comprobante: Determinar el origen original basándose en el primer movimiento
-					-- Buscar el primer movimiento de entrada en el kardex para determinar si fue traslado o factura
-					COALESCE(
-						(SELECT 
+						-- Comprobante: Determinar el origen original basándose en el primer movimiento
+						COALESCE(
+							(SELECT 
+								CASE
+									WHEN mk.tipo_movimiento LIKE '%Traslado Entrada%' OR mk.tipo_movimiento LIKE '%Traslado%' THEN
+										'T-' || COALESCE(
+											(SELECT t2.id_traslado::text
+											 FROM public.traslados t2
+											 WHERE t2.bodega_destino_id = inv.id_bodega
+											   AND DATE(t2.fecha_traslado) <= DATE(mk.__FECHA_COL__)
+											 ORDER BY t2.id_traslado ASC
+											 LIMIT 1
+											),
+											inv.id_traslado::text,
+											'0'
+										)
+									ELSE
+										'FC-' || COALESCE(
+											(SELECT f2.id_facturas::text
+											 FROM public.facturas f2
+											 INNER JOIN public.detalle_factura df2 ON f2.id_facturas = df2.id_factura
+											 WHERE df2.id_producto = inv.id_producto
+											   AND DATE(f2.fecha_creacion) <= DATE(mk.__FECHA_COL__)
+											 ORDER BY f2.id_facturas ASC
+											 LIMIT 1
+											),
+											inv.id_factura::text,
+											'0'
+										)
+								END
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Entrada'
+							 ORDER BY mk.__FECHA_COL__ ASC, mk.id_movimientos ASC
+							 LIMIT 1
+							),
 							CASE
-								-- Si el primer movimiento es de traslado, buscar el primer traslado
-								WHEN mk.tipo_movimiento LIKE '%Traslado Entrada%' OR mk.tipo_movimiento LIKE '%Traslado%' THEN
-									'T-' || COALESCE(
-										(SELECT t2.id_traslado::text
-										 FROM public.traslados t2
-										 WHERE t2.bodega_destino_id = inv.id_bodega
-										   AND DATE(t2.fecha_traslado) <= DATE(mk."fecha ")
-										 ORDER BY t2.id_traslado ASC
-										 LIMIT 1
-										),
-										inv.id_traslado::text,
-										'0'
-									)
-								-- Si el primer movimiento es de factura/compra
-								ELSE
-									'FC-' || COALESCE(
-										(SELECT f2.id_facturas::text
-										 FROM public.facturas f2
-										 INNER JOIN public.detalle_factura df2 ON f2.id_facturas = df2.id_factura
-										 WHERE df2.id_producto = inv.id_producto
-										   AND DATE(f2.fecha_creacion) <= DATE(mk."fecha ")
-										 ORDER BY f2.id_facturas ASC
-										 LIMIT 1
-										),
-										inv.id_factura::text,
-										'0'
-									)
+								WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
+								WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
+								ELSE 'N/A'
 							END
-						 FROM public.movimientos_kardex mk
-						 WHERE mk.id_bodega = inv.id_bodega
-						   AND mk.id_producto = inv.id_producto
-						   AND mk.tipo_flujo = 'Entrada'
-						 ORDER BY mk."fecha " ASC, mk.id_movimiento_kardex ASC
-						 LIMIT 1
-						),
-						-- Fallback: usar los campos directos del inventario
-						CASE
-							WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
-							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
-							ELSE 'N/A'
-						END
-					) as comprobante,
-					-- Fecha: del primer movimiento de entrada o de la factura/traslado directo
-					COALESCE(
-						(SELECT mk."fecha "
-						 FROM public.movimientos_kardex mk
-						 WHERE mk.id_bodega = inv.id_bodega
-						   AND mk.id_producto = inv.id_producto
-						   AND mk.tipo_flujo = 'Entrada'
-						 ORDER BY mk."fecha " ASC, mk.id_movimiento_kardex ASC
-						 LIMIT 1
-						),
-						CASE
-							WHEN inv.id_traslado IS NOT NULL THEN t.fecha_traslado
-							WHEN inv.id_factura IS NOT NULL THEN f.fecha_creacion
-							ELSE inv.fecha_ingreso
-						END
-					) as fecha_comprobante,
-						-- Cantidad de entrada: suma de movimientos de entrada
+						) as comprobante,
+						-- Fecha: del primer movimiento de entrada o de la factura/traslado directo
+						COALESCE(
+							(SELECT mk.__FECHA_COL__
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Entrada'
+							 ORDER BY mk.__FECHA_COL__ ASC, mk.id_movimientos ASC
+							 LIMIT 1
+							),
+							CASE
+								WHEN inv.id_traslado IS NOT NULL THEN t.fecha_traslado
+								WHEN inv.id_factura IS NOT NULL THEN f.fecha_creacion
+								ELSE inv.fecha_ingreso
+							END
+						) as fecha_comprobante,
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -387,7 +411,6 @@ class BodegasService {
 							),
 							0
 						) as cantidad_entrada,
-						-- Cantidad de salida: suma de movimientos de salida
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -397,7 +420,6 @@ class BodegasService {
 							),
 							0
 						) as cantidad_salida,
-						-- Saldo cantidad: cantidad actual (cantidad_lote)
 						inv.cantidad_lote as saldo_cantidad
 					FROM public.inventario inv
 					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
@@ -410,9 +432,9 @@ class BodegasService {
 						AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
 					ORDER BY inv.fecha_ingreso DESC, p.nombre, inv.id_inventario
 				`;
-			} catch (colError) {
-				// Si la columna no existe, usar una consulta sin id_traslado
-				logger.warn({ err: colError }, "Columna id_traslado no encontrada, usando consulta alternativa");
+				query = queryTemplate.replace(/__FECHA_COL__/g, fechaCol);
+			} else {
+				// Consulta sin id_traslado
 				query = `
 					SELECT 
 						inv.id_inventario,
@@ -433,14 +455,11 @@ class BodegasService {
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
-						-- Comprobante: FC-X si es factura, N/A si no
 						CASE
 							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
 							ELSE 'N/A'
 						END as comprobante,
-						-- Fecha: de la factura o fecha_ingreso
 						COALESCE(f.fecha_creacion, inv.fecha_ingreso) as fecha_comprobante,
-						-- Cantidad de entrada: suma de movimientos de entrada
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -450,7 +469,6 @@ class BodegasService {
 							),
 							0
 						) as cantidad_entrada,
-						-- Cantidad de salida: suma de movimientos de salida
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -460,7 +478,6 @@ class BodegasService {
 							),
 							0
 						) as cantidad_salida,
-						-- Saldo cantidad: cantidad actual (cantidad_lote)
 						inv.cantidad_lote as saldo_cantidad
 					FROM public.inventario inv
 					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto

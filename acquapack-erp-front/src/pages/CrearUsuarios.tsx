@@ -14,6 +14,7 @@ import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
+import { Search } from "lucide-react";
 
 interface Catalogos {
   tiposIdentificacion: Array<{ id_tipo_identificacion: number; nombre: string }>;
@@ -75,6 +76,15 @@ const CrearUsuarios = () => {
 
   // Rol
   const [rolesSeleccionados, setRolesSeleccionados] = useState<string[]>([]);
+
+  // Estados para búsqueda en listas
+  const [busquedaEstadoCivil, setBusquedaEstadoCivil] = useState("");
+  const [busquedaTipoIdentificacion, setBusquedaTipoIdentificacion] = useState("");
+  const [busquedaTipoContrato, setBusquedaTipoContrato] = useState("");
+  const [busquedaEps, setBusquedaEps] = useState("");
+  const [busquedaArl, setBusquedaArl] = useState("");
+  const [busquedaFondoPensiones, setBusquedaFondoPensiones] = useState("");
+  const [busquedaCajaCompensacion, setBusquedaCajaCompensacion] = useState("");
 
   // Cargar catálogos al montar el componente
   useEffect(() => {
@@ -212,6 +222,14 @@ const CrearUsuarios = () => {
     setFirmaElementosProteccion(true);
     setFirmaContrato(true);
     setRolesSeleccionados([]);
+    // Limpiar búsquedas
+    setBusquedaEstadoCivil("");
+    setBusquedaTipoIdentificacion("");
+    setBusquedaTipoContrato("");
+    setBusquedaEps("");
+    setBusquedaArl("");
+    setBusquedaFondoPensiones("");
+    setBusquedaCajaCompensacion("");
   };
 
   const handleRolChange = (idRol: string, checked: boolean) => {
@@ -274,11 +292,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione estado civil" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.estadosCiviles.map((estado) => (
-                    <SelectItem key={estado.id_estado_civil} value={estado.id_estado_civil.toString()}>
-                      {estado.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar estado civil..."
+                        value={busquedaEstadoCivil}
+                        onChange={(e) => setBusquedaEstadoCivil(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.estadosCiviles
+                      .filter((estado) =>
+                        estado.nombre.toLowerCase().includes(busquedaEstadoCivil.toLowerCase())
+                      )
+                      .map((estado) => (
+                        <SelectItem key={estado.id_estado_civil} value={estado.id_estado_civil.toString()}>
+                          {estado.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -295,11 +332,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione tipo de documento" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.tiposIdentificacion.map((tipo) => (
-                    <SelectItem key={tipo.id_tipo_identificacion} value={tipo.id_tipo_identificacion.toString()}>
-                      {tipo.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar tipo de documento..."
+                        value={busquedaTipoIdentificacion}
+                        onChange={(e) => setBusquedaTipoIdentificacion(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.tiposIdentificacion
+                      .filter((tipo) =>
+                        tipo.nombre.toLowerCase().includes(busquedaTipoIdentificacion.toLowerCase())
+                      )
+                      .map((tipo) => (
+                        <SelectItem key={tipo.id_tipo_identificacion} value={tipo.id_tipo_identificacion.toString()}>
+                          {tipo.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -380,11 +436,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione tipo de contrato" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.tiposContrato.map((tipo) => (
-                    <SelectItem key={tipo.id_tipo_contrato} value={tipo.id_tipo_contrato.toString()}>
-                      {tipo.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar tipo de contrato..."
+                        value={busquedaTipoContrato}
+                        onChange={(e) => setBusquedaTipoContrato(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.tiposContrato
+                      .filter((tipo) =>
+                        tipo.nombre.toLowerCase().includes(busquedaTipoContrato.toLowerCase())
+                      )
+                      .map((tipo) => (
+                        <SelectItem key={tipo.id_tipo_contrato} value={tipo.id_tipo_contrato.toString()}>
+                          {tipo.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -401,11 +476,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione EPS" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.epss.map((eps) => (
-                    <SelectItem key={eps.id_eps} value={eps.id_eps.toString()}>
-                      {eps.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar EPS..."
+                        value={busquedaEps}
+                        onChange={(e) => setBusquedaEps(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.epss
+                      .filter((eps) =>
+                        eps.nombre.toLowerCase().includes(busquedaEps.toLowerCase())
+                      )
+                      .map((eps) => (
+                        <SelectItem key={eps.id_eps} value={eps.id_eps.toString()}>
+                          {eps.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -425,11 +519,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione ARL" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.arls.map((arl) => (
-                    <SelectItem key={arl.id_arl} value={arl.id_arl.toString()}>
-                      {arl.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar ARL..."
+                        value={busquedaArl}
+                        onChange={(e) => setBusquedaArl(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.arls
+                      .filter((arl) =>
+                        arl.nombre.toLowerCase().includes(busquedaArl.toLowerCase())
+                      )
+                      .map((arl) => (
+                        <SelectItem key={arl.id_arl} value={arl.id_arl.toString()}>
+                          {arl.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -449,11 +562,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione fondo de pensiones" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.fondosPensiones.map((fondo) => (
-                    <SelectItem key={fondo.id_fondo_pensiones} value={fondo.id_fondo_pensiones.toString()}>
-                      {fondo.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar fondo de pensiones..."
+                        value={busquedaFondoPensiones}
+                        onChange={(e) => setBusquedaFondoPensiones(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.fondosPensiones
+                      .filter((fondo) =>
+                        fondo.nombre.toLowerCase().includes(busquedaFondoPensiones.toLowerCase())
+                      )
+                      .map((fondo) => (
+                        <SelectItem key={fondo.id_fondo_pensiones} value={fondo.id_fondo_pensiones.toString()}>
+                          {fondo.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>
@@ -464,11 +596,30 @@ const CrearUsuarios = () => {
                   <SelectValue placeholder="Seleccione caja de compensación" />
                 </SelectTrigger>
                 <SelectContent>
-                  {catalogos?.cajasCompensacion.map((caja) => (
-                    <SelectItem key={caja.id_caja_compensacion} value={caja.id_caja_compensacion.toString()}>
-                      {caja.nombre}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar caja de compensación..."
+                        value={busquedaCajaCompensacion}
+                        onChange={(e) => setBusquedaCajaCompensacion(e.target.value)}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div className="max-h-[200px] overflow-y-auto">
+                    {catalogos?.cajasCompensacion
+                      .filter((caja) =>
+                        caja.nombre.toLowerCase().includes(busquedaCajaCompensacion.toLowerCase())
+                      )
+                      .map((caja) => (
+                        <SelectItem key={caja.id_caja_compensacion} value={caja.id_caja_compensacion.toString()}>
+                          {caja.nombre}
+                        </SelectItem>
+                      ))}
+                  </div>
                 </SelectContent>
               </Select>
             </div>

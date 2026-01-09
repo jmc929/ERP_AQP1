@@ -181,24 +181,47 @@ class TareasService {
 			);
 			const nextId = idResult.rows[0].next_id;
 
-			const query = `
-				INSERT INTO public.tareas (
-					id_tareas,
-					id_usuarios,
-					descripcion,
-					id_estado,
-					fecha_asignacion
-				) VALUES ($1, $2, $3, $4, $5)
-				RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
-			`;
+			// Si fecha_asignacion viene, usarla. Si no, dejar que la BD use el DEFAULT
+			const tieneFechaAsignacion = datosTarea.fecha_asignacion && 
+				datosTarea.fecha_asignacion !== null && 
+				datosTarea.fecha_asignacion !== undefined &&
+				String(datosTarea.fecha_asignacion).trim() !== "";
 
-			const valores = [
-				nextId,
-				datosTarea.id_usuarios,
-				datosTarea.descripcion,
-				datosTarea.id_estado || 21, // Por defecto "Por hacer"
-				datosTarea.fecha_asignacion || new Date().toISOString().split('T')[0]
-			];
+			const query = tieneFechaAsignacion
+				? `
+					INSERT INTO public.tareas (
+						id_tareas,
+						id_usuarios,
+						descripcion,
+						id_estado,
+						fecha_asignacion
+					) VALUES ($1, $2, $3, $4, $5::timestamp)
+					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
+				`
+				: `
+					INSERT INTO public.tareas (
+						id_tareas,
+						id_usuarios,
+						descripcion,
+						id_estado
+					) VALUES ($1, $2, $3, $4)
+					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
+				`;
+
+			const valores = tieneFechaAsignacion
+				? [
+					nextId,
+					datosTarea.id_usuarios,
+					datosTarea.descripcion,
+					datosTarea.id_estado || 21, // Por defecto "Por hacer"
+					datosTarea.fecha_asignacion
+				]
+				: [
+					nextId,
+					datosTarea.id_usuarios,
+					datosTarea.descripcion,
+					datosTarea.id_estado || 21 // Por defecto "Por hacer"
+				];
 
 			const result = await pool.query(query, valores);
 			logger.info({ tareaId: result.rows[0].id_tareas }, "Tarea creada exitosamente");

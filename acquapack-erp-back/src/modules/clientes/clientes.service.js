@@ -89,6 +89,113 @@ class ClientesService {
 	}
 
 	/**
+	 * Obtiene clientes con paginación y búsqueda
+	 * @param {number} page - Número de página
+	 * @param {number} limit - Cantidad de registros por página
+	 * @param {string} busqueda - Texto de búsqueda
+	 * @returns {Promise<Object>} Clientes paginados
+	 */
+	async obtenerClientesPaginados(page = 1, limit = 30, busqueda = "") {
+		try {
+			const offset = (page - 1) * limit;
+			let query = `
+				SELECT 
+					c.*,
+					te.nombre as tipo_entidad_nombre,
+					ti.nombre as tipo_identificacion_nombre,
+					ci.nombre as ciudad_nombre,
+					tri.nombre as tipo_regimen_iva_nombre,
+					rf.nombre as responsabilidad_fiscal_nombre,
+					rf.codigo as responsabilidad_fiscal_codigo,
+					e.nombre as estado_nombre,
+					e.color as estado_color
+				FROM public.clientes c
+				LEFT JOIN public.tipo_entidad te ON c.id_tipo_entidad = te.id_tipo_entidad
+				LEFT JOIN public.tipo_identificacion ti ON c.id_tipo_identificacion = ti.id_tipo_identificacion
+				LEFT JOIN public.ciudad ci ON c.id_ciudad = ci.id_ciudad
+				LEFT JOIN public.tipo_regimen_iva tri ON c.id_tipo_regimen_iva = tri.id_regimen_iva
+				LEFT JOIN public.responsabilidad_fiscal rf ON c.id_responsabilidad_fiscal = rf.id_responsabilidad_fiscal
+				LEFT JOIN public.estado e ON c.id_estado = e.id_estado
+			`;
+			const valores = [];
+			let contador = 1;
+
+			// Agregar filtro de búsqueda si existe
+			if (busqueda && busqueda.trim() !== "") {
+				query += ` WHERE (
+					c.razon_social ILIKE $${contador} OR 
+					c.nombre_comercial ILIKE $${contador} OR
+					c.identificacion ILIKE $${contador} OR
+					CONCAT(c.nombre_contacto, ' ', c.apellido_contacto) ILIKE $${contador} OR
+					ci.nombre ILIKE $${contador} OR
+					ti.nombre ILIKE $${contador}
+				)`;
+				valores.push(`%${busqueda.trim()}%`);
+				contador++;
+			}
+
+			query += ` ORDER BY c.id_cliente DESC LIMIT $${contador} OFFSET $${contador + 1}`;
+			valores.push(limit, offset);
+
+			// Contar total de registros
+			let countQuery = `
+				SELECT COUNT(*) as total
+				FROM public.clientes c
+				LEFT JOIN public.tipo_entidad te ON c.id_tipo_entidad = te.id_tipo_entidad
+				LEFT JOIN public.tipo_identificacion ti ON c.id_tipo_identificacion = ti.id_tipo_identificacion
+				LEFT JOIN public.ciudad ci ON c.id_ciudad = ci.id_ciudad
+				LEFT JOIN public.tipo_regimen_iva tri ON c.id_tipo_regimen_iva = tri.id_regimen_iva
+				LEFT JOIN public.responsabilidad_fiscal rf ON c.id_responsabilidad_fiscal = rf.id_responsabilidad_fiscal
+				LEFT JOIN public.estado e ON c.id_estado = e.id_estado
+			`;
+			const countValores = [];
+			let countContador = 1;
+
+			if (busqueda && busqueda.trim() !== "") {
+				countQuery += ` WHERE (
+					c.razon_social ILIKE $${countContador} OR 
+					c.nombre_comercial ILIKE $${countContador} OR
+					c.identificacion ILIKE $${countContador} OR
+					CONCAT(c.nombre_contacto, ' ', c.apellido_contacto) ILIKE $${countContador} OR
+					ci.nombre ILIKE $${countContador} OR
+					ti.nombre ILIKE $${countContador}
+				)`;
+				countValores.push(`%${busqueda.trim()}%`);
+			}
+
+			const [result, countResult] = await Promise.all([
+				pool.query(query, valores),
+				pool.query(countQuery, countValores)
+			]);
+
+			const total = parseInt(countResult.rows[0].total, 10);
+			const totalPaginas = Math.ceil(total / limit);
+
+			logger.info({ 
+				page, 
+				limit, 
+				busqueda, 
+				total, 
+				totalPaginas, 
+				count: result.rows.length 
+			}, "Clientes paginados obtenidos exitosamente");
+
+			return {
+				clientes: result.rows,
+				paginacion: {
+					paginaActual: page,
+					totalPaginas,
+					totalRegistros: total,
+					limite: limit
+				}
+			};
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener clientes paginados");
+			throw error;
+		}
+	}
+
+	/**
 	 * Obtiene un cliente por ID
 	 * @param {number} idCliente - ID del cliente
 	 * @returns {Promise<Object>} Cliente

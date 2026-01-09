@@ -1,6 +1,7 @@
 const express = require("express");
 const {
 	obtenerClientes,
+	obtenerClientesPaginados,
 	obtenerClientePorId,
 	obtenerCatalogos,
 	crearCliente,
@@ -13,6 +14,7 @@ const clientesRoutes = express.Router();
 
 clientesRoutes.get("/catalogos", obtenerCatalogos);
 clientesRoutes.get("/calcular-dv", calcularDV);
+clientesRoutes.get("/paginados", obtenerClientesPaginados);
 clientesRoutes.get("/", obtenerClientes);
 clientesRoutes.get("/:id", obtenerClientePorId);
 clientesRoutes.post("/", crearCliente);
