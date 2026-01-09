@@ -3,6 +3,7 @@ const {
   calcularValorTotal,
   obtenerSiguienteIdSalida,
   obtenerClientes,
+  obtenerClientesPaginados,
   obtenerProductos,
   obtenerBodegas,
   obtenerIvas,
@@ -18,6 +19,7 @@ const ventasRoutes = express.Router();
 ventasRoutes.post("/calcular-valor-total", calcularValorTotal);
 ventasRoutes.get("/siguiente-id-salida", obtenerSiguienteIdSalida);
 ventasRoutes.get("/clientes", obtenerClientes);
+ventasRoutes.get("/clientes/buscar", obtenerClientesPaginados);
 ventasRoutes.get("/productos", obtenerProductos);
 ventasRoutes.get("/bodegas", obtenerBodegas);
 ventasRoutes.get("/ivas", obtenerIvas);

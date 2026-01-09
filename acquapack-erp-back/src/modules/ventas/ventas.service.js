@@ -50,6 +50,95 @@ class VentasService {
 	}
 
 	/**
+	 * Obtiene clientes activos con paginación y búsqueda
+	 * @param {number} page - Número de página
+	 * @param {number} limit - Cantidad de registros por página
+	 * @param {string} busqueda - Texto de búsqueda (razón social, nombre comercial o identificación)
+	 * @returns {Promise<Object>} Clientess paginados
+	 */
+	async obtenerClientesPaginados(page = 1, limit = 50, busqueda = "") {
+		try {
+			const offset = (page - 1) * limit;
+			let query = `
+				SELECT 
+					c.id_cliente,
+					c.razon_social,
+					c.nombre_comercial,
+					c.identificacion,
+					c.dv,
+					c.id_estado
+				FROM public.clientes c
+				WHERE c.id_estado IN (1, 2)
+			`;
+			const valores = [];
+			let contador = 1;
+
+			// Agregar filtro de búsqueda si existe
+			if (busqueda && busqueda.trim() !== "") {
+				query += ` AND (
+					c.razon_social ILIKE $${contador} OR 
+					c.nombre_comercial ILIKE $${contador} OR
+					c.identificacion ILIKE $${contador}
+				)`;
+				valores.push(`%${busqueda.trim()}%`);
+				contador++;
+			}
+
+			query += ` ORDER BY c.razon_social LIMIT $${contador} OFFSET $${contador + 1}`;
+			valores.push(limit, offset);
+
+			// Contar total de registros
+			let countQuery = `
+				SELECT COUNT(*) as total
+				FROM public.clientes c
+				WHERE c.id_estado IN (1, 2)
+			`;
+			const countValores = [];
+			let countContador = 1;
+
+			if (busqueda && busqueda.trim() !== "") {
+				countQuery += ` AND (
+					c.razon_social ILIKE $${countContador} OR 
+					c.nombre_comercial ILIKE $${countContador} OR
+					c.identificacion ILIKE $${countContador}
+				)`;
+				countValores.push(`%${busqueda.trim()}%`);
+			}
+
+			const [result, countResult] = await Promise.all([
+				pool.query(query, valores),
+				pool.query(countQuery, countValores)
+			]);
+
+			const total = parseInt(countResult.rows[0].total, 10);
+			const totalPaginas = Math.ceil(total / limit);
+			const hayMas = page < totalPaginas;
+
+			logger.info({ 
+				page, 
+				limit, 
+				busqueda, 
+				total, 
+				totalPaginas, 
+				count: result.rows.length 
+			}, "Clientes paginados obtenidos exitosamente");
+
+			return {
+				clientes: result.rows,
+				paginacion: {
+					paginaActual: page,
+					totalPaginas,
+					totalRegistros: total,
+					hayMas
+				}
+			};
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener clientes paginados");
+			throw error;
+		}
+	}
+
+	/**
 	 * Obtiene productos con stock disponible en una bodega específica
 	 * @param {number} idBodega - ID de la bodega
 	 * @param {number} page - Número de página

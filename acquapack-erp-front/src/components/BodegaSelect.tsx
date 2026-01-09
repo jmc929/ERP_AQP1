@@ -20,6 +20,7 @@ interface Bodega {
   id_bodega: number;
   nombre: string;
   id_estado?: number;
+  total_productos?: number;
 }
 
 interface BodegaSelectProps {
@@ -59,9 +60,16 @@ export function BodegaSelect({
           )}
           disabled={disabled}
         >
-          {value
-            ? bodegaSeleccionada?.nombre || placeholder
-            : placeholder}
+          <span className="flex-1 text-left">
+            {value
+              ? bodegaSeleccionada?.nombre || placeholder
+              : placeholder}
+            {value && bodegaSeleccionada?.total_productos !== undefined && (
+              <span className="text-xs text-muted-foreground ml-2">
+                ({bodegaSeleccionada.total_productos} productos)
+              </span>
+            )}
+          </span>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -92,7 +100,12 @@ export function BodegaSelect({
                         : "opacity-0"
                     )}
                   />
-                  {bodega.nombre}
+                  <span className="flex-1">{bodega.nombre}</span>
+                  {bodega.total_productos !== undefined && (
+                    <span className="text-xs text-muted-foreground ml-2">
+                      ({bodega.total_productos} productos)
+                    </span>
+                  )}
                 </CommandItem>
               ))}
             </CommandGroup>

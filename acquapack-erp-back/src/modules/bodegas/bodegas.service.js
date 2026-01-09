@@ -288,40 +288,208 @@ class BodegasService {
 	 */
 	async obtenerProductosPorBodega(idBodega) {
 		try {
-			const query = `
-				SELECT 
-					inv.id_inventario,
-					inv.id_producto,
-					inv.id_bodega,
-					inv.cantidad_lote,
-					inv.costo_producto,
-					inv.fecha_ingreso,
-					inv.id_factura,
-					p.codigo as producto_codigo,
-					p.nombre as producto_nombre,
-					COALESCE(df.precio_unitario, 0) as precio_unitario,
-					COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
-					COALESCE(df.iva_valor, 0) as iva_valor,
-					COALESCE(df.valor_total, 0) as valor_total,
-					df.id_iva,
-					i.nombre as iva_nombre,
-					i.valor as iva_porcentaje,
-					COALESCE(m.nombre, 'N/A') as unidad_medida
-				FROM public.inventario inv
-				LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
-				LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
-				LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
-				LEFT JOIN public.medida m ON p.id_medida = m.id_medida
-				WHERE inv.id_bodega = $1
-					AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
-				ORDER BY inv.fecha_ingreso DESC, p.nombre, inv.id_inventario
-			`;
+			// Primero intentar obtener id_traslado si existe, si no, usar NULL
+			let query;
+			try {
+				// Intentar una consulta simple para verificar si la columna existe
+				await pool.query("SELECT id_traslado FROM public.inventario LIMIT 1");
+				// Si llegamos aquí, la columna existe
+				query = `
+					SELECT 
+						inv.id_inventario,
+						inv.id_producto,
+						inv.id_bodega,
+						inv.cantidad_lote,
+						inv.costo_producto,
+						inv.fecha_ingreso,
+						inv.id_factura,
+						inv.id_traslado,
+						p.codigo as producto_codigo,
+						p.nombre as producto_nombre,
+						COALESCE(df.precio_unitario, 0) as precio_unitario,
+						COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
+						COALESCE(df.iva_valor, 0) as iva_valor,
+						COALESCE(df.valor_total, 0) as valor_total,
+						df.id_iva,
+						i.nombre as iva_nombre,
+						i.valor as iva_porcentaje,
+						COALESCE(m.nombre, 'N/A') as unidad_medida,
+					-- Comprobante: Determinar el origen original basándose en el primer movimiento
+					-- Buscar el primer movimiento de entrada en el kardex para determinar si fue traslado o factura
+					COALESCE(
+						(SELECT 
+							CASE
+								-- Si el primer movimiento es de traslado, buscar el primer traslado
+								WHEN mk.tipo_movimiento LIKE '%Traslado Entrada%' OR mk.tipo_movimiento LIKE '%Traslado%' THEN
+									'T-' || COALESCE(
+										(SELECT t2.id_traslado::text
+										 FROM public.traslados t2
+										 WHERE t2.bodega_destino_id = inv.id_bodega
+										   AND DATE(t2.fecha_traslado) <= DATE(mk."fecha ")
+										 ORDER BY t2.id_traslado ASC
+										 LIMIT 1
+										),
+										inv.id_traslado::text,
+										'0'
+									)
+								-- Si el primer movimiento es de factura/compra
+								ELSE
+									'FC-' || COALESCE(
+										(SELECT f2.id_facturas::text
+										 FROM public.facturas f2
+										 INNER JOIN public.detalle_factura df2 ON f2.id_facturas = df2.id_factura
+										 WHERE df2.id_producto = inv.id_producto
+										   AND DATE(f2.fecha_creacion) <= DATE(mk."fecha ")
+										 ORDER BY f2.id_facturas ASC
+										 LIMIT 1
+										),
+										inv.id_factura::text,
+										'0'
+									)
+							END
+						 FROM public.movimientos_kardex mk
+						 WHERE mk.id_bodega = inv.id_bodega
+						   AND mk.id_producto = inv.id_producto
+						   AND mk.tipo_flujo = 'Entrada'
+						 ORDER BY mk."fecha " ASC, mk.id_movimiento_kardex ASC
+						 LIMIT 1
+						),
+						-- Fallback: usar los campos directos del inventario
+						CASE
+							WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
+							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
+							ELSE 'N/A'
+						END
+					) as comprobante,
+					-- Fecha: del primer movimiento de entrada o de la factura/traslado directo
+					COALESCE(
+						(SELECT mk."fecha "
+						 FROM public.movimientos_kardex mk
+						 WHERE mk.id_bodega = inv.id_bodega
+						   AND mk.id_producto = inv.id_producto
+						   AND mk.tipo_flujo = 'Entrada'
+						 ORDER BY mk."fecha " ASC, mk.id_movimiento_kardex ASC
+						 LIMIT 1
+						),
+						CASE
+							WHEN inv.id_traslado IS NOT NULL THEN t.fecha_traslado
+							WHEN inv.id_factura IS NOT NULL THEN f.fecha_creacion
+							ELSE inv.fecha_ingreso
+						END
+					) as fecha_comprobante,
+						-- Cantidad de entrada: suma de movimientos de entrada
+						COALESCE(
+							(SELECT SUM(mk.cantidad)
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Entrada'
+							),
+							0
+						) as cantidad_entrada,
+						-- Cantidad de salida: suma de movimientos de salida
+						COALESCE(
+							(SELECT SUM(mk.cantidad)
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Salida'
+							),
+							0
+						) as cantidad_salida,
+						-- Saldo cantidad: cantidad actual (cantidad_lote)
+						inv.cantidad_lote as saldo_cantidad
+					FROM public.inventario inv
+					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
+					LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
+					LEFT JOIN public.facturas f ON inv.id_factura = f.id_facturas
+					LEFT JOIN public.traslados t ON inv.id_traslado = t.id_traslado
+					LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
+					LEFT JOIN public.medida m ON p.id_medida = m.id_medida
+					WHERE inv.id_bodega = $1
+						AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
+					ORDER BY inv.fecha_ingreso DESC, p.nombre, inv.id_inventario
+				`;
+			} catch (colError) {
+				// Si la columna no existe, usar una consulta sin id_traslado
+				logger.warn({ err: colError }, "Columna id_traslado no encontrada, usando consulta alternativa");
+				query = `
+					SELECT 
+						inv.id_inventario,
+						inv.id_producto,
+						inv.id_bodega,
+						inv.cantidad_lote,
+						inv.costo_producto,
+						inv.fecha_ingreso,
+						inv.id_factura,
+						NULL as id_traslado,
+						p.codigo as producto_codigo,
+						p.nombre as producto_nombre,
+						COALESCE(df.precio_unitario, 0) as precio_unitario,
+						COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
+						COALESCE(df.iva_valor, 0) as iva_valor,
+						COALESCE(df.valor_total, 0) as valor_total,
+						df.id_iva,
+						i.nombre as iva_nombre,
+						i.valor as iva_porcentaje,
+						COALESCE(m.nombre, 'N/A') as unidad_medida,
+						-- Comprobante: FC-X si es factura, N/A si no
+						CASE
+							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
+							ELSE 'N/A'
+						END as comprobante,
+						-- Fecha: de la factura o fecha_ingreso
+						COALESCE(f.fecha_creacion, inv.fecha_ingreso) as fecha_comprobante,
+						-- Cantidad de entrada: suma de movimientos de entrada
+						COALESCE(
+							(SELECT SUM(mk.cantidad)
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Entrada'
+							),
+							0
+						) as cantidad_entrada,
+						-- Cantidad de salida: suma de movimientos de salida
+						COALESCE(
+							(SELECT SUM(mk.cantidad)
+							 FROM public.movimientos_kardex mk
+							 WHERE mk.id_bodega = inv.id_bodega
+							   AND mk.id_producto = inv.id_producto
+							   AND mk.tipo_flujo = 'Salida'
+							),
+							0
+						) as cantidad_salida,
+						-- Saldo cantidad: cantidad actual (cantidad_lote)
+						inv.cantidad_lote as saldo_cantidad
+					FROM public.inventario inv
+					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
+					LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
+					LEFT JOIN public.facturas f ON inv.id_factura = f.id_facturas
+					LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
+					LEFT JOIN public.medida m ON p.id_medida = m.id_medida
+					WHERE inv.id_bodega = $1
+						AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
+					ORDER BY inv.fecha_ingreso DESC, p.nombre, inv.id_inventario
+				`;
+			}
 
 			const result = await pool.query(query, [idBodega]);
 			logger.info({ bodegaId: idBodega, count: result.rows.length }, "Productos por bodega obtenidos exitosamente");
-			return result.rows;
+			
+			// Validar que todos los campos requeridos estén presentes
+			const productosValidados = result.rows.map(row => ({
+				...row,
+				comprobante: row.comprobante || 'N/A',
+				fecha_comprobante: row.fecha_comprobante || row.fecha_ingreso || new Date().toISOString(),
+				cantidad_entrada: Number(row.cantidad_entrada) || 0,
+				cantidad_salida: Number(row.cantidad_salida) || 0,
+				saldo_cantidad: Number(row.saldo_cantidad) || Number(row.cantidad_lote) || 0
+			}));
+			
+			return productosValidados;
 		} catch (error) {
-			logger.error({ err: error, idBodega }, "Error al obtener productos por bodega");
+			logger.error({ err: error, idBodega, stack: error.stack }, "Error al obtener productos por bodega");
 			throw error;
 		}
 	}
@@ -654,10 +822,10 @@ class BodegasService {
 						
 						const insertResult = await client.query(
 							`INSERT INTO public.inventario (
-								id_bodega, id_producto, id_proveedor, fecha_ingreso, id_factura, cantidad_lote, costo_producto
-							) VALUES ($1, $2, $3, NOW(), $4, $5, $6)
+								id_bodega, id_producto, id_proveedor, fecha_ingreso, id_factura, cantidad_lote, costo_producto, id_traslado
+							) VALUES ($1, $2, $3, NOW(), $4, $5, $6, $7)
 							RETURNING id_inventario, cantidad_lote, costo_producto`,
-							[idBodegaDestino, id_producto, idProveedor, id_factura, cantidad, costoTotal]
+							[idBodegaDestino, id_producto, idProveedor, id_factura, cantidad, costoTotal, idTraslado]
 						);
 						
 						if (insertResult.rows.length === 0) {

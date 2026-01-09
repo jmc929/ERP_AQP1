@@ -50,6 +50,95 @@ class ComprasService {
 	}
 
 	/**
+	 * Obtiene proveedores activos con paginación y búsqueda
+	 * @param {number} page - Número de página
+	 * @param {number} limit - Cantidad de registros por página
+	 * @param {string} busqueda - Texto de búsqueda (razón social, nombre comercial o identificación)
+	 * @returns {Promise<Object>} Proveedores paginados
+	 */
+	async obtenerProveedoresPaginados(page = 1, limit = 50, busqueda = "") {
+		try {
+			const offset = (page - 1) * limit;
+			let query = `
+				SELECT 
+					p.id_proveedor,
+					p.razon_social,
+					p.nombre_comercial,
+					p.identificacion,
+					p.dv,
+					p.id_estado
+				FROM public.proveedor p
+				WHERE p.id_estado IN (1, 2)
+			`;
+			const valores = [];
+			let contador = 1;
+
+			// Agregar filtro de búsqueda si existe
+			if (busqueda && busqueda.trim() !== "") {
+				query += ` AND (
+					p.razon_social ILIKE $${contador} OR 
+					p.nombre_comercial ILIKE $${contador} OR
+					p.identificacion ILIKE $${contador}
+				)`;
+				valores.push(`%${busqueda.trim()}%`);
+				contador++;
+			}
+
+			query += ` ORDER BY p.razon_social LIMIT $${contador} OFFSET $${contador + 1}`;
+			valores.push(limit, offset);
+
+			// Contar total de registros
+			let countQuery = `
+				SELECT COUNT(*) as total
+				FROM public.proveedor p
+				WHERE p.id_estado IN (1, 2)
+			`;
+			const countValores = [];
+			let countContador = 1;
+
+			if (busqueda && busqueda.trim() !== "") {
+				countQuery += ` AND (
+					p.razon_social ILIKE $${countContador} OR 
+					p.nombre_comercial ILIKE $${countContador} OR
+					p.identificacion ILIKE $${countContador}
+				)`;
+				countValores.push(`%${busqueda.trim()}%`);
+			}
+
+			const [result, countResult] = await Promise.all([
+				pool.query(query, valores),
+				pool.query(countQuery, countValores)
+			]);
+
+			const total = parseInt(countResult.rows[0].total, 10);
+			const totalPaginas = Math.ceil(total / limit);
+			const hayMas = page < totalPaginas;
+
+			logger.info({ 
+				page, 
+				limit, 
+				busqueda, 
+				total, 
+				totalPaginas, 
+				count: result.rows.length 
+			}, "Proveedores paginados obtenidos exitosamente");
+
+			return {
+				proveedores: result.rows,
+				paginacion: {
+					paginaActual: page,
+					totalPaginas,
+					totalRegistros: total,
+					hayMas
+				}
+			};
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener proveedores paginados");
+			throw error;
+		}
+	}
+
+	/**
 	 * Obtiene productos activos con paginación y búsqueda
 	 * @param {number} page - Número de página
 	 * @param {number} limit - Cantidad de registros por página
@@ -134,8 +223,8 @@ class ComprasService {
 	}
 
 	/**
-	 * Obtiene todas las bodegas activas
-	 * @returns {Promise<Array>} Lista de bodegas
+	 * Obtiene todas las bodegas activas con conteo de productos
+	 * @returns {Promise<Array>} Lista de bodegas con total_productos
 	 */
 	async obtenerBodegas() {
 		try {
@@ -143,9 +232,12 @@ class ComprasService {
 				SELECT 
 					b.id_bodega,
 					b.nombre,
-					b.id_estado
+					b.id_estado,
+					COALESCE(COUNT(DISTINCT inv.id_producto), 0) as total_productos
 				FROM public.bodegas b
+				LEFT JOIN public.inventario inv ON b.id_bodega = inv.id_bodega
 				WHERE b.id_estado IN (1, 2)
+				GROUP BY b.id_bodega, b.nombre, b.id_estado
 				ORDER BY b.nombre
 			`);
 			logger.info({ count: result.rows.length }, "Bodegas obtenidas exitosamente");

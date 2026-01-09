@@ -26,6 +26,7 @@ interface Bodega {
   id_bodega: number;
   nombre: string;
   id_estado: number;
+  total_productos?: number;
 }
 
 // Interface para productos de inventario
@@ -36,7 +37,8 @@ interface ProductoInventario {
   cantidad_lote: number;
   costo_producto: number;
   fecha_ingreso: string;
-  id_factura: number;
+  id_factura: number | null;
+  id_traslado: number | null;
   producto_codigo: string;
   producto_nombre: string;
   precio_unitario: number;
@@ -47,6 +49,11 @@ interface ProductoInventario {
   iva_nombre: string | null;
   iva_porcentaje: number | null;
   unidad_medida: string;
+  comprobante: string;
+  fecha_comprobante: string;
+  cantidad_entrada: number;
+  cantidad_salida: number;
+  saldo_cantidad: number;
 }
 
 // Interface para movimientos de kardex
@@ -137,6 +144,7 @@ const VerInventarioBodegas = () => {
         const data = await response.json();
 
         if (data.success) {
+          console.log("Productos cargados:", data.productos);
           setProductosBodega(data.productos || []);
         } else {
           toast({
@@ -172,7 +180,11 @@ const VerInventarioBodegas = () => {
       producto.id_producto.toString().includes(query) ||
       producto.producto_codigo.toLowerCase().includes(query) ||
       producto.producto_nombre.toLowerCase().includes(query) ||
+      (producto.comprobante || "").toLowerCase().includes(query) ||
       producto.cantidad_lote.toString().includes(query) ||
+      (producto.cantidad_entrada || 0).toString().includes(query) ||
+      (producto.cantidad_salida || 0).toString().includes(query) ||
+      (producto.saldo_cantidad || producto.cantidad_lote || 0).toString().includes(query) ||
       producto.unidad_medida.toLowerCase().includes(query) ||
       producto.precio_unitario.toString().includes(query) ||
       producto.costo_unitario_con_impuesto.toString().includes(query) ||
@@ -328,14 +340,14 @@ const VerInventarioBodegas = () => {
 
       {/* Barra de búsqueda - siempre visible */}
       <SearchBar
-        placeholder="Buscar por ID, consecutivo, código, nombre, cantidad o costo..."
+        placeholder="Buscar por ID, código, nombre, comprobante, cantidad o costo..."
         value={busqueda}
         onChange={setBusqueda}
       />
 
       {/* Tabla de productos */}
       <TableCard
-        headers={["", "ID Inventario", "Código", "Nombre", "Cantidad", "Unidad de Medida", "Precio Unitario", "Costo Unitario con Impuesto", "Valor Total"]}
+        headers={["", "ID Inventario", "Código", "Nombre", "Comprobante", "Fecha", "Cantidad Entrada", "Cantidad Salida", "Saldo Cantidad", "Unidad de Medida", "Precio Unitario", "Costo Unitario con Impuesto", "Valor Total"]}
         emptyMessage={
           loadingProductos
             ? "Cargando productos..."
@@ -345,11 +357,11 @@ const VerInventarioBodegas = () => {
                 : "No se encontraron productos"
               : undefined
         }
-        colSpan={9}
+        colSpan={13}
       >
         {loadingProductos ? (
           <TableRow>
-            <TableCell colSpan={9} className="text-center py-8">
+            <TableCell colSpan={13} className="text-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mx-auto" />
             </TableCell>
           </TableRow>
@@ -388,8 +400,32 @@ const VerInventarioBodegas = () => {
                   <TableCell className="border-r border-border py-4 px-6">
                     {producto.producto_nombre}
                   </TableCell>
+                  <TableCell className="border-r border-border py-4 px-6 font-medium">
+                    {producto.comprobante || "N/A"}
+                  </TableCell>
                   <TableCell className="border-r border-border py-4 px-6">
-                    {producto.cantidad_lote}
+                    {producto.fecha_comprobante 
+                      ? new Date(producto.fecha_comprobante).toLocaleDateString("es-CO", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit"
+                        })
+                      : producto.fecha_ingreso
+                      ? new Date(producto.fecha_ingreso).toLocaleDateString("es-CO", {
+                          year: "numeric",
+                          month: "2-digit",
+                          day: "2-digit"
+                        })
+                      : "N/A"}
+                  </TableCell>
+                  <TableCell className="border-r border-border py-4 px-6 text-green-600 font-medium">
+                    {(producto.cantidad_entrada || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border py-4 px-6 text-red-600 font-medium">
+                    {(producto.cantidad_salida || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </TableCell>
+                  <TableCell className="border-r border-border py-4 px-6 font-semibold">
+                    {(producto.saldo_cantidad || producto.cantidad_lote || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="border-r border-border py-4 px-6">
                     {producto.unidad_medida}
@@ -406,7 +442,7 @@ const VerInventarioBodegas = () => {
                 </TableRow>
                 {estaAbierto && movimientos.length > 0 && (
                   <TableRow>
-                    <TableCell colSpan={9} className="bg-muted/50 p-0">
+                    <TableCell colSpan={13} className="bg-muted/50 p-0">
                       <div className="p-4">
                         <h4 className="font-semibold mb-3 text-sm">Movimientos de Kardex</h4>
                         <div className="space-y-2">
@@ -463,7 +499,7 @@ const VerInventarioBodegas = () => {
                 )}
                 {estaAbierto && movimientos.length === 0 && !cargando && (
                   <TableRow>
-                    <TableCell colSpan={9} className="bg-muted/50 p-4 text-center text-sm text-muted-foreground">
+                    <TableCell colSpan={13} className="bg-muted/50 p-4 text-center text-sm text-muted-foreground">
                       No hay movimientos registrados para este producto
                     </TableCell>
                   </TableRow>
@@ -477,6 +513,13 @@ const VerInventarioBodegas = () => {
           <TableRow className="bg-muted/50 font-semibold border-t-2 border-border">
             <TableCell colSpan={4} className="text-right border-r border-border py-4 px-6">
               <span className="text-base">TOTALES:</span>
+            </TableCell>
+            <TableCell colSpan={2} className="border-r border-border py-4 px-6"></TableCell>
+            <TableCell className="border-r border-border py-4 px-6 text-right text-green-600">
+              {productosFiltrados.reduce((sum, p) => sum + (p.cantidad_entrada || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </TableCell>
+            <TableCell className="border-r border-border py-4 px-6 text-right text-red-600">
+              {productosFiltrados.reduce((sum, p) => sum + (p.cantidad_salida || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </TableCell>
             <TableCell className="border-r border-border py-4 px-6 text-right">
               {totales.cantidadTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

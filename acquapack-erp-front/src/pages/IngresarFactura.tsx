@@ -107,6 +107,17 @@ const IngresarFactura = () => {
   });
   const [timeoutBusqueda, setTimeoutBusqueda] = useState<NodeJS.Timeout | null>(null);
   
+  // Estados para búsqueda y paginación de proveedores
+  const [busquedaProveedor, setBusquedaProveedor] = useState("");
+  const [proveedoresCargados, setProveedoresCargados] = useState<Proveedor[]>([]);
+  const [paginacionProveedores, setPaginacionProveedores] = useState({
+    paginaActual: 1,
+    totalPaginas: 1,
+    hayMas: false,
+    cargando: false
+  });
+  const [timeoutBusquedaProveedor, setTimeoutBusquedaProveedor] = useState<NodeJS.Timeout | null>(null);
+  
   const [defaultIvaId, setDefaultIvaId] = useState<string>("");
   const [defaultRetencionId, setDefaultRetencionId] = useState<string>("");
   
@@ -168,6 +179,18 @@ const IngresarFactura = () => {
         }
         if (proveedoresData.success) {
           setProveedores(proveedoresData.proveedores);
+          // Cargar proveedores paginados inicialmente
+          const proveedoresPaginadosRes = await fetch("http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50");
+          const proveedoresPaginadosData = await proveedoresPaginadosRes.json();
+          if (proveedoresPaginadosData.success) {
+            setProveedoresCargados(proveedoresPaginadosData.proveedores || []);
+            setPaginacionProveedores({
+              paginaActual: proveedoresPaginadosData.paginacion?.paginaActual || 1,
+              totalPaginas: proveedoresPaginadosData.paginacion?.totalPaginas || 1,
+              hayMas: proveedoresPaginadosData.paginacion?.hayMas || false,
+              cargando: false
+            });
+          }
         }
         if (productosData.success) {
           setProductosCargados(productosData.productos || []);
@@ -215,6 +238,9 @@ const IngresarFactura = () => {
       if (timeoutBusqueda) {
         clearTimeout(timeoutBusqueda);
       }
+      if (timeoutBusquedaProveedor) {
+        clearTimeout(timeoutBusquedaProveedor);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -247,6 +273,67 @@ const IngresarFactura = () => {
   };
 
   // Función para buscar productos con debounce
+  // Función para buscar proveedores
+  const buscarProveedores = async (busqueda: string) => {
+    // Limpiar timeout anterior
+    if (timeoutBusquedaProveedor) {
+      clearTimeout(timeoutBusquedaProveedor);
+    }
+
+    // Crear nuevo timeout para debounce (500ms)
+    const nuevoTimeout = setTimeout(async () => {
+      try {
+        setPaginacionProveedores(prev => ({ ...prev, cargando: true }));
+        const url = `http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          setProveedoresCargados(data.proveedores || []);
+          setPaginacionProveedores({
+            paginaActual: data.paginacion?.paginaActual || 1,
+            totalPaginas: data.paginacion?.totalPaginas || 1,
+            hayMas: data.paginacion?.hayMas || false,
+            cargando: false
+          });
+        }
+      } catch (error) {
+        console.error("Error al buscar proveedores:", error);
+        setPaginacionProveedores(prev => ({ ...prev, cargando: false }));
+      }
+    }, 500);
+
+    setTimeoutBusquedaProveedor(nuevoTimeout);
+  };
+
+  // Función para cargar más proveedores
+  const cargarMasProveedores = async (busqueda: string) => {
+    if (paginacionProveedores.cargando || !paginacionProveedores.hayMas) return;
+
+    try {
+      setPaginacionProveedores(prev => ({ ...prev, cargando: true }));
+      const siguientePagina = paginacionProveedores.paginaActual + 1;
+      const url = `http://localhost:4000/api/compras/proveedores/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.success) {
+        setProveedoresCargados(prev => [...prev, ...(data.proveedores || [])]);
+        setPaginacionProveedores({
+          paginaActual: data.paginacion?.paginaActual || siguientePagina,
+          totalPaginas: data.paginacion?.totalPaginas || 1,
+          hayMas: data.paginacion?.hayMas || false,
+          cargando: false
+        });
+      }
+    } catch (error) {
+      console.error("Error al cargar más proveedores:", error);
+      setPaginacionProveedores(prev => ({ ...prev, cargando: false }));
+    }
+  };
+
   const buscarProductos = async (filaId: number, busqueda: string) => {
     // Limpiar timeout anterior
     if (timeoutBusqueda) {
@@ -707,11 +794,55 @@ const IngresarFactura = () => {
                   <SelectValue placeholder={loading ? "Cargando..." : "Seleccione proveedor"} />
                 </SelectTrigger>
                 <SelectContent>
-                  {proveedores.map((prov) => (
-                    <SelectItem key={prov.id_proveedor} value={prov.id_proveedor.toString()}>
-                      {prov.razon_social || prov.nombre_comercial}
-                    </SelectItem>
-                  ))}
+                  <div className="p-2 border-b">
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar proveedor..."
+                        value={busquedaProveedor}
+                        onChange={(e) => {
+                          const valor = e.target.value;
+                          setBusquedaProveedor(valor);
+                          buscarProveedores(valor);
+                        }}
+                        className="pl-8 h-9"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      />
+                    </div>
+                  </div>
+                  <div 
+                    className="max-h-[200px] overflow-y-auto"
+                    onScroll={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (
+                        target.scrollTop + target.clientHeight >= target.scrollHeight * 0.8 &&
+                        paginacionProveedores.hayMas &&
+                        !paginacionProveedores.cargando
+                      ) {
+                        cargarMasProveedores(busquedaProveedor);
+                      }
+                    }}
+                  >
+                    {proveedoresCargados.length === 0 && !paginacionProveedores.cargando ? (
+                      <div className="p-4 text-center text-sm text-muted-foreground">
+                        No se encontraron proveedores
+                      </div>
+                    ) : (
+                      <>
+                        {proveedoresCargados.map((prov) => (
+                          <SelectItem key={prov.id_proveedor} value={prov.id_proveedor.toString()}>
+                            {prov.razon_social || prov.nombre_comercial}
+                          </SelectItem>
+                        ))}
+                        {paginacionProveedores.cargando && (
+                          <div className="p-2 text-center text-sm text-muted-foreground">
+                            Cargando...
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </SelectContent>
               </Select>
             </div>

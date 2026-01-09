@@ -122,6 +122,28 @@ async function obtenerProveedores(req, res) {
   }
 }
 
+async function obtenerProveedoresPaginados(req, res) {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const busqueda = req.query.busqueda || "";
+
+    const resultado = await comprasService.obtenerProveedoresPaginados(page, limit, busqueda);
+    res.json({
+      success: true,
+      proveedores: resultado.proveedores,
+      paginacion: resultado.paginacion
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Error en obtenerProveedoresPaginados");
+    res.status(500).json({
+      success: false,
+      error: "Error interno del servidor",
+      message: error.message
+    });
+  }
+}
+
 async function obtenerProductos(req, res) {
   try {
     const page = parseInt(req.query.page) || 1;
@@ -352,6 +374,7 @@ module.exports = {
   calcularValorTotal,
   obtenerSiguienteIdFactura,
   obtenerProveedores,
+  obtenerProveedoresPaginados,
   obtenerProductos,
   obtenerBodegas,
   obtenerIvas,

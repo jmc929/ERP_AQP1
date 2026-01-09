@@ -122,6 +122,28 @@ async function obtenerClientes(req, res) {
   }
 }
 
+async function obtenerClientesPaginados(req, res) {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const busqueda = req.query.busqueda || "";
+
+    const resultado = await ventasService.obtenerClientesPaginados(page, limit, busqueda);
+    res.json({
+      success: true,
+      clientes: resultado.clientes,
+      paginacion: resultado.paginacion
+    });
+  } catch (error) {
+    logger.error({ err: error }, "Error en obtenerClientesPaginados");
+    res.status(500).json({
+      success: false,
+      error: "Error interno del servidor",
+      message: error.message
+    });
+  }
+}
+
 async function obtenerProductos(req, res) {
   try {
     const idBodega = parseInt(req.query.id_bodega) || null;
@@ -334,6 +356,7 @@ module.exports = {
   calcularValorTotal,
   obtenerSiguienteIdSalida,
   obtenerClientes,
+  obtenerClientesPaginados,
   obtenerProductos,
   obtenerBodegas,
   obtenerIvas,

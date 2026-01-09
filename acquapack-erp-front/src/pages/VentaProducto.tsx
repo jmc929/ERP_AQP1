@@ -105,6 +105,17 @@ const VentaProducto = () => {
   }>>(new Map());
   const [timeoutBusqueda, setTimeoutBusqueda] = useState<Map<number, NodeJS.Timeout>>(new Map());
   
+  // Estados para búsqueda y paginación de clientes
+  const [busquedaCliente, setBusquedaCliente] = useState("");
+  const [clientesCargados, setClientesCargados] = useState<Cliente[]>([]);
+  const [paginacionClientes, setPaginacionClientes] = useState({
+    paginaActual: 1,
+    totalPaginas: 1,
+    hayMas: false,
+    cargando: false
+  });
+  const [timeoutBusquedaCliente, setTimeoutBusquedaCliente] = useState<NodeJS.Timeout | null>(null);
+  
   const [defaultIvaId, setDefaultIvaId] = useState("0");
   const [defaultRetencionId, setDefaultRetencionId] = useState("0");
   const [filas, setFilas] = useState<FilaVenta[]>([
@@ -163,6 +174,18 @@ const VentaProducto = () => {
         }
         if (clientesData.success) {
           setClientes(clientesData.clientes);
+          // Cargar clientes paginados inicialmente
+          const clientesPaginadosRes = await fetch("http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50");
+          const clientesPaginadosData = await clientesPaginadosRes.json();
+          if (clientesPaginadosData.success) {
+            setClientesCargados(clientesPaginadosData.clientes || []);
+            setPaginacionClientes({
+              paginaActual: clientesPaginadosData.paginacion?.paginaActual || 1,
+              totalPaginas: clientesPaginadosData.paginacion?.totalPaginas || 1,
+              hayMas: clientesPaginadosData.paginacion?.hayMas || false,
+              cargando: false
+            });
+          }
         }
         if (bodegasData.success) {
           setBodegas(bodegasData.bodegas);
@@ -202,9 +225,73 @@ const VentaProducto = () => {
     return () => {
       // Limpiar todos los timeouts
       timeoutBusqueda.forEach((timeout) => clearTimeout(timeout));
+      if (timeoutBusquedaCliente) {
+        clearTimeout(timeoutBusquedaCliente);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Función para buscar clientes
+  const buscarClientes = async (busqueda: string) => {
+    // Limpiar timeout anterior
+    if (timeoutBusquedaCliente) {
+      clearTimeout(timeoutBusquedaCliente);
+    }
+
+    // Crear nuevo timeout para debounce (500ms)
+    const nuevoTimeout = setTimeout(async () => {
+      try {
+        setPaginacionClientes(prev => ({ ...prev, cargando: true }));
+        const url = `http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.success) {
+          setClientesCargados(data.clientes || []);
+          setPaginacionClientes({
+            paginaActual: data.paginacion?.paginaActual || 1,
+            totalPaginas: data.paginacion?.totalPaginas || 1,
+            hayMas: data.paginacion?.hayMas || false,
+            cargando: false
+          });
+        }
+      } catch (error) {
+        console.error("Error al buscar clientes:", error);
+        setPaginacionClientes(prev => ({ ...prev, cargando: false }));
+      }
+    }, 500);
+
+    setTimeoutBusquedaCliente(nuevoTimeout);
+  };
+
+  // Función para cargar más clientes
+  const cargarMasClientes = async (busqueda: string) => {
+    if (paginacionClientes.cargando || !paginacionClientes.hayMas) return;
+
+    try {
+      setPaginacionClientes(prev => ({ ...prev, cargando: true }));
+      const siguientePagina = paginacionClientes.paginaActual + 1;
+      const url = `http://localhost:4000/api/ventas/clientes/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (data.success) {
+        setClientesCargados(prev => [...prev, ...(data.clientes || [])]);
+        setPaginacionClientes({
+          paginaActual: data.paginacion?.paginaActual || siguientePagina,
+          totalPaginas: data.paginacion?.totalPaginas || 1,
+          hayMas: data.paginacion?.hayMas || false,
+          cargando: false
+        });
+      }
+    } catch (error) {
+      console.error("Error al cargar más clientes:", error);
+      setPaginacionClientes(prev => ({ ...prev, cargando: false }));
+    }
+  };
 
   // Función para cargar productos de una bodega específica para una fila
   const cargarProductosPorFila = async (filaId: number, idBodega: string, busqueda: string = "") => {
@@ -704,11 +791,55 @@ const VentaProducto = () => {
                 <SelectValue placeholder={loading ? "Cargando..." : "Seleccione cliente"} />
               </SelectTrigger>
               <SelectContent>
-                {clientes.map((cli) => (
-                  <SelectItem key={cli.id_cliente} value={cli.id_cliente.toString()}>
-                    {cli.razon_social || cli.nombre_comercial}
-                  </SelectItem>
-                ))}
+                <div className="p-2 border-b">
+                  <div className="relative">
+                    <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar cliente..."
+                      value={busquedaCliente}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        setBusquedaCliente(valor);
+                        buscarClientes(valor);
+                      }}
+                      className="pl-8 h-9"
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => e.stopPropagation()}
+                    />
+                  </div>
+                </div>
+                <div 
+                  className="max-h-[200px] overflow-y-auto"
+                  onScroll={(e) => {
+                    const target = e.target as HTMLElement;
+                    if (
+                      target.scrollTop + target.clientHeight >= target.scrollHeight * 0.8 &&
+                      paginacionClientes.hayMas &&
+                      !paginacionClientes.cargando
+                    ) {
+                      cargarMasClientes(busquedaCliente);
+                    }
+                  }}
+                >
+                  {clientesCargados.length === 0 && !paginacionClientes.cargando ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">
+                      No se encontraron clientes
+                    </div>
+                  ) : (
+                    <>
+                      {clientesCargados.map((cli) => (
+                        <SelectItem key={cli.id_cliente} value={cli.id_cliente.toString()}>
+                          {cli.razon_social || cli.nombre_comercial}
+                        </SelectItem>
+                      ))}
+                      {paginacionClientes.cargando && (
+                        <div className="p-2 text-center text-sm text-muted-foreground">
+                          Cargando...
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </SelectContent>
             </Select>
           </div>
