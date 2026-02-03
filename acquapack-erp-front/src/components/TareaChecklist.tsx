@@ -70,6 +70,9 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
 
     try {
       setLoading(true);
+      // Generar fecha y hora localmente en el frontend
+      const fechaAsignacion = new Date().toISOString();
+      
       const response = await fetch("http://localhost:4000/api/tareas", {
         method: "POST",
         headers: {
@@ -79,7 +82,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
           id_usuarios: trabajadorId,
           descripcion: nuevaTarea.trim(),
           completada: false,
-          // No enviar fecha_asignacion, el backend usará NOW()
+          fecha_asignacion: fechaAsignacion, // Fecha generada en el frontend
         }),
       });
 
@@ -93,7 +96,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
         id: data.tarea.id_tareas,
         descripcion: data.tarea.descripcion,
         completada: data.tarea.completada,
-        fecha_asignacion: data.tarea.fecha_asignacion,
+        fecha_asignacion: fechaAsignacion, // Usar la fecha generada en el frontend, no la del backend
       };
 
       onTareasChange([...tareas, nueva]);

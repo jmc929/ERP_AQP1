@@ -9,10 +9,12 @@ const { errorHandler } = require("./common/middlewares/error-handler");
 const app = express();
 
 app.use(helmet());
-// Configurar CORS para permitir múltiples orígenes
+// Configurar CORS para permitir múltiples orígenes y headers personalizados
 app.use(cors({ 
 	origin: env.CORS_ORIGIN, // Puede ser un array o string
-	credentials: true 
+	credentials: true,
+	allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
+	exposedHeaders: ['x-user-id']
 }));
 app.use(express.json({ limit: "1mb" }));
 app.use(express.urlencoded({ extended: true }));

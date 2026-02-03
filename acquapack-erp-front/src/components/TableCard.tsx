@@ -21,27 +21,29 @@ const TableCard = ({ headers, children, emptyMessage, colSpan }: TableCardProps)
   return (
     <Card>
       <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {headers.map((header, index) => (
-                <TableHead
-                  key={index}
-                  className={index < headers.length - 1 ? "border-r border-border" : ""}
-                >
-                  {header}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {emptyMessage ? (
-              <EmptyTableMessage colSpan={colSpan || headers.length} message={emptyMessage} />
-            ) : (
-              children
-            )}
-          </TableBody>
-        </Table>
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                {headers.map((header, index) => (
+                  <TableHead
+                    key={index}
+                    className={`text-xs md:text-sm whitespace-nowrap ${index < headers.length - 1 ? "border-r border-border" : ""}`}
+                  >
+                    {header}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {emptyMessage ? (
+                <EmptyTableMessage colSpan={colSpan || headers.length} message={emptyMessage} />
+              ) : (
+                children
+              )}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   );

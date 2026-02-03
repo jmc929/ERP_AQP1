@@ -18,7 +18,8 @@ class TareasService {
 					t.id_usuarios,
 					t.descripcion,
 					t.id_estado,
-					t.fecha_asignacion
+					t.fecha_asignacion,
+					t.id_usuario_creador
 				FROM public.tareas t
 				ORDER BY t.fecha_asignacion DESC, t.id_tareas DESC
 			`;
@@ -37,7 +38,7 @@ class TareasService {
 				return [];
 			}
 			
-			// Obtener usuarios
+			// Obtener usuarios (tanto asignados como creadores)
 			const usuariosMap = {};
 			try {
 				const usuariosQuery = await pool.query(`
@@ -82,13 +83,17 @@ class TareasService {
 				const idEstado = tarea.id_estado ?? 21;
 				const estadoInfo = estadosMap[idEstado] || estadosDefault[idEstado] || estadosDefault[21];
 				const nombreUsuario = usuariosMap[tarea.id_usuarios] || 'Usuario desconocido';
+				const nombreUsuarioCreador = tarea.id_usuario_creador 
+					? (usuariosMap[tarea.id_usuario_creador] || 'Usuario desconocido')
+					: null;
 				
 				return {
 					...tarea,
 					id_estado: idEstado,
 					estado_nombre: estadoInfo.nombre,
 					estado_color: estadoInfo.color,
-					nombre_usuario: nombreUsuario
+					nombre_usuario: nombreUsuario,
+					nombre_usuario_creador: nombreUsuarioCreador
 				};
 			});
 			
@@ -113,13 +118,28 @@ class TareasService {
 					t.id_usuarios,
 					t.descripcion,
 					COALESCE(t.id_estado, 21) as id_estado,
-					t.fecha_asignacion
+					t.fecha_asignacion,
+					t.id_usuario_creador
 				FROM public.tareas t
 				WHERE t.id_usuarios = $1
 				ORDER BY COALESCE(t.id_estado, 21) ASC, t.fecha_asignacion DESC, t.id_tareas DESC
 			`;
 
 			const result = await pool.query(query, [idUsuario]);
+			
+			// Obtener usuarios (para el creador)
+			const usuariosMap = {};
+			try {
+				const usuariosQuery = await pool.query(`
+					SELECT id_usuarios, nombre, apellido 
+					FROM public.usuarios
+				`);
+				usuariosQuery.rows.forEach(usuario => {
+					usuariosMap[usuario.id_usuarios] = `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || 'Usuario desconocido';
+				});
+			} catch (usuariosError) {
+				logger.warn({ err: usuariosError }, "No se pudieron obtener usuarios");
+			}
 			
 			// Obtener información de estados
 			let estadosMap = {};
@@ -151,12 +171,16 @@ class TareasService {
 			const tareasConEstado = result.rows.map(tarea => {
 				const idEstado = tarea.id_estado ?? 21;
 				const estadoInfo = estadosMap[idEstado] || estadosDefault[idEstado] || estadosDefault[21];
+				const nombreUsuarioCreador = tarea.id_usuario_creador 
+					? (usuariosMap[tarea.id_usuario_creador] || 'Usuario desconocido')
+					: null;
 				
 				return {
 					...tarea,
 					id_estado: idEstado,
 					estado_nombre: estadoInfo.nombre,
-					estado_color: estadoInfo.color
+					estado_color: estadoInfo.color,
+					nombre_usuario_creador: nombreUsuarioCreador
 				};
 			});
 			
@@ -175,6 +199,9 @@ class TareasService {
 	 */
 	async crearTarea(datosTarea) {
 		try {
+			logger.info("=== INICIO crearTarea SERVICE ===");
+			logger.info("Datos recibidos en servicio:", JSON.stringify(datosTarea));
+
 			// Obtener el siguiente ID
 			const idResult = await pool.query(
 				"SELECT COALESCE(MAX(id_tareas), 0) + 1 as next_id FROM public.tareas"
@@ -187,6 +214,22 @@ class TareasService {
 				datosTarea.fecha_asignacion !== undefined &&
 				String(datosTarea.fecha_asignacion).trim() !== "";
 
+			console.log("=== SERVICIO DEBUG ===");
+			console.log("id_usuario_creador recibido en servicio:", datosTarea.id_usuario_creador);
+			console.log("Tipo de id_usuario_creador:", typeof datosTarea.id_usuario_creador);
+			console.log("id_usuario_creador es null/undefined?:", datosTarea.id_usuario_creador == null);
+			logger.info("id_usuario_creador recibido en servicio:", datosTarea.id_usuario_creador);
+			logger.info("Tipo de id_usuario_creador:", typeof datosTarea.id_usuario_creador);
+			logger.info("id_usuario_creador es null/undefined?:", datosTarea.id_usuario_creador == null);
+
+			// Asegurar que id_usuario_creador sea un número válido o null
+			const idUsuarioCreadorFinal = (datosTarea.id_usuario_creador != null && datosTarea.id_usuario_creador !== undefined && datosTarea.id_usuario_creador !== '')
+				? parseInt(datosTarea.id_usuario_creador)
+				: null;
+
+			console.log("id_usuario_creador final que se insertará:", idUsuarioCreadorFinal);
+			logger.info("id_usuario_creador final que se insertará:", idUsuarioCreadorFinal);
+
 			const query = tieneFechaAsignacion
 				? `
 					INSERT INTO public.tareas (
@@ -194,18 +237,20 @@ class TareasService {
 						id_usuarios,
 						descripcion,
 						id_estado,
-						fecha_asignacion
-					) VALUES ($1, $2, $3, $4, $5::timestamp)
-					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
+						fecha_asignacion,
+						id_usuario_creador
+					) VALUES ($1, $2, $3, $4, $5::timestamp, $6)
+					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion, id_usuario_creador
 				`
 				: `
 					INSERT INTO public.tareas (
 						id_tareas,
 						id_usuarios,
 						descripcion,
-						id_estado
-					) VALUES ($1, $2, $3, $4)
-					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
+						id_estado,
+						id_usuario_creador
+					) VALUES ($1, $2, $3, $4, $5)
+					RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion, id_usuario_creador
 				`;
 
 			const valores = tieneFechaAsignacion
@@ -214,18 +259,78 @@ class TareasService {
 					datosTarea.id_usuarios,
 					datosTarea.descripcion,
 					datosTarea.id_estado || 21, // Por defecto "Por hacer"
-					datosTarea.fecha_asignacion
+					datosTarea.fecha_asignacion,
+					idUsuarioCreadorFinal
 				]
 				: [
 					nextId,
 					datosTarea.id_usuarios,
 					datosTarea.descripcion,
-					datosTarea.id_estado || 21 // Por defecto "Por hacer"
+					datosTarea.id_estado || 21, // Por defecto "Por hacer"
+					idUsuarioCreadorFinal
 				];
 
-			const result = await pool.query(query, valores);
-			logger.info({ tareaId: result.rows[0].id_tareas }, "Tarea creada exitosamente");
-			return result.rows[0];
+			console.log("=== ANTES DE INSERTAR ===");
+			console.log("Valores que se insertarán:", valores);
+			console.log("Query a ejecutar:", query);
+			console.log("Valor específico de id_usuario_creador en array (último elemento):", valores[valores.length - 1]);
+			console.log("Índice del último elemento:", valores.length - 1);
+			logger.info("Valores que se insertarán:", valores);
+			logger.info("Query a ejecutar:", query);
+			logger.info("Valor específico de id_usuario_creador en array:", valores[valores.length - 1]);
+
+			try {
+				// Log directo antes de ejecutar - FORZAR SALIDA
+				console.log("\n\n========== EJECUTANDO INSERCIÓN ==========");
+				console.log("VALORES:", JSON.stringify(valores, null, 2));
+				console.log("QUERY:", query.replace(/\s+/g, ' ').trim());
+				console.log("idUsuarioCreadorFinal:", idUsuarioCreadorFinal);
+				console.log("Tipo:", typeof idUsuarioCreadorFinal);
+				console.log("==========================================\n");
+				
+				const result = await pool.query(query, valores);
+				
+				console.log("\n========== RESULTADO DE LA INSERCIÓN ==========");
+				console.log("id_tareas:", result.rows[0].id_tareas);
+				console.log("id_usuario_creador guardado:", result.rows[0].id_usuario_creador);
+				console.log("Fila completa:", JSON.stringify(result.rows[0], null, 2));
+				console.log("==============================================\n\n");
+				
+				logger.info({ 
+					tareaId: result.rows[0].id_tareas,
+					id_usuario_creador_guardado: result.rows[0].id_usuario_creador,
+					todosLosValoresRetornados: result.rows[0]
+				}, "Tarea creada exitosamente");
+				
+				// Verificar que el valor se guardó correctamente
+				if (result.rows[0].id_usuario_creador === null && idUsuarioCreadorFinal !== null) {
+					console.error("❌ ERROR: El id_usuario_creador se envió pero se guardó como NULL");
+					console.error("Valor enviado:", idUsuarioCreadorFinal);
+					console.error("Valor guardado:", result.rows[0].id_usuario_creador);
+					console.error("Query:", query);
+					console.error("Valores:", valores);
+					
+					logger.error({
+						valorEnviado: idUsuarioCreadorFinal,
+						valorGuardado: result.rows[0].id_usuario_creador,
+						query: query,
+						valores: valores
+					}, "ERROR: El id_usuario_creador se envió pero se guardó como NULL");
+				} else if (result.rows[0].id_usuario_creador !== null) {
+					console.log("✅ ÉXITO: id_usuario_creador se guardó correctamente:", result.rows[0].id_usuario_creador);
+				}
+				
+				return result.rows[0];
+			} catch (error) {
+				logger.error({
+					error: error.message,
+					stack: error.stack,
+					query: query,
+					valores: valores,
+					idUsuarioCreadorFinal: idUsuarioCreadorFinal
+				}, "ERROR al insertar tarea en la base de datos");
+				throw error;
+			}
 		} catch (error) {
 			logger.error({ err: error }, "Error al crear tarea");
 			throw error;
@@ -282,7 +387,7 @@ class TareasService {
 				UPDATE public.tareas 
 				SET ${campos.join(", ")}
 				WHERE id_tareas = $${contador}
-				RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion
+				RETURNING id_tareas, id_usuarios, descripcion, id_estado, fecha_asignacion, id_usuario_creador
 			`;
 
 			const result = await pool.query(query, valores);

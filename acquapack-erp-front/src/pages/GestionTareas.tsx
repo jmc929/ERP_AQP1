@@ -1,5 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Search } from "lucide-react";
 import { ArrowLeft } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
@@ -19,6 +21,7 @@ const GestionTareas = () => {
   const [trabajadorSeleccionado, setTrabajadorSeleccionado] = useState<Trabajador | null>(null);
   const [mostrarDialogo, setMostrarDialogo] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [busqueda, setBusqueda] = useState("");
 
   // Cargar usuarios y sus tareas
   useEffect(() => {
@@ -88,6 +91,8 @@ const GestionTareas = () => {
                 fecha_asignacion: tarea.fecha_asignacion,
                 estado_nombre: tarea.estado_nombre || "Pendiente",
                 estado_color: tarea.estado_color || "#94a3b8",
+                id_usuario_creador: tarea.id_usuario_creador,
+                nombre_usuario_creador: tarea.nombre_usuario_creador,
               }));
 
             return {
@@ -142,12 +147,45 @@ const GestionTareas = () => {
     }
   };
 
+  // Filtrar trabajadores basándose en la búsqueda
+  const trabajadoresFiltrados = useMemo(() => {
+    if (!busqueda.trim()) {
+      return trabajadores;
+    }
+    
+    const terminoBusqueda = busqueda.toLowerCase().trim();
+    return trabajadores.filter((trabajador) =>
+      trabajador.nombre.toLowerCase().includes(terminoBusqueda)
+    );
+  }, [trabajadores, busqueda]);
+
   return (
     <PageContainer>
       <PageTitle title="Gestión de Tareas" />
       <p className="text-muted-foreground mb-6">
         Selecciona un trabajador para ver y gestionar sus tareas
       </p>
+
+      {/* Barra de búsqueda */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Buscar trabajador por nombre..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        {busqueda.trim() && (
+          <p className="text-sm text-muted-foreground mt-2">
+            {trabajadoresFiltrados.length === 0
+              ? "No se encontraron trabajadores"
+              : `${trabajadoresFiltrados.length} trabajador(es) encontrado(s)`}
+          </p>
+        )}
+      </div>
 
       {/* Grid de tarjetas de trabajadores */}
       {loading ? (
@@ -156,9 +194,13 @@ const GestionTareas = () => {
         <div className="text-center py-8 text-muted-foreground">
           No hay usuarios registrados
         </div>
+      ) : trabajadoresFiltrados.length === 0 ? (
+        <div className="text-center py-8 text-muted-foreground">
+          No se encontraron trabajadores que coincidan con la búsqueda
+        </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {trabajadores.map((trabajador) => {
+          {trabajadoresFiltrados.map((trabajador) => {
             const tareasTotales = trabajador.tareas.length;
             const tareasTerminadas = trabajador.tareas.filter((t) => t.id_estado === 23).length;
 

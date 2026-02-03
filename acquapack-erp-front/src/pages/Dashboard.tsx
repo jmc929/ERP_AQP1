@@ -8,11 +8,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare, BookOpen, Edit, Cog, Tag, Archive } from "lucide-react";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare, BookOpen, Edit, Cog, Tag, Archive, FileText, StickyNote, Menu, Receipt, Factory, Plus } from "lucide-react";
 import ModuleCard from "@/components/ModuleCard";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-type Module = "productos" | "compras" | "ventas" | "inventario" | "costos" | "gestion-tareas" | "usuarios" | null;
+type Module = "productos" | "compras" | "ventas" | "inventario" | "costos" | "nomina" | "produccion" | "gestion-tareas" | "usuarios" | "documentos" | "notas" | null;
 
 interface ModuleOption {
   title: string;
@@ -32,7 +35,9 @@ const Dashboard = () => {
   const location = useLocation();
   const [selectedModule, setSelectedModule] = useState<Module>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   // Mapeo de rutas a módulos y opciones
   const routeToModuleAndOption = (pathname: string): { module: Module; option: string | null } => {
@@ -123,6 +128,36 @@ const Dashboard = () => {
     if (pathname.includes("/costos")) {
       return { module: "costos", option: null };
     }
+    if (pathname.includes("/nomina/hacer-nomina")) {
+      return { module: "nomina", option: "Hacer Nómina" };
+    }
+    if (pathname.includes("/nomina/ver-nominas")) {
+      return { module: "nomina", option: "Ver Nóminas" };
+    }
+    if (pathname.includes("/nomina/configuracion")) {
+      return { module: "nomina", option: "Configuración de Nómina" };
+    }
+    if (pathname.includes("/nomina")) {
+      return { module: "nomina", option: null };
+    }
+    if (pathname.includes("/produccion/agregar")) {
+      return { module: "produccion", option: "Agregar Producción" };
+    }
+    if (pathname.includes("/produccion/ver")) {
+      return { module: "produccion", option: "Ver Producción" };
+    }
+    if (pathname.includes("/produccion/configuracion")) {
+      return { module: "produccion", option: "Configuración de Producción" };
+    }
+    if (pathname.includes("/produccion")) {
+      return { module: "produccion", option: null };
+    }
+    if (pathname.includes("/documentos")) {
+      return { module: "documentos", option: null };
+    }
+    if (pathname.includes("/notas")) {
+      return { module: "notas", option: null };
+    }
     // Agregar más rutas aquí cuando se creen más páginas
     return { module: null, option: null };
   };
@@ -138,7 +173,10 @@ const Dashboard = () => {
   }, [location.pathname]);
 
   const handleLogout = () => {
-    navigate("/login");
+    // Limpiar la sesión del usuario
+    localStorage.removeItem("usuario");
+    // Redirigir al login
+    navigate("/login", { replace: true });
   };
 
   const modules = [
@@ -147,8 +185,12 @@ const Dashboard = () => {
     { id: "ventas" as Module, name: "Ventas", icon: TrendingUp },
     { id: "inventario" as Module, name: "Inventario", icon: Package },
     { id: "costos" as Module, name: "Costos", icon: DollarSign },
+    { id: "nomina" as Module, name: "Nómina", icon: Receipt },
+    { id: "produccion" as Module, name: "Producción", icon: Factory },
     { id: "gestion-tareas" as Module, name: "Gestión de Tareas", icon: CheckSquare },
     { id: "usuarios" as Module, name: "Usuarios", icon: Users },
+    { id: "documentos" as Module, name: "Documentos", icon: FileText },
+    { id: "notas" as Module, name: "Notas", icon: StickyNote },
   ];
 
   const moduleOptions: Record<Exclude<Module, null>, ModuleOption[]> = {
@@ -181,12 +223,24 @@ const Dashboard = () => {
     costos: [
       { title: "Ver Costos por Productos", icon: DollarSign },
     ],
+    nomina: [
+      { title: "Hacer Nómina", icon: Receipt },
+      { title: "Ver Nóminas", icon: Receipt },
+      { title: "Configuración de Nómina", icon: Cog },
+    ],
+    produccion: [
+      { title: "Agregar Producción", icon: Plus },
+      { title: "Ver Producción", icon: Factory },
+      { title: "Configuración de Producción", icon: Cog },
+    ],
     "gestion-tareas": [],
     usuarios: [
       { title: "Crear Usuarios", icon: Users },
       { title: "Ver Usuarios", icon: Users },
       { title: "Configuración de Usuarios", icon: Cog },
     ],
+    documentos: [],
+    notas: [],
   };
 
   const getDisplayTitle = () => {
@@ -212,9 +266,13 @@ const Dashboard = () => {
   const selectModule = (moduleId: Module) => {
     if (!moduleId) return;
     setSelectedModule(moduleId);
-    // Si el módulo es "gestion-tareas" y no tiene opciones, navegar directamente
+    // Si el módulo no tiene opciones, navegar directamente
     if (moduleId === "gestion-tareas" && moduleOptions[moduleId].length === 0) {
       navigate("/dashboard/gestion-tareas");
+    } else if (moduleId === "notas" && moduleOptions[moduleId].length === 0) {
+      navigate("/dashboard/notas");
+    } else if (moduleId === "documentos" && moduleOptions[moduleId].length === 0) {
+      navigate("/dashboard/documentos/gestionar");
     } else if (location.pathname !== "/dashboard") {
       // Si estamos en una opción y cambiamos de módulo, volver al dashboard para ver las opciones
       navigate("/dashboard");
@@ -315,6 +373,36 @@ const Dashboard = () => {
         navigate("/dashboard/inventario/ver-inventario");
       } else if (result.moduleId === "costos" && result.title === "Ver Costos por Productos") {
         navigate("/dashboard/costos/ver-costos");
+      } else if (result.moduleId === "nomina" && result.title === "Hacer Nómina") {
+        navigate("/dashboard/nomina/hacer-nomina");
+      } else if (result.moduleId === "nomina" && result.title === "Ver Nóminas") {
+        navigate("/dashboard/nomina/ver-nominas");
+      } else if (result.moduleId === "nomina" && result.title === "Configuración de Nómina") {
+        navigate("/dashboard/nomina/configuracion");
+      } else if (result.moduleId === "produccion" && result.title === "Agregar Producción") {
+        navigate("/dashboard/produccion/agregar");
+      } else if (result.moduleId === "produccion" && result.title === "Ver Producción") {
+        navigate("/dashboard/produccion/ver");
+      } else if (result.moduleId === "produccion" && result.title === "Configuración de Producción") {
+        navigate("/dashboard/produccion/configuracion");
+      } else if (result.moduleId === "documentos" && result.title === "Trabajadores") {
+        navigate("/dashboard/documentos/gestionar?carpeta=trabajadores");
+      } else if (result.moduleId === "documentos" && result.title === "Gestión Humana") {
+        navigate("/dashboard/documentos/gestionar?carpeta=gestion-humana");
+      } else if (result.moduleId === "documentos" && result.title === "SST") {
+        navigate("/dashboard/documentos/gestionar?carpeta=sst");
+      } else if (result.moduleId === "documentos" && result.title === "Facturas") {
+        navigate("/dashboard/documentos/gestionar?carpeta=facturas");
+      } else if (result.moduleId === "documentos" && result.title === "Contratos") {
+        navigate("/dashboard/documentos/gestionar?carpeta=contratos");
+      } else if (result.moduleId === "documentos" && result.title === "Certificados") {
+        navigate("/dashboard/documentos/gestionar?carpeta=certificados");
+      } else if (result.moduleId === "documentos" && result.title === "Manuales") {
+        navigate("/dashboard/documentos/gestionar?carpeta=manuales");
+      } else if (result.moduleId === "documentos" && result.title === "Otros") {
+        navigate("/dashboard/documentos/gestionar?carpeta=otros");
+      } else if (result.moduleId === "documentos" && result.title === "Todos los Documentos") {
+        navigate("/dashboard/documentos/gestionar");
       } else {
         console.log(`Navegando a: ${result.title}`);
       }
@@ -347,65 +435,180 @@ const Dashboard = () => {
     };
   }, []);
 
+  const SidebarContent = () => (
+    <div className="p-4 space-y-2 h-full">
+      {/* Opción Inicio */}
+      <button
+        onClick={() => {
+          setSelectedModule(null);
+          navigate("/dashboard");
+          if (isMobile) setSidebarOpen(false);
+        }}
+        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+          selectedModule === null && location.pathname === "/dashboard"
+            ? "bg-sidebar-active text-white shadow-md"
+            : "text-sidebar-text hover:bg-sidebar-hover"
+        }`}
+      >
+        <Home className="h-5 w-5" />
+        <span className="font-medium">Inicio</span>
+      </button>
+      
+      {modules.map((module) => {
+        return (
+          <button
+            key={module.id}
+            onClick={() => {
+              selectModule(module.id);
+              if (isMobile) setSidebarOpen(false);
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+              selectedModule === module.id
+                ? "bg-sidebar-active text-white shadow-md"
+                : "text-sidebar-text hover:bg-sidebar-hover"
+            }`}
+          >
+            <module.icon className="h-5 w-5" />
+            <span className="font-medium flex-1 text-left">{module.name}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="min-h-screen flex flex-col bg-background">
       {/* Header */}
-      <header className="h-16 bg-card border-b border-border flex items-center justify-between px-6 shadow-sm gap-4">
-        <h1 className="text-2xl font-bold text-foreground">{getDisplayTitle()}</h1>
+      <header className="h-14 md:h-16 bg-card border-b border-border flex items-center justify-between px-3 md:px-6 shadow-sm gap-2 md:gap-4">
+        {/* Botón menú móvil y título */}
+        <div className="flex items-center gap-2 md:gap-4 min-w-0">
+          {isMobile && (
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-9 w-9 flex-shrink-0">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-64 p-0 bg-sidebar-bg border-r border-border">
+                <SidebarContent />
+              </SheetContent>
+            </Sheet>
+          )}
+          <h1 className="text-lg md:text-2xl font-bold text-foreground truncate">{getDisplayTitle()}</h1>
+        </div>
         
-        {/* Barra de búsqueda */}
-        <div className="flex-1 max-w-md mx-4">
-          <div className="relative" ref={searchRef}>
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Buscar en toda la ERP..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="pl-10 w-full"
-            />
-            
-            {/* Resultados de búsqueda */}
-            {searchQuery.trim() && results.length > 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
-                <div className="p-2">
-                  {results.map((result, index) => {
-                    const IconComponent = result.icon;
-                    return (
-                      <button
-                        key={index}
-                        onClick={() => handleResultClick(result)}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors text-left"
-                      >
-                        <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-foreground">{result.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {result.type === "module" ? "Módulo" : "Opción"}
+        {/* Barra de búsqueda - Desktop */}
+        {!isMobile ? (
+          <div className="flex-1 max-w-md mx-4 min-w-0">
+            <div className="relative" ref={searchRef}>
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Buscar en toda la ERP..."
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                className="pl-10 w-full"
+              />
+              
+              {/* Resultados de búsqueda */}
+              {searchQuery.trim() && results.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                  <div className="p-2">
+                    {results.map((result, index) => {
+                      const IconComponent = result.icon;
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => handleResultClick(result)}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors text-left"
+                        >
+                          <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground">{result.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {result.type === "module" ? "Módulo" : "Opción"}
+                            </div>
                           </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              {searchQuery.trim() && results.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 p-4">
+                  <p className="text-sm text-muted-foreground text-center">
+                    No se encontraron resultados
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="relative" ref={searchRef}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-9 w-9 flex-shrink-0"
+              onClick={() => {
+                const input = document.getElementById("mobile-search");
+                if (input) {
+                  input.focus();
+                }
+              }}
+            >
+              <Search className="h-5 w-5" />
+            </Button>
+            {searchQuery.trim() && (
+              <div className="absolute top-full right-0 mt-2 w-80 bg-card border border-border rounded-md shadow-lg z-50 max-h-96 overflow-y-auto">
+                <div className="p-2">
+                  {results.length > 0 ? (
+                    results.map((result, index) => {
+                      const IconComponent = result.icon;
+                      return (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            handleResultClick(result);
+                            setSidebarOpen(false);
+                          }}
+                          className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors text-left"
+                        >
+                          <IconComponent className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium text-foreground">{result.title}</div>
+                            <div className="text-xs text-muted-foreground">
+                              {result.type === "module" ? "Módulo" : "Opción"}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center p-4">
+                      No se encontraron resultados
+                    </p>
+                  )}
                 </div>
               </div>
             )}
-            
-            {searchQuery.trim() && results.length === 0 && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border rounded-md shadow-lg z-50 p-4">
-                <p className="text-sm text-muted-foreground text-center">
-                  No se encontraron resultados
-                </p>
-              </div>
-            )}
+            <Input
+              id="mobile-search"
+              type="text"
+              placeholder="Buscar..."
+              value={searchQuery}
+              onChange={(e) => handleSearch(e.target.value)}
+              className="absolute top-0 left-0 w-0 h-0 opacity-0 pointer-events-none"
+            />
           </div>
-        </div>
+        )}
         
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Avatar className="h-10 w-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+            <Avatar className="h-9 w-9 md:h-10 md:w-10 cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0">
               <AvatarFallback className="bg-primary text-primary-foreground">
-                <User className="h-5 w-5" />
+                <User className="h-4 w-4 md:h-5 md:w-5" />
               </AvatarFallback>
             </Avatar>
           </DropdownMenuTrigger>
@@ -425,67 +628,36 @@ const Dashboard = () => {
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar - Módulos */}
-        <aside className="w-64 bg-sidebar-bg border-r border-border overflow-y-auto">
-          <div className="p-4 space-y-2">
-            {/* Opción Inicio */}
-            <button
-              onClick={() => {
-                setSelectedModule(null);
-                navigate("/dashboard");
-              }}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                selectedModule === null && location.pathname === "/dashboard"
-                  ? "bg-sidebar-active text-white shadow-md"
-                  : "text-sidebar-text hover:bg-sidebar-hover"
-              }`}
-            >
-              <Home className="h-5 w-5" />
-              <span className="font-medium">Inicio</span>
-            </button>
-            
-            {modules.map((module) => {
-              return (
-                <button
-                  key={module.id}
-                  onClick={() => selectModule(module.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    selectedModule === module.id
-                      ? "bg-sidebar-active text-white shadow-md"
-                      : "text-sidebar-text hover:bg-sidebar-hover"
-                  }`}
-                >
-                  <module.icon className="h-5 w-5" />
-                  <span className="font-medium flex-1 text-left">{module.name}</span>
-                </button>
-              );
-            })}
-          </div>
-        </aside>
+        {/* Sidebar - Módulos - Solo visible en desktop */}
+        {!isMobile && (
+          <aside className="w-64 bg-sidebar-bg border-r border-border overflow-y-auto">
+            <SidebarContent />
+          </aside>
+        )}
 
         {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-8">
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {/* Si hay una ruta anidada, mostrar el Outlet, sino mostrar el contenido del Dashboard */}
           {location.pathname !== "/dashboard" ? (
             <Outlet />
           ) : !selectedModule ? (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-2xl text-muted-foreground font-light">
+            <div className="h-full flex items-center justify-center py-12 md:py-0">
+              <p className="text-lg md:text-2xl text-muted-foreground font-light text-center px-4">
                 Seleccione módulo para ver más información
               </p>
             </div>
           ) : moduleOptions[selectedModule].length === 0 ? (
-            selectedModule === "gestion-tareas" ? (
+            (selectedModule === "gestion-tareas" || selectedModule === "notas" || selectedModule === "documentos") ? (
               <Outlet />
             ) : (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-2xl text-muted-foreground font-light">
+              <div className="h-full flex items-center justify-center py-12 md:py-0">
+                <p className="text-lg md:text-2xl text-muted-foreground font-light text-center px-4">
                   Este módulo aún no tiene opciones disponibles
                 </p>
               </div>
             )
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
               {moduleOptions[selectedModule].map((option, index) => {
                 const handleClick = () => {
                   if (selectedModule === "productos" && option.title === "Catálogo General") {
@@ -532,6 +704,38 @@ const Dashboard = () => {
                     navigate("/dashboard/inventario/ver-inventario");
                   } else if (selectedModule === "costos" && option.title === "Ver Costos por Productos") {
                     navigate("/dashboard/costos/ver-costos");
+                  } else if (selectedModule === "nomina" && option.title === "Hacer Nómina") {
+                    navigate("/dashboard/nomina/hacer-nomina");
+                  } else if (selectedModule === "nomina" && option.title === "Ver Nóminas") {
+                    navigate("/dashboard/nomina/ver-nominas");
+                  } else if (selectedModule === "nomina" && option.title === "Configuración de Nómina") {
+                    navigate("/dashboard/nomina/configuracion");
+                  } else if (selectedModule === "produccion" && option.title === "Agregar Producción") {
+                    navigate("/dashboard/produccion/agregar");
+                  } else if (selectedModule === "produccion" && option.title === "Ver Producción") {
+                    navigate("/dashboard/produccion/ver");
+                  } else if (selectedModule === "produccion" && option.title === "Configuración de Producción") {
+                    navigate("/dashboard/produccion/configuracion");
+                  } else if (selectedModule === "notas" && option.title === "Mis Notas") {
+                    navigate("/dashboard/notas/gestionar");
+                  } else if (selectedModule === "documentos" && option.title === "Trabajadores") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=trabajadores");
+                  } else if (selectedModule === "documentos" && option.title === "Gestión Humana") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=gestion-humana");
+                  } else if (selectedModule === "documentos" && option.title === "SST") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=sst");
+                  } else if (selectedModule === "documentos" && option.title === "Facturas") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=facturas");
+                  } else if (selectedModule === "documentos" && option.title === "Contratos") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=contratos");
+                  } else if (selectedModule === "documentos" && option.title === "Certificados") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=certificados");
+                  } else if (selectedModule === "documentos" && option.title === "Manuales") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=manuales");
+                  } else if (selectedModule === "documentos" && option.title === "Otros") {
+                    navigate("/dashboard/documentos/gestionar?carpeta=otros");
+                  } else if (selectedModule === "documentos" && option.title === "Todos los Documentos") {
+                    navigate("/dashboard/documentos/gestionar");
                   } else {
                     console.log(`Navegando a: ${option.title}`);
                   }

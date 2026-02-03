@@ -46,7 +46,18 @@ async function obtenerTareasPorUsuario(req, res) {
  */
 	async function crearTarea(req, res) {
 	try {
-		const { id_usuarios, descripcion, id_estado, fecha_asignacion } = req.body;
+		// Log inicial para verificar que la función se está ejecutando
+		logger.info("=== INICIO crearTarea ===");
+		logger.info("Body recibido:", JSON.stringify(req.body));
+		logger.info("Headers recibidos:", JSON.stringify(req.headers));
+
+		const { id_usuarios, descripcion, id_estado, fecha_asignacion, id_usuario_creador } = req.body;
+
+		// Log directo con console.log para asegurar que se vea
+		console.log("=== CONSOLE.LOG DEBUG ===");
+		console.log("req.body completo:", JSON.stringify(req.body, null, 2));
+		console.log("id_usuario_creador del body:", id_usuario_creador);
+		console.log("Tipo de id_usuario_creador:", typeof id_usuario_creador);
 
 		if (!id_usuarios || !descripcion) {
 			return res.status(400).json({
@@ -55,18 +66,93 @@ async function obtenerTareasPorUsuario(req, res) {
 			});
 		}
 
+		// Obtener el ID del usuario logueado desde el header o body
+		// Express normaliza los headers, pero puede variar según la versión
+		// Buscar en todos los headers posibles
+		const todosLosHeaders = req.headers;
+		logger.info("Todos los headers recibidos:", Object.keys(todosLosHeaders));
+		
+		// Buscar header con diferentes variantes
+		const headerUserId = todosLosHeaders['x-user-id'] || 
+			todosLosHeaders['x-userid'] ||
+			todosLosHeaders['xuserid'] ||
+			todosLosHeaders['X-User-Id'] || 
+			todosLosHeaders['X-USER-ID'] ||
+			todosLosHeaders['x-user-id'] ||
+			// Buscar cualquier header que contenga 'user' e 'id'
+			Object.keys(todosLosHeaders).find(key => 
+				key.toLowerCase().includes('user') && key.toLowerCase().includes('id')
+			) ? todosLosHeaders[Object.keys(todosLosHeaders).find(key => 
+				key.toLowerCase().includes('user') && key.toLowerCase().includes('id')
+			)] : null;
+		
+		logger.info("Header x-user-id encontrado:", headerUserId);
+		logger.info("Body id_usuario_creador:", id_usuario_creador);
+		logger.info("Tipo de headerUserId:", typeof headerUserId);
+		
+		let idUsuarioCreador = null;
+		
+		// Prioridad: 1) body (más confiable), 2) header
+		if (id_usuario_creador != null && id_usuario_creador !== undefined && id_usuario_creador !== '') {
+			idUsuarioCreador = parseInt(id_usuario_creador);
+			console.log("Usando body, idUsuarioCreador:", idUsuarioCreador);
+			logger.info("Usando body, idUsuarioCreador:", idUsuarioCreador);
+		} else if (headerUserId != null && headerUserId !== undefined && headerUserId !== '') {
+			idUsuarioCreador = parseInt(headerUserId);
+			console.log("Usando header, idUsuarioCreador:", idUsuarioCreador);
+			logger.info("Usando header, idUsuarioCreador:", idUsuarioCreador);
+		} else {
+			console.log("ERROR: No se encontró id_usuario_creador ni en body ni en header");
+			console.log("id_usuario_creador del body:", id_usuario_creador);
+			console.log("headerUserId:", headerUserId);
+		}
+
+		// Log para debugging
+		logger.info({ 
+			headerUserId,
+			bodyIdUsuarioCreador: id_usuario_creador,
+			idUsuarioCreadorFinal: idUsuarioCreador,
+			esNumero: !isNaN(idUsuarioCreador)
+		}, "Resultado obtención usuario creador");
+
+		if (!idUsuarioCreador || isNaN(idUsuarioCreador)) {
+			logger.error({ 
+				headerUserId,
+				bodyIdUsuarioCreador: id_usuario_creador,
+				todosLosHeaders: Object.keys(req.headers).filter(h => h.toLowerCase().includes('user'))
+			}, "ERROR: No se pudo obtener el ID del usuario creador");
+			
+			// Por ahora, permitir continuar pero con null (para no romper el flujo)
+			// En producción deberías retornar error
+			logger.warn("Continuando con id_usuario_creador = null (debería ser un error en producción)");
+		}
+
 		// Solo usar fecha_asignacion si viene explícitamente y no está vacía
 		// Si no viene o está vacía, se usará NOW() en la BD
 		const fechaAsignacion = fecha_asignacion && fecha_asignacion.trim() !== "" 
 			? fecha_asignacion 
 			: null;
 
-		const tarea = await tareasService.crearTarea({
+		// Log antes de llamar al servicio
+		console.log("=== ANTES DE LLAMAR AL SERVICIO ===");
+		console.log("idUsuarioCreador que se pasará al servicio:", idUsuarioCreador);
+		console.log("Tipo:", typeof idUsuarioCreador);
+		logger.info("=== ANTES DE LLAMAR AL SERVICIO ===");
+		logger.info("idUsuarioCreador que se pasará al servicio:", idUsuarioCreador);
+		logger.info("Tipo:", typeof idUsuarioCreador);
+
+		const datosParaServicio = {
 			id_usuarios: parseInt(id_usuarios),
 			descripcion,
 			id_estado: id_estado ? parseInt(id_estado) : 21, // Por defecto "Por hacer"
-			fecha_asignacion: fechaAsignacion
-		});
+			fecha_asignacion: fechaAsignacion,
+			id_usuario_creador: idUsuarioCreador
+		};
+
+		console.log("Datos completos que se pasarán al servicio:", JSON.stringify(datosParaServicio, null, 2));
+		logger.info("Datos completos que se pasarán al servicio:", JSON.stringify(datosParaServicio));
+
+		const tarea = await tareasService.crearTarea(datosParaServicio);
 
 		res.status(201).json({
 			success: true,

@@ -9,10 +9,10 @@ interface FormCardProps {
 const FormCard = ({ title, children }: FormCardProps) => {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
+      <CardHeader className="pb-4 md:pb-6">
+        <CardTitle className="text-lg md:text-xl">{title}</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
+      <CardContent className="space-y-4 md:space-y-6">{children}</CardContent>
     </Card>
   );
 };

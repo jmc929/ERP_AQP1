@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import ProtectedRoute from "./components/ProtectedRoute";
 import CatalogoGeneral from "./pages/CatalogoGeneral";
 import CrearEditarProductos from "./pages/CrearEditarProductos";
 import ProductosArchivados from "./pages/ProductosArchivados";
@@ -28,6 +29,14 @@ import TrasladosBodegas from "./pages/TrasladosBodegas";
 import VerInventarioBodegas from "./pages/VerInventarioBodegas";
 import VerCostosProductos from "./pages/VerCostosProductos";
 import ProductosXProveedor from "./pages/ProductosXProveedor";
+import GestionarDocumentos from "./pages/GestionarDocumentos";
+import GestionarNotas from "./pages/GestionarNotas";
+import ConfiguracionNomina from "./pages/ConfiguracionNomina";
+import HacerNomina from "./pages/HacerNomina";
+import VerNominas from "./pages/VerNominas";
+import ConfiguracionProduccion from "./pages/ConfiguracionProduccion";
+import AgregarProduccion from "./pages/AgregarProduccion";
+import VerProduccion from "./pages/VerProduccion";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,7 +50,14 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Navigate to="/login" replace />} />
           <Route path="/login" element={<Login />} />
-          <Route path="/dashboard" element={<Dashboard />}>
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          >
             <Route path="productos/catalogo-general" element={<CatalogoGeneral />} />
             <Route path="productos/crear-editar" element={<CrearEditarProductos />} />
             <Route path="productos/archivados" element={<ProductosArchivados />} />
@@ -65,6 +81,14 @@ const App = () => (
             <Route path="inventario/traslados-bodegas" element={<TrasladosBodegas />} />
             <Route path="inventario/ver-inventario" element={<VerInventarioBodegas />} />
             <Route path="costos/ver-costos" element={<VerCostosProductos />} />
+            <Route path="nomina/hacer-nomina" element={<HacerNomina />} />
+            <Route path="nomina/ver-nominas" element={<VerNominas />} />
+            <Route path="nomina/configuracion" element={<ConfiguracionNomina />} />
+            <Route path="produccion/agregar" element={<AgregarProduccion />} />
+            <Route path="produccion/ver" element={<VerProduccion />} />
+            <Route path="produccion/configuracion" element={<ConfiguracionProduccion />} />
+            <Route path="documentos/gestionar" element={<GestionarDocumentos />} />
+            <Route path="notas" element={<GestionarNotas />} />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

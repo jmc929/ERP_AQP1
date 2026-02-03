@@ -13,6 +13,7 @@ services:
     volumes:
       - ./acquapack-erp-back:/app       # <--- ¡LA MAGIA! (Espejo)
       - /app/node_modules
+      - ./documentos:/app/documentos    # <--- Carpeta para PDFs y documentos
     environment:
       # AQUÍ APUNTAS AL SERVIDOR LINUX
       - DB_HOST=100.77.172.10   # <--- IP TAILSCALE DEL SERVIDOR

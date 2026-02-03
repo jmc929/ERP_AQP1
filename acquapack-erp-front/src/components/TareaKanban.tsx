@@ -12,6 +12,8 @@ export interface Tarea {
   fecha_asignacion?: string;
   estado_nombre?: string;
   estado_color?: string;
+  id_usuario_creador?: number;
+  nombre_usuario_creador?: string;
 }
 
 interface TareaKanbanProps {
@@ -59,17 +61,56 @@ const TareaKanban = ({
 
     try {
       setLoading(true);
+      // Generar fecha y hora localmente en el frontend
+      const fechaAsignacion = new Date().toISOString();
+      
+      // Obtener el usuario logueado desde localStorage
+      const usuarioLogueado = localStorage.getItem("usuario");
+      let idUsuarioCreador = null;
+      
+      console.log("=== DEBUG CREAR TAREA ===");
+      console.log("Usuario en localStorage:", usuarioLogueado);
+      
+      if (usuarioLogueado) {
+        try {
+          const usuario = JSON.parse(usuarioLogueado);
+          console.log("Usuario parseado:", usuario);
+          idUsuarioCreador = usuario.id_usuarios;
+          console.log("ID Usuario Creador extraído:", idUsuarioCreador);
+        } catch (error) {
+          console.error("Error al parsear usuario:", error);
+        }
+      } else {
+        console.warn("No hay usuario en localStorage!");
+      }
+
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+
+      // Agregar el header con el ID del usuario logueado
+      if (idUsuarioCreador) {
+        headers["x-user-id"] = idUsuarioCreador.toString();
+        console.log("Header x-user-id agregado:", idUsuarioCreador.toString());
+      } else {
+        console.warn("No se pudo obtener idUsuarioCreador, no se agregará header");
+      }
+
+      const bodyData = {
+        id_usuarios: trabajadorId,
+        descripcion: nuevaTarea.trim(),
+        id_estado: ESTADOS.POR_HACER, // 21 = Pendiente
+        fecha_asignacion: fechaAsignacion, // Fecha generada en el frontend
+        id_usuario_creador: idUsuarioCreador, // Enviar también en el body como respaldo
+      };
+
+      console.log("Body que se enviará:", bodyData);
+      console.log("Headers que se enviarán:", headers);
+
       const response = await fetch("http://localhost:4000/api/tareas", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          id_usuarios: trabajadorId,
-          descripcion: nuevaTarea.trim(),
-          id_estado: ESTADOS.POR_HACER, // 21 = Pendiente
-          // No enviar fecha_asignacion, el backend usará NOW()
-        }),
+        headers,
+        body: JSON.stringify(bodyData),
       });
 
       const data = await response.json();
@@ -78,13 +119,26 @@ const TareaKanban = ({
         throw new Error(data.message || "Error al crear la tarea");
       }
 
+      // Obtener el nombre del usuario creador desde localStorage
+      let nombreUsuarioCreador = null;
+      if (usuarioLogueado) {
+        try {
+          const usuario = JSON.parse(usuarioLogueado);
+          nombreUsuarioCreador = `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() || null;
+        } catch (error) {
+          console.error("Error al parsear usuario para nombre:", error);
+        }
+      }
+
       const nueva: Tarea = {
         id: data.tarea.id_tareas,
         descripcion: data.tarea.descripcion,
         id_estado: data.tarea.id_estado || ESTADOS.POR_HACER,
-        fecha_asignacion: data.tarea.fecha_asignacion,
+        fecha_asignacion: fechaAsignacion, // Usar la fecha generada en el frontend, no la del backend
         estado_nombre: ESTADOS_CONFIG[ESTADOS.POR_HACER].nombre,
         estado_color: ESTADOS_CONFIG[ESTADOS.POR_HACER].color,
+        id_usuario_creador: idUsuarioCreador,
+        nombre_usuario_creador: nombreUsuarioCreador || data.tarea.nombre_usuario_creador,
       };
 
       onTareasChange([...tareas, nueva]);
@@ -351,7 +405,7 @@ const TareaKanban = ({
                       <>
                         <p className="text-sm mb-2">{tarea.descripcion}</p>
                         {tarea.fecha_asignacion && (
-                          <p className="text-xs text-muted-foreground mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {(() => {
                               const fechaStr = tarea.fecha_asignacion;
                               const fecha = new Date(fechaStr);
@@ -364,6 +418,11 @@ const TareaKanban = ({
                                 timeZone: "America/Bogota"
                               });
                             })()}
+                          </p>
+                        )}
+                        {tarea.nombre_usuario_creador && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Creado por: {tarea.nombre_usuario_creador}
                           </p>
                         )}
                         <div className="flex items-center justify-between gap-2">
@@ -463,7 +522,7 @@ const TareaKanban = ({
                       <>
                         <p className="text-sm mb-2">{tarea.descripcion}</p>
                         {tarea.fecha_asignacion && (
-                          <p className="text-xs text-muted-foreground mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {(() => {
                               const fechaStr = tarea.fecha_asignacion;
                               const fecha = new Date(fechaStr);
@@ -476,6 +535,11 @@ const TareaKanban = ({
                                 timeZone: "America/Bogota"
                               });
                             })()}
+                          </p>
+                        )}
+                        {tarea.nombre_usuario_creador && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Creado por: {tarea.nombre_usuario_creador}
                           </p>
                         )}
                         <div className="flex items-center justify-between gap-2">
@@ -584,7 +648,7 @@ const TareaKanban = ({
                       <>
                         <p className="text-sm mb-2 line-through text-muted-foreground">{tarea.descripcion}</p>
                         {tarea.fecha_asignacion && (
-                          <p className="text-xs text-muted-foreground mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">
                             {(() => {
                               const fechaStr = tarea.fecha_asignacion;
                               const fecha = new Date(fechaStr);
@@ -597,6 +661,11 @@ const TareaKanban = ({
                                 timeZone: "America/Bogota"
                               });
                             })()}
+                          </p>
+                        )}
+                        {tarea.nombre_usuario_creador && (
+                          <p className="text-xs text-muted-foreground mb-2">
+                            Creado por: {tarea.nombre_usuario_creador}
                           </p>
                         )}
                         <div className="flex items-center justify-between gap-2">

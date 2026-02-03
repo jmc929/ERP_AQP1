@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,14 @@ const Login = () => {
   const [documento, setDocumento] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Si ya está autenticado, redirigir al dashboard
+  useEffect(() => {
+    const usuario = localStorage.getItem("usuario");
+    if (usuario) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,46 +80,46 @@ const Login = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-accent/10 p-4">
       <Card className="w-full max-w-md shadow-2xl border-border/50">
-        <CardHeader className="space-y-3 text-center">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-xl flex items-center justify-center shadow-lg">
-            <Building2 className="w-10 h-10 text-primary-foreground" />
+        <CardHeader className="space-y-3 text-center pb-4 md:pb-6">
+          <div className="mx-auto w-14 h-14 md:w-16 md:h-16 bg-primary rounded-xl flex items-center justify-center shadow-lg">
+            <Building2 className="w-8 h-8 md:w-10 md:h-10 text-primary-foreground" />
           </div>
-          <CardTitle className="text-3xl font-bold">ERP ACQUAPACK</CardTitle>
-          <CardDescription className="text-base">
+          <CardTitle className="text-2xl md:text-3xl font-bold">ERP ACQUAPACK</CardTitle>
+          <CardDescription className="text-sm md:text-base">
             Ingrese sus credenciales para continuar
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 md:px-6 pb-6 md:pb-8">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="documento">Documento</Label>
+              <Label htmlFor="documento" className="text-sm md:text-base">Documento</Label>
               <Input
                 id="documento"
                 type="text"
                 placeholder="Ingrese su documento"
                 value={documento}
                 onChange={(e) => setDocumento(e.target.value)}
-                className="h-11"
+                className="h-10 md:h-11 text-sm md:text-base"
                 disabled={loading}
                 autoComplete="username"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Contraseña</Label>
+              <Label htmlFor="password" className="text-sm md:text-base">Contraseña</Label>
               <Input
                 id="password"
                 type="password"
                 placeholder="Ingrese su contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11"
+                className="h-10 md:h-11 text-sm md:text-base"
                 disabled={loading}
                 autoComplete="current-password"
               />
             </div>
             <Button 
               type="submit" 
-              className="w-full h-11 text-base font-medium"
+              className="w-full h-10 md:h-11 text-sm md:text-base font-medium"
               disabled={loading}
             >
               {loading ? "Iniciando sesión..." : "Entrar"}

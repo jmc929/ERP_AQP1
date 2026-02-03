@@ -8,11 +8,15 @@ const { configuracionProductosRouter } = require("../modules/configuracion-produ
 const { configuracionUsuariosRoutes } = require("../modules/configuracion-usuarios");
 const { configuracionProveedoresRoutes } = require("../modules/configuracion-proveedores");
 const { configuracionClientesRoutes } = require("../modules/configuracion-clientes");
+const { configuracionNominaRouter } = require("../modules/configuracion-nomina");
+const { configuracionProduccionRouter } = require("../modules/configuracion-produccion");
+const { nominaRouter } = require("../modules/nomina");
 const { tareasRoutes } = require("../modules/tareas");
 const { proveedoresRoutes } = require("../modules/proveedores");
 const { clientesRoutes } = require("../modules/clientes");
 const { bodegasRoutes } = require("../modules/bodegas");
 const { ventasRouter } = require("../modules/ventas");
+const { notasRoutes } = require("../modules/notas");
 const { logger } = require("../common/logger");
 
 const routes = express.Router();
@@ -26,14 +30,18 @@ routes.use("/configuracion-productos", configuracionProductosRouter);
 routes.use("/configuracion-usuarios", configuracionUsuariosRoutes);
 routes.use("/configuracion-proveedores", configuracionProveedoresRoutes);
 routes.use("/configuracion-clientes", configuracionClientesRoutes);
+routes.use("/configuracion-nomina", configuracionNominaRouter);
+routes.use("/configuracion-produccion", configuracionProduccionRouter);
+routes.use("/nomina", nominaRouter);
 routes.use("/tareas", tareasRoutes);
 routes.use("/proveedores", proveedoresRoutes);
 routes.use("/clientes", clientesRoutes);
 routes.use("/bodegas", bodegasRoutes);
 routes.use("/ventas", ventasRouter);
+routes.use("/notas", notasRoutes);
 
 // Log para verificar que las rutas se cargaron
-logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /tareas, /proveedores, /clientes, /bodegas, /ventas");
+logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /configuracion-nomina, /configuracion-produccion, /nomina, /tareas, /proveedores, /clientes, /bodegas, /ventas, /notas");
 
 module.exports = { routes };
 

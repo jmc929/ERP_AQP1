@@ -59,9 +59,9 @@ const FiltersDialog = ({
   return (
     <Dialog>
       <DialogTrigger asChild>
-        <Button variant="outline" className="flex items-center gap-2">
+        <Button variant="outline" className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10">
           <Filter className="h-4 w-4" />
-          Filtros
+          <span className="hidden sm:inline">Filtros</span>
           {hasActiveFilters && (
             <span className="ml-1 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
               {[filtros.id_familia, filtros.id_grupos_producto, filtros.id_estado].filter(Boolean).length}
@@ -69,14 +69,14 @@ const FiltersDialog = ({
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-[95vw] sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Filtros</DialogTitle>
-          <DialogDescription>
+          <DialogTitle className="text-lg md:text-xl">Filtros</DialogTitle>
+          <DialogDescription className="text-sm">
             Selecciona los filtros para buscar productos
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
           <div className="space-y-2">
             <Label htmlFor="familia">Familia</Label>
             <Select
