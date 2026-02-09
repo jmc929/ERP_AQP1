@@ -655,6 +655,99 @@ class ConfiguracionUsuariosService {
 			throw error;
 		}
 	}
+
+	// ========== ROLES ==========
+
+	async obtenerRoles() {
+		try {
+			const result = await pool.query(
+				"SELECT id_rol, nombre FROM public.rol ORDER BY nombre"
+			);
+			logger.info({ count: result.rows.length }, "Roles obtenidos exitosamente");
+			return result.rows;
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener roles");
+			throw error;
+		}
+	}
+
+	async crearRol(datos) {
+		try {
+			const nombreExistente = await pool.query(
+				"SELECT id_rol FROM public.rol WHERE nombre = $1",
+				[datos.nombre]
+			);
+
+			if (nombreExistente.rows.length > 0) {
+				throw new Error("Ya existe un rol con este nombre");
+			}
+
+			const result = await pool.query(
+				"INSERT INTO public.rol (nombre) VALUES ($1) RETURNING id_rol, nombre",
+				[datos.nombre]
+			);
+
+			logger.info({ rolId: result.rows[0].id_rol }, "Rol creado exitosamente");
+			return result.rows[0];
+		} catch (error) {
+			logger.error({ err: error }, "Error al crear rol");
+			throw error;
+		}
+	}
+
+	async actualizarRol(id, datos) {
+		try {
+			const rolExistente = await pool.query(
+				"SELECT id_rol FROM public.rol WHERE id_rol = $1",
+				[id]
+			);
+
+			if (rolExistente.rows.length === 0) {
+				throw new Error("Rol no encontrado");
+			}
+
+			if (datos.nombre) {
+				const nombreExistente = await pool.query(
+					"SELECT id_rol FROM public.rol WHERE nombre = $1 AND id_rol != $2",
+					[datos.nombre, id]
+				);
+
+				if (nombreExistente.rows.length > 0) {
+					throw new Error("Ya existe otro rol con este nombre");
+				}
+			}
+
+			const result = await pool.query(
+				"UPDATE public.rol SET nombre = $1 WHERE id_rol = $2 RETURNING id_rol, nombre",
+				[datos.nombre, id]
+			);
+
+			logger.info({ rolId: id }, "Rol actualizado exitosamente");
+			return result.rows[0];
+		} catch (error) {
+			logger.error({ err: error }, "Error al actualizar rol");
+			throw error;
+		}
+	}
+
+	async eliminarRol(id) {
+		try {
+			const result = await pool.query(
+				"DELETE FROM public.rol WHERE id_rol = $1 RETURNING id_rol",
+				[id]
+			);
+
+			if (result.rows.length === 0) {
+				throw new Error("Rol no encontrado");
+			}
+
+			logger.info({ rolId: id }, "Rol eliminado exitosamente");
+			return true;
+		} catch (error) {
+			logger.error({ err: error }, "Error al eliminar rol");
+			throw error;
+		}
+	}
 }
 
 module.exports = new ConfiguracionUsuariosService();

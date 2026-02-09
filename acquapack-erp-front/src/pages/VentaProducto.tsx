@@ -89,7 +89,6 @@ const VentaProducto = () => {
   const [usuarioLogueado, setUsuarioLogueado] = useState<{ id_usuarios: number } | null>(null);
   
   // Datos desde la BD
-  const [clientes, setClientes] = useState<Cliente[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [ivas, setIvas] = useState<Iva[]>([]);
   const [retenciones, setRetenciones] = useState<Retencion[]>([]);
@@ -155,37 +154,32 @@ const VentaProducto = () => {
     const cargarDatos = async () => {
       try {
         setLoading(true);
-        const [salidaRes, clientesRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
+        const [salidaRes, bodegasRes, ivasRes, retencionesRes, clientesPaginadosRes] = await Promise.all([
           fetch("http://localhost:4000/api/ventas/siguiente-id-salida"),
-          fetch("http://localhost:4000/api/ventas/clientes"),
           fetch("http://localhost:4000/api/ventas/bodegas"),
           fetch("http://localhost:4000/api/ventas/ivas"),
-          fetch("http://localhost:4000/api/ventas/retenciones")
+          fetch("http://localhost:4000/api/ventas/retenciones"),
+          fetch("http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50") // Carga inicial de clientes paginados
         ]);
 
         const salidaData = await salidaRes.json();
-        const clientesData = await clientesRes.json();
         const bodegasData = await bodegasRes.json();
         const ivasData = await ivasRes.json();
         const retencionesData = await retencionesRes.json();
+        const clientesPaginadosData = await clientesPaginadosRes.json();
 
         if (salidaData.success) {
           setSalidaId(salidaData.siguienteId);
         }
-        if (clientesData.success) {
-          setClientes(clientesData.clientes);
-          // Cargar clientes paginados inicialmente
-          const clientesPaginadosRes = await fetch("http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50");
-          const clientesPaginadosData = await clientesPaginadosRes.json();
-          if (clientesPaginadosData.success) {
-            setClientesCargados(clientesPaginadosData.clientes || []);
-            setPaginacionClientes({
-              paginaActual: clientesPaginadosData.paginacion?.paginaActual || 1,
-              totalPaginas: clientesPaginadosData.paginacion?.totalPaginas || 1,
-              hayMas: clientesPaginadosData.paginacion?.hayMas || false,
-              cargando: false
-            });
-          }
+        // Cargar clientes paginados inicialmente
+        if (clientesPaginadosData.success) {
+          setClientesCargados(clientesPaginadosData.clientes || []);
+          setPaginacionClientes({
+            paginaActual: clientesPaginadosData.paginacion?.paginaActual || 1,
+            totalPaginas: clientesPaginadosData.paginacion?.totalPaginas || 1,
+            hayMas: clientesPaginadosData.paginacion?.hayMas || false,
+            cargando: false
+          });
         }
         if (bodegasData.success) {
           setBodegas(bodegasData.bodegas);
@@ -540,34 +534,54 @@ const VentaProducto = () => {
     campo: keyof FilaVenta,
     valor: string | boolean
   ) => {
-    const nuevaFila = { ...filas.find((f) => f.id === id)!, [campo]: valor };
-    
-    // Si cambió la bodega, cargar productos de esa bodega y limpiar producto seleccionado
-    if (campo === "bodega" && typeof valor === "string") {
-      nuevaFila.productoCodigo = "";
-      nuevaFila.productoNombre = "";
-      nuevaFila.idProducto = undefined;
-      await cargarProductosPorFila(id, valor);
-    }
-    
-    const calculo = await calcularValorTotal(nuevaFila);
-    
-    setFilas(
-      filas.map((fila) => {
+    // Actualizar el valor inmediatamente usando la forma funcional de setState
+    setFilas((filasAnteriores) => {
+      const filaActual = filasAnteriores.find((f) => f.id === id);
+      if (!filaActual) return filasAnteriores;
+      
+      const nuevaFila = { ...filaActual, [campo]: valor };
+      
+      // Si cambió la bodega, cargar productos de esa bodega y limpiar producto seleccionado
+      if (campo === "bodega" && typeof valor === "string") {
+        nuevaFila.productoCodigo = "";
+        nuevaFila.productoNombre = "";
+        nuevaFila.idProducto = undefined;
+        cargarProductosPorFila(id, valor);
+      }
+      
+      // Si es cantidad, valorUnitario, descuento, idIva o idRetencion, calcular de forma asíncrona después
+      if (campo === "cantidad" || campo === "valorUnitario" || campo === "descuento" || campo === "idIva" || campo === "idRetencion") {
+        // Calcular de forma asíncrona sin bloquear la actualización del input
+        calcularValorTotal(nuevaFila).then((calculo) => {
+          setFilas((filasActuales) =>
+            filasActuales.map((fila) => {
+              if (fila.id === id) {
+                return {
+                  ...fila,
+                  valorTotal: calculo.valorTotal,
+                  ivaMonto: calculo.ivaMonto,
+                  retencionMonto: calculo.retencionMonto,
+                  montoDescuento: calculo.montoDescuento,
+                  porcentajeIva: calculo.porcentajeIva,
+                  porcentajeRetencion: calculo.porcentajeRetencion,
+                };
+              }
+              return fila;
+            })
+          );
+        }).catch((error) => {
+          console.error("Error al calcular valor total:", error);
+        });
+      }
+      
+      // Retornar la fila actualizada inmediatamente (sin esperar el cálculo)
+      return filasAnteriores.map((fila) => {
         if (fila.id === id) {
-          return {
-            ...nuevaFila,
-            valorTotal: calculo.valorTotal,
-            ivaMonto: calculo.ivaMonto,
-            retencionMonto: calculo.retencionMonto,
-            montoDescuento: calculo.montoDescuento,
-            porcentajeIva: calculo.porcentajeIva,
-            porcentajeRetencion: calculo.porcentajeRetencion,
-          };
+          return nuevaFila;
         }
         return fila;
-      })
-    );
+      });
+    });
   };
 
   // Recalcular todas las filas cuando cambie el tipo de descuento (porcentaje o fijo)

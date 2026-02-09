@@ -378,6 +378,31 @@ class NominaService {
 			throw error;
 		}
 	}
+
+	/**
+	 * Obtiene el correo electrónico del trabajador de una nómina
+	 * @param {number} idNomina - ID de la nómina
+	 * @returns {Promise<string|null>} Correo electrónico del trabajador
+	 */
+	async obtenerEmailTrabajador(idNomina) {
+		try {
+			const result = await pool.query(`
+				SELECT u.correo_electronico
+				FROM public.nomina n
+				LEFT JOIN public.usuarios u ON n.id_usuario_trabajador = u.id_usuarios
+				WHERE n.id_nomina = $1
+			`, [idNomina]);
+
+			if (result.rows.length === 0) {
+				throw new Error("Nómina no encontrada");
+			}
+
+			return result.rows[0].correo_electronico || null;
+		} catch (error) {
+			logger.error({ err: error, idNomina }, "Error al obtener email del trabajador");
+			throw error;
+		}
+	}
 }
 
 module.exports = new NominaService();

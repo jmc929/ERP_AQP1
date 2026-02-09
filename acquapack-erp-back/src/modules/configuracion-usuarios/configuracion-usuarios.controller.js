@@ -834,6 +834,125 @@ async function eliminarFondoPensiones(req, res) {
 	}
 }
 
+// ========== ROLES ==========
+
+async function obtenerRoles(req, res) {
+	try {
+		const roles = await configuracionUsuariosService.obtenerRoles();
+		res.json({
+			success: true,
+			roles: roles
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerRoles controller");
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function crearRol(req, res) {
+	try {
+		const { nombre } = req.body;
+
+		if (!nombre) {
+			return res.status(400).json({
+				error: "Campo requerido faltante",
+				message: "El nombre es obligatorio"
+			});
+		}
+
+		const rol = await configuracionUsuariosService.crearRol({ nombre });
+		res.status(201).json({
+			success: true,
+			message: "Rol creado exitosamente",
+			rol: rol
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en crearRol controller");
+		
+		if (error.message === "Ya existe un rol con este nombre") {
+			return res.status(409).json({
+				error: "Rol duplicado",
+				message: error.message
+			});
+		}
+
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function actualizarRol(req, res) {
+	try {
+		const { id } = req.params;
+		const { nombre } = req.body;
+
+		if (!nombre) {
+			return res.status(400).json({
+				error: "Campo requerido faltante",
+				message: "El nombre es obligatorio"
+			});
+		}
+
+		const rol = await configuracionUsuariosService.actualizarRol(parseInt(id), { nombre });
+		res.json({
+			success: true,
+			message: "Rol actualizado exitosamente",
+			rol: rol
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en actualizarRol controller");
+		
+		if (error.message === "Rol no encontrado") {
+			return res.status(404).json({
+				error: "No encontrado",
+				message: error.message
+			});
+		}
+
+		if (error.message === "Ya existe otro rol con este nombre") {
+			return res.status(409).json({
+				error: "Rol duplicado",
+				message: error.message
+			});
+		}
+
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function eliminarRol(req, res) {
+	try {
+		const { id } = req.params;
+		await configuracionUsuariosService.eliminarRol(parseInt(id));
+		res.json({
+			success: true,
+			message: "Rol eliminado exitosamente"
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en eliminarRol controller");
+		
+		if (error.message === "Rol no encontrado") {
+			return res.status(404).json({
+				error: "No encontrado",
+				message: error.message
+			});
+		}
+
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	obtenerTiposIdentificacion,
 	crearTipoIdentificacion,
@@ -862,6 +981,10 @@ module.exports = {
 	obtenerFondosPensiones,
 	crearFondoPensiones,
 	actualizarFondoPensiones,
-	eliminarFondoPensiones
+	eliminarFondoPensiones,
+	obtenerRoles,
+	crearRol,
+	actualizarRol,
+	eliminarRol
 };
 

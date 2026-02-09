@@ -31,7 +31,8 @@ type TipoRegistro =
   | "arl" 
   | "eps" 
   | "caja-compensacion" 
-  | "fondo-pensiones";
+  | "fondo-pensiones"
+  | "rol";
 
 const ConfiguracionUsuarios = () => {
   const { toast } = useToast();
@@ -45,6 +46,7 @@ const ConfiguracionUsuarios = () => {
   const [eps, setEps] = useState<Registro[]>([]);
   const [cajaCompensacion, setCajaCompensacion] = useState<Registro[]>([]);
   const [fondoPensiones, setFondoPensiones] = useState<Registro[]>([]);
+  const [roles, setRoles] = useState<Registro[]>([]);
   
   // Estados para edición
   const [editandoId, setEditandoId] = useState<number | null>(null);
@@ -94,6 +96,8 @@ const ConfiguracionUsuarios = () => {
             id = reg.id_caja_compensacion || reg.id;
           } else if (tipoTab === "fondo-pensiones") {
             id = reg.id_fondo_pensiones || reg.id;
+          } else if (tipoTab === "rol") {
+            id = reg.id_rol || reg.id;
           }
           return {
             id,
@@ -118,6 +122,8 @@ const ConfiguracionUsuarios = () => {
         registros = data.cajasCompensacion;
       } else if (tipo === "fondo-pensiones" && data.fondosPensiones) {
         registros = data.fondosPensiones;
+      } else if (tipo === "rol" && data.roles) {
+        registros = data.roles;
       }
 
       const registrosNormalizados = normalizarRegistros(registros, tipo);
@@ -136,6 +142,8 @@ const ConfiguracionUsuarios = () => {
         setCajaCompensacion(registrosNormalizados);
       } else if (tipo === "fondo-pensiones") {
         setFondoPensiones(registrosNormalizados);
+      } else if (tipo === "rol") {
+        setRoles(registrosNormalizados);
       }
     } catch (error) {
       console.error("Error al cargar datos:", error);
@@ -307,6 +315,8 @@ const ConfiguracionUsuarios = () => {
         return "Caja de Compensación";
       case "fondo-pensiones":
         return "Fondo de Pensiones";
+      case "rol":
+        return "Rol";
       default:
         return "Registro";
     }
@@ -328,6 +338,8 @@ const ConfiguracionUsuarios = () => {
         return "Cajas de Compensación";
       case "fondo-pensiones":
         return "Fondos de Pensiones";
+      case "rol":
+        return "Roles";
       default:
         return "Registros";
     }
@@ -349,6 +361,8 @@ const ConfiguracionUsuarios = () => {
         return cajaCompensacion;
       case "fondo-pensiones":
         return fondoPensiones;
+      case "rol":
+        return roles;
       default:
         return [];
     }
@@ -477,7 +491,7 @@ const ConfiguracionUsuarios = () => {
       <PageTitle title="Configuración de Usuarios" />
 
       <Tabs value={tabActivo} onValueChange={(value) => setTabActivo(value as TipoRegistro)} className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-8">
           <TabsTrigger value="tipo-identificacion">Tipo Identificación</TabsTrigger>
           <TabsTrigger value="tipo-contrato">Tipo Contrato</TabsTrigger>
           <TabsTrigger value="estado-civil">Estado Civil</TabsTrigger>
@@ -485,6 +499,7 @@ const ConfiguracionUsuarios = () => {
           <TabsTrigger value="eps">EPS</TabsTrigger>
           <TabsTrigger value="caja-compensacion">Caja Compensación</TabsTrigger>
           <TabsTrigger value="fondo-pensiones">Fondo Pensiones</TabsTrigger>
+          <TabsTrigger value="rol">Roles</TabsTrigger>
         </TabsList>
 
         {renderTabContent("tipo-identificacion")}
@@ -494,6 +509,7 @@ const ConfiguracionUsuarios = () => {
         {renderTabContent("eps")}
         {renderTabContent("caja-compensacion")}
         {renderTabContent("fondo-pensiones")}
+        {renderTabContent("rol")}
       </Tabs>
     </PageContainer>
   );

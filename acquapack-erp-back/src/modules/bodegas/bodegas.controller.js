@@ -186,13 +186,25 @@ async function cambiarEstadoBodega(req, res) {
 async function obtenerProductosPorBodega(req, res) {
 	try {
 		const { id } = req.params;
-		logger.info({ bodegaId: id }, "Obteniendo productos por bodega");
-		const productos = await bodegasService.obtenerProductosPorBodega(parseInt(id));
-		logger.info({ count: productos.length }, "Productos obtenidos exitosamente");
-		res.json({
-			success: true,
-			productos: productos
-		});
+		const { agrupado } = req.query; // Nuevo parámetro para indicar si se quiere agrupado
+		
+		if (agrupado === 'true') {
+			logger.info({ bodegaId: id }, "Obteniendo productos agrupados por bodega");
+			const productos = await bodegasService.obtenerProductosAgrupadosPorBodega(parseInt(id));
+			logger.info({ count: productos.length }, "Productos agrupados obtenidos exitosamente");
+			res.json({
+				success: true,
+				productos: productos
+			});
+		} else {
+			logger.info({ bodegaId: id }, "Obteniendo productos por bodega");
+			const productos = await bodegasService.obtenerProductosPorBodega(parseInt(id));
+			logger.info({ count: productos.length }, "Productos obtenidos exitosamente");
+			res.json({
+				success: true,
+				productos: productos
+			});
+		}
 	} catch (error) {
 		logger.error({ err: error, stack: error.stack }, "Error en obtenerProductosPorBodega controller");
 		res.status(500).json({

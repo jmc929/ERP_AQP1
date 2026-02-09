@@ -617,27 +617,25 @@ const CrearEditarProductos = () => {
                 />
               </div>
 
-              {modo === "editar" && (
-                <div className="space-y-2">
-                  <Label htmlFor="estado">Estado</Label>
-                  <Select value={idEstado} onValueChange={setIdEstado}>
-                    <SelectTrigger id="estado">
-                      <SelectValue placeholder="Seleccione un estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.estados && catalogos.estados.length > 0 ? (
-                        catalogos.estados.map((estado) => (
-                          <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
-                            {estado.nombre}
-                          </SelectItem>
-                        ))
-                      ) : (
-                        <SelectItem value="no-data" disabled>No hay estados disponibles</SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
+              <div className="space-y-2">
+                <Label htmlFor="estado">Estado</Label>
+                <Select value={idEstado} onValueChange={setIdEstado}>
+                  <SelectTrigger id="estado">
+                    <SelectValue placeholder="Seleccione un estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {catalogos?.estados && catalogos.estados.length > 0 ? (
+                      catalogos.estados.map((estado) => (
+                        <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
+                          {estado.nombre}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="no-data" disabled>No hay estados disponibles</SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="flex items-center space-x-2 p-4 bg-muted rounded-md">

@@ -10,6 +10,7 @@ const { configuracionProveedoresRoutes } = require("../modules/configuracion-pro
 const { configuracionClientesRoutes } = require("../modules/configuracion-clientes");
 const { configuracionNominaRouter } = require("../modules/configuracion-nomina");
 const { configuracionProduccionRouter } = require("../modules/configuracion-produccion");
+const { produccionRouter } = require("../modules/produccion");
 const { nominaRouter } = require("../modules/nomina");
 const { tareasRoutes } = require("../modules/tareas");
 const { proveedoresRoutes } = require("../modules/proveedores");
@@ -32,6 +33,7 @@ routes.use("/configuracion-proveedores", configuracionProveedoresRoutes);
 routes.use("/configuracion-clientes", configuracionClientesRoutes);
 routes.use("/configuracion-nomina", configuracionNominaRouter);
 routes.use("/configuracion-produccion", configuracionProduccionRouter);
+routes.use("/produccion", produccionRouter);
 routes.use("/nomina", nominaRouter);
 routes.use("/tareas", tareasRoutes);
 routes.use("/proveedores", proveedoresRoutes);
@@ -41,7 +43,7 @@ routes.use("/ventas", ventasRouter);
 routes.use("/notas", notasRoutes);
 
 // Log para verificar que las rutas se cargaron
-logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /configuracion-nomina, /configuracion-produccion, /nomina, /tareas, /proveedores, /clientes, /bodegas, /ventas, /notas");
+logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /configuracion-nomina, /configuracion-produccion, /produccion, /nomina, /tareas, /proveedores, /clientes, /bodegas, /ventas, /notas");
 
 module.exports = { routes };
 

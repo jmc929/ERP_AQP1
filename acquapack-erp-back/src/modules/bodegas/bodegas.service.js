@@ -343,74 +343,20 @@ class BodegasService {
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
-						-- Comprobante: Determinar el origen original basándose en el primer movimiento
-						COALESCE(
-							(SELECT 
-								CASE
-									WHEN mk.tipo_movimiento LIKE '%Traslado Entrada%' OR mk.tipo_movimiento LIKE '%Traslado%' THEN
-										'T-' || COALESCE(
-											(SELECT t2.id_traslado::text
-											 FROM public.traslados t2
-											 WHERE t2.bodega_destino_id = inv.id_bodega
-											   AND DATE(t2.fecha_traslado) <= DATE(mk.__FECHA_COL__)
-											 ORDER BY t2.id_traslado ASC
-											 LIMIT 1
-											),
-											inv.id_traslado::text,
-											'0'
-										)
-									ELSE
-										'FC-' || COALESCE(
-											(SELECT f2.id_facturas::text
-											 FROM public.facturas f2
-											 INNER JOIN public.detalle_factura df2 ON f2.id_facturas = df2.id_factura
-											 WHERE df2.id_producto = inv.id_producto
-											   AND DATE(f2.fecha_creacion) <= DATE(mk.__FECHA_COL__)
-											 ORDER BY f2.id_facturas ASC
-											 LIMIT 1
-											),
-											inv.id_factura::text,
-											'0'
-										)
-								END
-							 FROM public.movimientos_kardex mk
-							 WHERE mk.id_bodega = inv.id_bodega
-							   AND mk.id_producto = inv.id_producto
-							   AND mk.tipo_flujo = 'Entrada'
-							 ORDER BY mk.__FECHA_COL__ ASC, mk.id_movimientos ASC
-							 LIMIT 1
-							),
-							CASE
-								WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
-								WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
-								ELSE 'N/A'
-							END
-						) as comprobante,
-						-- Fecha: del primer movimiento de entrada o de la factura/traslado directo
-						COALESCE(
-							(SELECT mk.__FECHA_COL__
-							 FROM public.movimientos_kardex mk
-							 WHERE mk.id_bodega = inv.id_bodega
-							   AND mk.id_producto = inv.id_producto
-							   AND mk.tipo_flujo = 'Entrada'
-							 ORDER BY mk.__FECHA_COL__ ASC, mk.id_movimientos ASC
-							 LIMIT 1
-							),
-							CASE
-								WHEN inv.id_traslado IS NOT NULL THEN t.fecha_traslado
-								WHEN inv.id_factura IS NOT NULL THEN f.fecha_creacion
-								ELSE inv.fecha_ingreso
-							END
-						) as fecha_comprobante,
-						COALESCE(
-							(SELECT SUM(mk.cantidad)
-							 FROM public.movimientos_kardex mk
-							 WHERE mk.id_bodega = inv.id_bodega
-							   AND mk.id_producto = inv.id_producto
-							   AND mk.tipo_flujo = 'Entrada'
-							),
-							0
-						) as cantidad_entrada,
+						-- Comprobante: Usar directamente el id_factura o id_traslado del registro de inventario
+						CASE
+							WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
+							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
+							ELSE 'N/A'
+						END as comprobante,
+						-- Fecha: usar directamente la fecha de la factura/traslado o fecha_ingreso del registro de inventario
+						CASE
+							WHEN inv.id_traslado IS NOT NULL THEN t.fecha_traslado
+							WHEN inv.id_factura IS NOT NULL THEN f.fecha_creacion
+							ELSE inv.fecha_ingreso
+						END as fecha_comprobante,
+						-- Cantidad de entrada específica de este registro de inventario
+						COALESCE(inv.cantidad_lote, 0) as cantidad_entrada,
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -423,7 +369,14 @@ class BodegasService {
 						inv.cantidad_lote as saldo_cantidad
 					FROM public.inventario inv
 					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
-					LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
+					LEFT JOIN LATERAL (
+						SELECT df.*
+						FROM public.detalle_factura df
+						WHERE df.id_factura = inv.id_factura 
+							AND df.id_producto = inv.id_producto
+						ORDER BY df.id_detalle_factura
+						LIMIT 1
+					) df ON true
 					LEFT JOIN public.facturas f ON inv.id_factura = f.id_facturas
 					LEFT JOIN public.traslados t ON inv.id_traslado = t.id_traslado
 					LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
@@ -455,20 +408,14 @@ class BodegasService {
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
+						-- Comprobante: Usar directamente el id_factura del registro de inventario
 						CASE
 							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
 							ELSE 'N/A'
 						END as comprobante,
 						COALESCE(f.fecha_creacion, inv.fecha_ingreso) as fecha_comprobante,
-						COALESCE(
-							(SELECT SUM(mk.cantidad)
-							 FROM public.movimientos_kardex mk
-							 WHERE mk.id_bodega = inv.id_bodega
-							   AND mk.id_producto = inv.id_producto
-							   AND mk.tipo_flujo = 'Entrada'
-							),
-							0
-						) as cantidad_entrada,
+						-- Cantidad de entrada específica de este registro de inventario
+						COALESCE(inv.cantidad_lote, 0) as cantidad_entrada,
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -481,7 +428,14 @@ class BodegasService {
 						inv.cantidad_lote as saldo_cantidad
 					FROM public.inventario inv
 					LEFT JOIN public.producto p ON inv.id_producto = p.id_producto
-					LEFT JOIN public.detalle_factura df ON inv.id_factura = df.id_factura AND inv.id_producto = df.id_producto
+					LEFT JOIN LATERAL (
+						SELECT df.*
+						FROM public.detalle_factura df
+						WHERE df.id_factura = inv.id_factura 
+							AND df.id_producto = inv.id_producto
+						ORDER BY df.id_detalle_factura
+						LIMIT 1
+					) df ON true
 					LEFT JOIN public.facturas f ON inv.id_factura = f.id_facturas
 					LEFT JOIN public.ivas i ON df.id_iva = i.id_iva
 					LEFT JOIN public.medida m ON p.id_medida = m.id_medida
@@ -926,6 +880,175 @@ class BodegasService {
 			throw error;
 		} finally {
 			client.release();
+		}
+	}
+
+	/**
+	 * Obtiene productos agrupados por producto con totales (cantidad entrada, salida, saldo)
+	 * @param {number} idBodega - ID de la bodega
+	 * @returns {Promise<Array>} Lista de productos agrupados con totales y detalles (entradas y salidas)
+	 */
+	async obtenerProductosAgrupadosPorBodega(idBodega) {
+		try {
+			// Primero obtener todos los productos individuales (entradas)
+			const productosIndividuales = await this.obtenerProductosPorBodega(idBodega);
+			
+			// Obtener todas las salidas de kardex para esta bodega
+			const salidasQuery = `
+				SELECT DISTINCT
+					mk.id_producto,
+					p.codigo as producto_codigo,
+					p.nombre as producto_nombre,
+					COALESCE(m.nombre, 'N/A') as unidad_medida
+				FROM public.movimientos_kardex mk
+				INNER JOIN public.producto p ON mk.id_producto = p.id_producto
+				LEFT JOIN public.medida m ON p.id_medida = m.id_medida
+				WHERE mk.id_bodega = $1
+					AND mk.tipo_flujo = 'Salida'
+					AND (p.id_estado IS NULL OR p.id_estado IN (1, 2))
+			`;
+			const salidasResult = await pool.query(salidasQuery, [idBodega]);
+			
+			// Agrupar por id_producto
+			const productosAgrupados = new Map();
+			
+			// Procesar entradas (desde inventario)
+			productosIndividuales.forEach(producto => {
+				const key = producto.id_producto;
+				
+				if (!productosAgrupados.has(key)) {
+					productosAgrupados.set(key, {
+						id_producto: producto.id_producto,
+						producto_codigo: producto.producto_codigo,
+						producto_nombre: producto.producto_nombre,
+						unidad_medida: producto.unidad_medida,
+						cantidad_entrada: 0,
+						cantidad_salida: 0,
+						saldo_cantidad: 0,
+						detalles: []
+					});
+				}
+				
+				const productoAgrupado = productosAgrupados.get(key);
+				const cantidadEntrada = Number(producto.cantidad_entrada) || 0;
+				productoAgrupado.cantidad_entrada += cantidadEntrada;
+				
+				// Agregar entrada como detalle
+				productoAgrupado.detalles.push({
+					...producto,
+					tipo: 'entrada',
+					cantidad: cantidadEntrada
+				});
+			});
+			
+			// Procesar salidas (desde movimientos_kardex)
+			for (const salidaRow of salidasResult.rows) {
+				const key = salidaRow.id_producto;
+				
+				// Obtener todas las salidas de este producto
+				// Extraer id_salida del tipo_movimiento (formato: "Venta FV-{id_salida}")
+				// Obtener precio_unitario y precio_unitario_con_impuesto desde detalle_salida
+				const salidasDetalleQuery = `
+					SELECT 
+						mk.id_movimientos,
+						mk.id_producto,
+						mk.cantidad,
+						mk.costo_unitario,
+						mk.costo_total_movimiento,
+						mk."fecha " as fecha,
+						mk.tipo_movimiento,
+						CASE 
+							WHEN mk.tipo_movimiento LIKE 'Venta FV-%' THEN 
+								'FV-' || SUBSTRING(mk.tipo_movimiento FROM 'FV-([0-9]+)')
+							ELSE mk.tipo_movimiento
+						END as comprobante,
+						COALESCE(ds.precio_unitario, mk.costo_unitario) as precio_unitario,
+						COALESCE(ds.precio_unitario_con_impuesto, mk.costo_unitario) as precio_unitario_con_impuesto,
+						'Salida' as tipo_flujo,
+						p.codigo as producto_codigo,
+						p.nombre as producto_nombre
+					FROM public.movimientos_kardex mk
+					INNER JOIN public.producto p ON mk.id_producto = p.id_producto
+					LEFT JOIN LATERAL (
+						SELECT ds.precio_unitario, ds.precio_unitario_con_impuesto
+						FROM public.detalle_salida ds
+						WHERE ds.id_salida = CAST(SUBSTRING(mk.tipo_movimiento FROM 'FV-([0-9]+)') AS INTEGER)
+							AND ds.id_producto = mk.id_producto
+						ORDER BY ds.id_detalle_salida
+						LIMIT 1
+					) ds ON mk.tipo_movimiento LIKE 'Venta FV-%'
+					WHERE mk.id_bodega = $1
+						AND mk.id_producto = $2
+						AND mk.tipo_flujo = 'Salida'
+					ORDER BY mk."fecha " ASC, mk.id_movimientos ASC
+				`;
+				const salidasDetalleResult = await pool.query(salidasDetalleQuery, [idBodega, key]);
+				
+				if (!productosAgrupados.has(key)) {
+					productosAgrupados.set(key, {
+						id_producto: salidaRow.id_producto,
+						producto_codigo: salidaRow.producto_codigo,
+						producto_nombre: salidaRow.producto_nombre,
+						unidad_medida: salidaRow.unidad_medida,
+						cantidad_entrada: 0,
+						cantidad_salida: 0,
+						saldo_cantidad: 0,
+						detalles: []
+					});
+				}
+				
+				const productoAgrupado = productosAgrupados.get(key);
+				
+				// Agregar cada salida como detalle
+				salidasDetalleResult.rows.forEach(salida => {
+					const cantidadSalida = Number(salida.cantidad) || 0;
+					productoAgrupado.cantidad_salida += cantidadSalida;
+					
+					// Usar precio_unitario y precio_unitario_con_impuesto desde detalle_salida
+					// Si no están disponibles, usar costo_unitario como fallback
+					const precioUnitario = Number(salida.precio_unitario) || Number(salida.costo_unitario) || 0;
+					const precioUnitarioConImpuesto = Number(salida.precio_unitario_con_impuesto) || Number(salida.costo_unitario) || 0;
+					
+					productoAgrupado.detalles.push({
+						id_movimientos: salida.id_movimientos,
+						id_producto: salida.id_producto,
+						id_bodega: idBodega,
+						id_inventario: null, // Las salidas no tienen id_inventario
+						producto_codigo: salida.producto_codigo,
+						producto_nombre: salida.producto_nombre,
+						comprobante: salida.comprobante || salida.tipo_movimiento, // Usar comprobante extraído (FV-{id_salida})
+						fecha_comprobante: salida.fecha,
+						fecha_ingreso: salida.fecha,
+						cantidad: cantidadSalida,
+						cantidad_entrada: 0,
+						cantidad_salida: cantidadSalida,
+						precio_unitario: precioUnitario, // Precio unitario sin IVA desde detalle_salida
+						costo_unitario_con_impuesto: precioUnitarioConImpuesto, // Precio unitario con IVA desde detalle_salida
+						valor_total: Number(salida.costo_total_movimiento) || 0,
+						unidad_medida: productoAgrupado.unidad_medida,
+						tipo: 'salida',
+						tipo_movimiento: salida.tipo_movimiento
+					});
+				});
+			}
+			
+			// Calcular saldo y ordenar detalles por fecha
+			const resultado = Array.from(productosAgrupados.values()).map(producto => {
+				producto.saldo_cantidad = producto.cantidad_entrada - producto.cantidad_salida;
+				// Ordenar detalles por fecha (entradas primero, luego salidas)
+				producto.detalles.sort((a, b) => {
+					const fechaA = a.fecha_comprobante || a.fecha_ingreso || '';
+					const fechaB = b.fecha_comprobante || b.fecha_ingreso || '';
+					return new Date(fechaA) - new Date(fechaB);
+				});
+				return producto;
+			});
+			
+			logger.info({ bodegaId: idBodega, count: resultado.length }, "Productos agrupados obtenidos exitosamente");
+			return resultado;
+		} catch (error) {
+			logger.error({ err: error, idBodega, stack: error.stack }, "Error al obtener productos agrupados por bodega");
+			throw error;
 		}
 	}
 

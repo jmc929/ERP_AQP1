@@ -29,7 +29,7 @@ interface Bodega {
   total_productos?: number;
 }
 
-// Interface para productos de inventario
+// Interface para productos de inventario (detalles individuales)
 interface ProductoInventario {
   id_inventario: number;
   id_producto: number;
@@ -56,6 +56,25 @@ interface ProductoInventario {
   saldo_cantidad: number;
 }
 
+// Interface para detalles (pueden ser entradas o salidas)
+interface DetalleTransaccion extends ProductoInventario {
+  tipo?: 'entrada' | 'salida';
+  tipo_movimiento?: string;
+  id_movimientos?: number;
+}
+
+// Interface para productos agrupados (vista resumida)
+interface ProductoAgrupado {
+  id_producto: number;
+  producto_codigo: string;
+  producto_nombre: string;
+  unidad_medida: string;
+  cantidad_entrada: number;
+  cantidad_salida: number;
+  saldo_cantidad: number;
+  detalles: DetalleTransaccion[];
+}
+
 // Interface para movimientos de kardex
 interface MovimientoKardex {
   id_movimiento_kardex: number;
@@ -76,10 +95,11 @@ const VerInventarioBodegas = () => {
   const { toast } = useToast();
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [bodegaSeleccionada, setBodegaSeleccionada] = useState<string>("");
-  const [productosBodega, setProductosBodega] = useState<ProductoInventario[]>([]);
+  const [productosBodega, setProductosBodega] = useState<ProductoAgrupado[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingProductos, setLoadingProductos] = useState(false);
+  const [productosExpandidos, setProductosExpandidos] = useState<Map<number, boolean>>(new Map());
   const [movimientosAbiertos, setMovimientosAbiertos] = useState<Map<number, boolean>>(new Map());
   const [movimientosKardex, setMovimientosKardex] = useState<Map<number, MovimientoKardex[]>>(new Map());
   const [loadingMovimientos, setLoadingMovimientos] = useState<Map<number, boolean>>(new Map());
@@ -135,7 +155,7 @@ const VerInventarioBodegas = () => {
 
       try {
         setLoadingProductos(true);
-        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaSeleccionada}/productos`);
+        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaSeleccionada}/productos?agrupado=true`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -144,8 +164,9 @@ const VerInventarioBodegas = () => {
         const data = await response.json();
 
         if (data.success) {
-          console.log("Productos cargados:", data.productos);
+          console.log("Productos agrupados cargados:", data.productos);
           setProductosBodega(data.productos || []);
+          setProductosExpandidos(new Map()); // Resetear productos expandidos
         } else {
           toast({
             title: "Error",
@@ -176,76 +197,47 @@ const VerInventarioBodegas = () => {
     
     const query = busqueda.toLowerCase();
     return productosBodega.filter((producto) =>
-      producto.id_inventario.toString().includes(query) ||
       producto.id_producto.toString().includes(query) ||
       producto.producto_codigo.toLowerCase().includes(query) ||
       producto.producto_nombre.toLowerCase().includes(query) ||
-      (producto.comprobante || "").toLowerCase().includes(query) ||
-      producto.cantidad_lote.toString().includes(query) ||
-      (producto.cantidad_entrada || 0).toString().includes(query) ||
-      (producto.cantidad_salida || 0).toString().includes(query) ||
-      (producto.saldo_cantidad || producto.cantidad_lote || 0).toString().includes(query) ||
-      producto.unidad_medida.toLowerCase().includes(query) ||
-      producto.precio_unitario.toString().includes(query) ||
-      producto.costo_unitario_con_impuesto.toString().includes(query) ||
-      producto.valor_total.toString().includes(query)
+      producto.cantidad_entrada.toString().includes(query) ||
+      producto.cantidad_salida.toString().includes(query) ||
+      producto.saldo_cantidad.toString().includes(query) ||
+      producto.unidad_medida.toLowerCase().includes(query)
     );
   }, [productosBodega, busqueda]);
 
-  // Calcular totales correctamente
+  // Calcular totales correctamente (para productos agrupados)
   const totales = useMemo(() => {
     if (productosFiltrados.length === 0) {
       return {
-        cantidadTotal: 0,
-        precioUnitarioPromedio: 0,
-        costoUnitarioConImpuestoPromedio: 0,
-        valorTotal: 0,
+        cantidadEntradaTotal: 0,
+        cantidadSalidaTotal: 0,
+        saldoCantidadTotal: 0,
       };
     }
 
-    const resultado = productosFiltrados.reduce(
+    return productosFiltrados.reduce(
       (acc, producto) => {
-        const cantidad = producto.cantidad_lote || 0;
-        const precioUnitario = producto.precio_unitario || 0;
-        const costoUnitarioConImpuesto = producto.costo_unitario_con_impuesto || 0;
-        const valorTotal = producto.valor_total || 0;
-
-        // Sumas directas
-        acc.cantidadTotal += cantidad;
-        acc.valorTotal += valorTotal;
-
-        // Para promedios ponderados: sumar (cantidad * valor) y luego dividir por total cantidad
-        acc.sumaPrecioUnitarioPonderado += cantidad * precioUnitario;
-        acc.sumaCostoUnitarioPonderado += cantidad * costoUnitarioConImpuesto;
-
+        acc.cantidadEntradaTotal += producto.cantidad_entrada || 0;
+        acc.cantidadSalidaTotal += producto.cantidad_salida || 0;
+        acc.saldoCantidadTotal += producto.saldo_cantidad || 0;
         return acc;
       },
       {
-        cantidadTotal: 0,
-        sumaPrecioUnitarioPonderado: 0,
-        sumaCostoUnitarioPonderado: 0,
-        valorTotal: 0,
+        cantidadEntradaTotal: 0,
+        cantidadSalidaTotal: 0,
+        saldoCantidadTotal: 0,
       }
     );
-
-    // Calcular promedios ponderados
-    const precioUnitarioPromedio =
-      resultado.cantidadTotal > 0
-        ? resultado.sumaPrecioUnitarioPonderado / resultado.cantidadTotal
-        : 0;
-
-    const costoUnitarioConImpuestoPromedio =
-      resultado.cantidadTotal > 0
-        ? resultado.sumaCostoUnitarioPonderado / resultado.cantidadTotal
-        : 0;
-
-    return {
-      cantidadTotal: resultado.cantidadTotal,
-      precioUnitarioPromedio,
-      costoUnitarioConImpuestoPromedio,
-      valorTotal: resultado.valorTotal,
-    };
   }, [productosFiltrados]);
+
+  // Función para expandir/colapsar producto
+  const toggleExpandirProducto = (idProducto: number) => {
+    const nuevo = new Map(productosExpandidos);
+    nuevo.set(idProducto, !nuevo.get(idProducto));
+    setProductosExpandidos(nuevo);
+  };
 
   // Cargar movimientos de kardex
   const cargarMovimientosKardex = async (producto: ProductoInventario) => {
@@ -345,9 +337,9 @@ const VerInventarioBodegas = () => {
         onChange={setBusqueda}
       />
 
-      {/* Tabla de productos */}
+      {/* Tabla de productos agrupados */}
       <TableCard
-        headers={["", "ID Inventario", "Código", "Nombre", "Comprobante", "Fecha", "Cantidad Entrada", "Cantidad Salida", "Saldo Cantidad", "Unidad de Medida", "Precio Unitario", "Costo Unitario con Impuesto", "Valor Total"]}
+        headers={["", "Código", "Nombre", "Cantidad Entrada", "Cantidad Salida", "Saldo Cantidad", "Unidad de Medida"]}
         emptyMessage={
           loadingProductos
             ? "Cargando productos..."
@@ -357,152 +349,205 @@ const VerInventarioBodegas = () => {
                 : "No se encontraron productos"
               : undefined
         }
-        colSpan={13}
+        colSpan={8}
       >
         {loadingProductos ? (
           <TableRow>
-            <TableCell colSpan={13} className="text-center py-8">
+            <TableCell colSpan={8} className="text-center py-8">
               <Loader2 className="h-6 w-6 animate-spin mx-auto" />
             </TableCell>
           </TableRow>
         ) : (
-          productosFiltrados.map((producto) => {
-            const estaAbierto = movimientosAbiertos.get(producto.id_inventario) || false;
-            const movimientos = movimientosKardex.get(producto.id_inventario) || [];
-            const cargando = loadingMovimientos.get(producto.id_inventario) || false;
+          productosFiltrados.map((productoAgrupado) => {
+            const estaExpandido = productosExpandidos.get(productoAgrupado.id_producto) || false;
 
             return (
-              <React.Fragment key={producto.id_inventario}>
-                <TableRow>
+              <React.Fragment key={productoAgrupado.id_producto}>
+                {/* Fila resumida del producto */}
+                <TableRow className="bg-muted/30">
                   <TableCell className="border-r border-border py-4 px-4 w-12">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => cargarMovimientosKardex(producto)}
-                      disabled={cargando}
+                      onClick={() => toggleExpandirProducto(productoAgrupado.id_producto)}
                       className="h-8 w-8 p-0"
                     >
-                      {cargando ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <ChevronRight
-                          className={`h-4 w-4 transition-transform ${estaAbierto ? "rotate-90" : ""}`}
-                        />
-                      )}
+                      <ChevronRight
+                        className={`h-4 w-4 transition-transform ${estaExpandido ? "rotate-90" : ""}`}
+                      />
                     </Button>
                   </TableCell>
                   <TableCell className="border-r border-border font-medium py-4 px-6">
-                    {producto.id_inventario}
+                    {productoAgrupado.producto_codigo}
                   </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6">
-                    {producto.producto_codigo}
-                  </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6">
-                    {producto.producto_nombre}
-                  </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6 font-medium">
-                    {producto.comprobante || "N/A"}
-                  </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6">
-                    {producto.fecha_comprobante 
-                      ? new Date(producto.fecha_comprobante).toLocaleDateString("es-CO", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit"
-                        })
-                      : producto.fecha_ingreso
-                      ? new Date(producto.fecha_ingreso).toLocaleDateString("es-CO", {
-                          year: "numeric",
-                          month: "2-digit",
-                          day: "2-digit"
-                        })
-                      : "N/A"}
+                  <TableCell className="border-r border-border py-4 px-6 font-semibold">
+                    {productoAgrupado.producto_nombre}
                   </TableCell>
                   <TableCell className="border-r border-border py-4 px-6 text-green-600 font-medium">
-                    {(producto.cantidad_entrada || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {productoAgrupado.cantidad_entrada.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
                   <TableCell className="border-r border-border py-4 px-6 text-red-600 font-medium">
-                    {(producto.cantidad_salida || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {productoAgrupado.cantidad_salida.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6 font-semibold">
-                    {(producto.saldo_cantidad || producto.cantidad_lote || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <TableCell className="border-r border-border py-4 px-6 font-semibold text-primary">
+                    {productoAgrupado.saldo_cantidad.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6">
-                    {producto.unidad_medida}
-                  </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6">
-                    ${producto.precio_unitario.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="border-r border-border py-4 px-6 font-semibold">
-                    ${producto.costo_unitario_con_impuesto.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </TableCell>
-                  <TableCell className="py-4 px-6 font-semibold">
-                    ${producto.valor_total.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <TableCell className="py-4 px-6">
+                    {productoAgrupado.unidad_medida}
                   </TableCell>
                 </TableRow>
-                {estaAbierto && movimientos.length > 0 && (
-                  <TableRow>
-                    <TableCell colSpan={13} className="bg-muted/50 p-0">
-                      <div className="p-4">
-                        <h4 className="font-semibold mb-3 text-sm">Movimientos de Kardex</h4>
-                        <div className="space-y-2">
-                          {movimientos.map((movimiento) => (
-                            <div
-                              key={movimiento.id_movimiento_kardex}
-                              className="flex items-center justify-between p-3 bg-background rounded-lg border border-border"
-                            >
-                              <div className="flex items-center gap-3 flex-1">
-                                {obtenerIconoMovimiento(movimiento.tipo_movimiento, movimiento.tipo_flujo)}
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="font-medium text-sm">{movimiento.tipo_movimiento}</span>
-                                    <span
-                                      className={`px-2 py-1 rounded text-xs font-medium ${obtenerColorFlujo(movimiento.tipo_flujo)}`}
-                                    >
-                                      {movimiento.tipo_flujo}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1">
-                                    {new Date(movimiento.fecha).toLocaleString("es-CO", {
-                                      year: "numeric",
-                                      month: "2-digit",
-                                      day: "2-digit",
-                                      hour: "2-digit",
-                                      minute: "2-digit",
-                                    })}
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium">
-                                  Cantidad: {movimiento.cantidad}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Costo unitario: ${movimiento.costo_unitario.toLocaleString("es-CO", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </div>
-                                <div className="text-xs text-muted-foreground">
-                                  Total: ${movimiento.costo_total_movimiento.toLocaleString("es-CO", {
-                                    minimumFractionDigits: 2,
-                                    maximumFractionDigits: 2,
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                          ))}
+                
+                {/* Detalles expandidos del producto */}
+                {estaExpandido && productoAgrupado.detalles && productoAgrupado.detalles.length > 0 && (
+                  <>
+                    {/* Header de detalles */}
+                    <TableRow className="bg-muted/20">
+                      <TableCell colSpan={8} className="py-2 px-6 font-semibold text-sm">
+                        Detalles del Producto
+                      </TableCell>
+                    </TableRow>
+                    {/* Header de la tabla de detalles */}
+                    <TableRow className="bg-muted/10">
+                      <TableCell colSpan={8} className="py-2 px-6">
+                        <div className="grid grid-cols-8 gap-2 text-xs font-semibold text-muted-foreground">
+                          <div></div>
+                          <div>ID / Tipo</div>
+                          <div>Comprobante</div>
+                          <div>Fecha</div>
+                          <div>Cantidad</div>
+                          <div>Costo Unitario</div>
+                          <div>Costo Unitario c/Imp.</div>
+                          <div>Total</div>
                         </div>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-                {estaAbierto && movimientos.length === 0 && !cargando && (
-                  <TableRow>
-                    <TableCell colSpan={13} className="bg-muted/50 p-4 text-center text-sm text-muted-foreground">
-                      No hay movimientos registrados para este producto
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                    </TableRow>
+                    {/* Filas de detalles (entradas y salidas) */}
+                    {productoAgrupado.detalles.map((detalle, index) => {
+                      const esEntrada = detalle.tipo === 'entrada' || detalle.id_inventario;
+                      const estaAbierto = esEntrada ? (movimientosAbiertos.get(detalle.id_inventario) || false) : false;
+                      const movimientos = esEntrada ? (movimientosKardex.get(detalle.id_inventario) || []) : [];
+                      const cargando = esEntrada ? (loadingMovimientos.get(detalle.id_inventario) || false) : false;
+                      const key = esEntrada ? `entrada-${detalle.id_inventario}` : `salida-${detalle.id_movimientos}`;
+
+                      return (
+                        <React.Fragment key={key}>
+                          <TableRow className={esEntrada ? "" : "bg-red-50/50"}>
+                            <TableCell className="border-r border-border py-3 px-4 w-12">
+                              {esEntrada ? (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => cargarMovimientosKardex(detalle)}
+                                  disabled={cargando}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  {cargando ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <ChevronRight
+                                      className={`h-4 w-4 transition-transform ${estaAbierto ? "rotate-90" : ""}`}
+                                    />
+                                  )}
+                                </Button>
+                              ) : (
+                                <ArrowUpCircle className="h-4 w-4 text-red-500 mx-auto" />
+                              )}
+                            </TableCell>
+                            <TableCell className="border-r border-border py-3 px-6 text-sm">
+                              {esEntrada ? `ID: ${detalle.id_inventario}` : 'Salida'}
+                            </TableCell>
+                            <TableCell className="border-r border-border py-3 px-6 text-sm font-medium">
+                              {detalle.comprobante || detalle.tipo_movimiento || "N/A"}
+                            </TableCell>
+                            <TableCell className="border-r border-border py-3 px-6 text-sm">
+                              {detalle.fecha_comprobante 
+                                ? new Date(detalle.fecha_comprobante).toLocaleDateString("es-CO", {
+                                    year: "numeric",
+                                    month: "2-digit",
+                                    day: "2-digit"
+                                  })
+                                : detalle.fecha_ingreso
+                                ? new Date(detalle.fecha_ingreso).toLocaleDateString("es-CO", {
+                                    year: "numeric",
+                                    month: "2-digit",
+                                    day: "2-digit"
+                                  })
+                                : "N/A"}
+                            </TableCell>
+                            <TableCell className={`border-r border-border py-3 px-6 text-sm font-medium ${esEntrada ? "text-green-600" : "text-red-600"}`}>
+                              {(esEntrada ? (detalle.cantidad_entrada || detalle.cantidad || 0) : (detalle.cantidad_salida || detalle.cantidad || 0)).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="border-r border-border py-3 px-6 text-sm">
+                              ${(esEntrada ? (detalle.precio_unitario || 0) : (detalle.costo_unitario_con_impuesto || 0)).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="border-r border-border py-3 px-6 text-sm font-semibold">
+                              ${(detalle.costo_unitario_con_impuesto || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="py-3 px-6 text-sm font-semibold text-primary">
+                              ${(detalle.valor_total || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                          </TableRow>
+                          {estaAbierto && movimientos.length > 0 && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/50 p-0">
+                                <div className="p-4">
+                                  <h4 className="font-semibold mb-3 text-sm">Movimientos de Kardex</h4>
+                                  <div className="space-y-2">
+                                    {movimientos.map((movimiento) => (
+                                      <div
+                                        key={movimiento.id_movimiento_kardex}
+                                        className="flex items-center justify-between p-3 bg-background rounded-lg border border-border"
+                                      >
+                                        <div className="flex items-center gap-3 flex-1">
+                                          {obtenerIconoMovimiento(movimiento.tipo_movimiento, movimiento.tipo_flujo)}
+                                          <div className="flex-1">
+                                            <div className="flex items-center gap-2">
+                                              <span className="font-medium text-sm">{movimiento.tipo_movimiento}</span>
+                                              <span
+                                                className={`px-2 py-1 rounded text-xs font-medium ${obtenerColorFlujo(movimiento.tipo_flujo)}`}
+                                              >
+                                                {movimiento.tipo_flujo}
+                                              </span>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                              {new Date(movimiento.fecha).toLocaleString("es-CO", {
+                                                year: "numeric",
+                                                month: "2-digit",
+                                                day: "2-digit",
+                                                hour: "2-digit",
+                                                minute: "2-digit",
+                                              })}
+                                            </div>
+                                          </div>
+                                        </div>
+                                        <div className="text-right">
+                                          <div className="text-sm font-medium">
+                                            Cantidad: {movimiento.cantidad}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            Costo unitario: ${movimiento.costo_unitario.toLocaleString("es-CO", {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                            })}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground">
+                                            Total: ${movimiento.costo_total_movimiento.toLocaleString("es-CO", {
+                                              minimumFractionDigits: 2,
+                                              maximumFractionDigits: 2,
+                                            })}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                  </>
                 )}
               </React.Fragment>
             );
@@ -511,29 +556,21 @@ const VerInventarioBodegas = () => {
         {/* Fila de totales */}
         {!loadingProductos && productosFiltrados.length > 0 && (
           <TableRow className="bg-muted/50 font-semibold border-t-2 border-border">
-            <TableCell colSpan={4} className="text-right border-r border-border py-4 px-6">
+            <TableCell colSpan={3} className="text-right border-r border-border py-4 px-6">
               <span className="text-base">TOTALES:</span>
             </TableCell>
-            <TableCell colSpan={2} className="border-r border-border py-4 px-6"></TableCell>
             <TableCell className="border-r border-border py-4 px-6 text-right text-green-600">
-              {productosFiltrados.reduce((sum, p) => sum + (p.cantidad_entrada || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {totales.cantidadEntradaTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </TableCell>
             <TableCell className="border-r border-border py-4 px-6 text-right text-red-600">
-              {productosFiltrados.reduce((sum, p) => sum + (p.cantidad_salida || 0), 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {totales.cantidadSalidaTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </TableCell>
-            <TableCell className="border-r border-border py-4 px-6 text-right">
-              {totales.cantidadTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <TableCell className="border-r border-border py-4 px-6 text-right text-primary">
+              {totales.saldoCantidadTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </TableCell>
             <TableCell className="border-r border-border py-4 px-6"></TableCell>
-            <TableCell className="border-r border-border py-4 px-6 text-right">
-              ${totales.precioUnitarioPromedio.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </TableCell>
-            <TableCell className="border-r border-border py-4 px-6 text-right">
-              ${totales.costoUnitarioConImpuestoPromedio.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </TableCell>
-            <TableCell className="py-4 px-6 text-right text-primary">
-              ${totales.valorTotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </TableCell>
+            <TableCell className="border-r border-border py-4 px-6"></TableCell>
+            <TableCell className="py-4 px-6"></TableCell>
           </TableRow>
         )}
       </TableCard>

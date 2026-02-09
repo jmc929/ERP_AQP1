@@ -16,8 +16,8 @@ app.use(cors({
 	allowedHeaders: ['Content-Type', 'Authorization', 'x-user-id'],
 	exposedHeaders: ['x-user-id']
 }));
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 app.get("/api/health", (req, res) => {
 	res.json({ ok: true, service: "acquapack-erp-back", timestamp: new Date().toISOString() });

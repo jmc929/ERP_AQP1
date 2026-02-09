@@ -155,7 +155,13 @@ class VentasService {
 					p.codigo,
 					p.nombre,
 					p.id_estado,
-					COALESCE(SUM(i.cantidad_lote), 0) as stock_disponible
+					COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+						SELECT SUM(mk.cantidad)
+						FROM public.movimientos_kardex mk
+						WHERE mk.id_bodega = $1
+							AND mk.id_producto = p.id_producto
+							AND mk.tipo_flujo = 'Salida'
+					), 0) as stock_disponible
 				FROM public.producto p
 				LEFT JOIN public.inventario i ON p.id_producto = i.id_producto AND i.id_bodega = $1
 				WHERE p.id_estado IN (1, 2)
@@ -174,17 +180,25 @@ class VentasService {
 			}
 
 			query += ` GROUP BY p.id_producto, p.codigo, p.nombre, p.id_estado
-				HAVING COALESCE(SUM(i.cantidad_lote), 0) > 0
+				HAVING (COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+					SELECT SUM(mk.cantidad)
+					FROM public.movimientos_kardex mk
+					WHERE mk.id_bodega = $1
+						AND mk.id_producto = p.id_producto
+						AND mk.tipo_flujo = 'Salida'
+				), 0)) > 0
 				ORDER BY p.codigo, p.nombre 
 				LIMIT $${contador} OFFSET $${contador + 1}`;
 			valores.push(limit, offset);
 
 			// Contar total de registros
 			let countQuery = `
-				SELECT COUNT(DISTINCT p.id_producto) as total
-				FROM public.producto p
-				LEFT JOIN public.inventario i ON p.id_producto = i.id_producto AND i.id_bodega = $1
-				WHERE p.id_estado IN (1, 2)
+				SELECT COUNT(*) as total
+				FROM (
+					SELECT DISTINCT p.id_producto
+					FROM public.producto p
+					LEFT JOIN public.inventario i ON p.id_producto = i.id_producto AND i.id_bodega = $1
+					WHERE p.id_estado IN (1, 2)
 			`;
 			const countValores = [idBodega];
 			let countContador = 2;
@@ -195,9 +209,18 @@ class VentasService {
 					p.nombre ILIKE $${countContador}
 				)`;
 				countValores.push(`%${busqueda.trim()}%`);
+				countContador++;
 			}
 
-			countQuery += ` HAVING COALESCE(SUM(i.cantidad_lote), 0) > 0`;
+			countQuery += ` GROUP BY p.id_producto
+				HAVING (COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+					SELECT SUM(mk.cantidad)
+					FROM public.movimientos_kardex mk
+					WHERE mk.id_bodega = $1
+						AND mk.id_producto = p.id_producto
+						AND mk.tipo_flujo = 'Salida'
+				), 0)) > 0
+			) as productos_con_stock`;
 
 			const [productosResult, countResult] = await Promise.all([
 				pool.query(query, valores),
@@ -339,25 +362,39 @@ class VentasService {
 			const detallesInsertados = [];
 
 			for (const detalle of detalles) {
-				// Insertar detalle de salida
-				const detalleQuery = `
-					INSERT INTO public.detalle_salida (
-						id_salida,
-						id_producto,
-						cantidad,
-						precio_unitario,
-						descuento,
-						subtotal,
-						id_iva,
-						iva_valor,
-						id_retefuente,
-						retefuente_valor,
-						valor_total
-					) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-					RETURNING id_detalle_salida
-				`;
+				// Calcular precio_unitario_con_impuesto: (subtotal + iva_valor) / cantidad
+				// Este es el precio real por unidad, incluyendo IVA
+				const precioUnitarioConImpuesto = detalle.cantidad > 0 
+					? (detalle.subtotal + (detalle.iva_valor || 0)) / detalle.cantidad 
+					: 0;
 
-				const detalleResult = await client.query(detalleQuery, [
+				logger.info({ 
+					detalle: {
+						cantidad: detalle.cantidad,
+						subtotal: detalle.subtotal,
+						iva_valor: detalle.iva_valor,
+						precioUnitarioConImpuesto: precioUnitarioConImpuesto
+					}
+				}, "Calculando precio_unitario_con_impuesto");
+
+				// Intentar insertar precio_unitario_con_impuesto siempre
+				// Si la columna no existe, la consulta fallará y se intentará sin ella
+				let campos = [
+					'id_salida',
+					'id_producto',
+					'cantidad',
+					'precio_unitario',
+					'descuento',
+					'subtotal',
+					'id_iva',
+					'iva_valor',
+					'id_retefuente',
+					'retefuente_valor',
+					'valor_total',
+					'precio_unitario_con_impuesto'
+				];
+
+				let valores = [
 					idSalida,
 					detalle.id_producto,
 					detalle.cantidad,
@@ -368,26 +405,82 @@ class VentasService {
 					detalle.iva_valor || 0,
 					detalle.id_retefuente || null,
 					detalle.retefuente_valor || 0,
-					detalle.valor_total
-				]);
+					detalle.valor_total,
+					precioUnitarioConImpuesto
+				];
+
+				const placeholders = valores.map((_, index) => `$${index + 1}`).join(', ');
+				const camposStr = campos.join(', ');
+
+				const detalleQuery = `
+					INSERT INTO public.detalle_salida (${camposStr})
+					VALUES (${placeholders})
+					RETURNING id_detalle_salida
+				`;
+
+				logger.info({ 
+					precioUnitarioConImpuesto,
+					cantidad: detalle.cantidad,
+					subtotal: detalle.subtotal,
+					iva_valor: detalle.iva_valor
+				}, "Insertando detalle_salida con precio_unitario_con_impuesto");
+
+				let detalleResult;
+				try {
+					detalleResult = await client.query(detalleQuery, valores);
+				} catch (insertError) {
+					// Si falla porque la columna no existe, intentar sin ella
+					if (insertError.message && insertError.message.includes('precio_unitario_con_impuesto')) {
+						logger.warn({ err: insertError }, "La columna precio_unitario_con_impuesto no existe. Intentando sin ella.");
+						
+						// Remover precio_unitario_con_impuesto de campos y valores
+						campos = campos.filter(c => c !== 'precio_unitario_con_impuesto');
+						valores = valores.slice(0, -1); // Remover el último valor
+						
+						const placeholdersSinColumna = valores.map((_, index) => `$${index + 1}`).join(', ');
+						const camposStrSinColumna = campos.join(', ');
+						
+						const detalleQuerySinColumna = `
+							INSERT INTO public.detalle_salida (${camposStrSinColumna})
+							VALUES (${placeholdersSinColumna})
+							RETURNING id_detalle_salida
+						`;
+						
+						detalleResult = await client.query(detalleQuerySinColumna, valores);
+						logger.warn("Se insertó detalle_salida sin precio_unitario_con_impuesto. Ejecuta el SQL para agregar la columna.");
+					} else {
+						throw insertError;
+					}
+				}
 
 				// 3. Procesar inventario con lógica FIFO
-				let cantidadRestante = detalle.cantidad;
+				// Usar precio_unitario_con_impuesto desde detalle_salida (ya guardado arriba)
 				const idBodega = detalle.id_bodega;
 
 				// Obtener lotes ordenados por fecha_ingreso (FIFO: más antiguos primero)
+				// Calcular stock disponible restando las salidas del kardex
+				// Primero obtener el total de salidas para este producto en esta bodega
+				const salidasTotalQuery = `
+					SELECT COALESCE(SUM(mk.cantidad), 0) as total_salidas
+					FROM public.movimientos_kardex mk
+					WHERE mk.id_bodega = $1
+						AND mk.id_producto = $2
+						AND mk.tipo_flujo = 'Salida'
+				`;
+				const salidasTotalResult = await client.query(salidasTotalQuery, [idBodega, detalle.id_producto]);
+				const totalSalidas = parseFloat(salidasTotalResult.rows[0]?.total_salidas || 0);
+
+				// Obtener lotes ordenados por fecha_ingreso (FIFO)
 				const lotesQuery = `
 					SELECT 
-						id_inventario,
-						cantidad_lote,
-						costo_producto,
-						fecha_ingreso,
-						id_factura
-					FROM public.inventario
-					WHERE id_bodega = $1 
-						AND id_producto = $2
-						AND cantidad_lote > 0
-					ORDER BY fecha_ingreso ASC, id_inventario ASC
+						inv.id_inventario,
+						inv.cantidad_lote,
+						inv.fecha_ingreso
+					FROM public.inventario inv
+					WHERE inv.id_bodega = $1 
+						AND inv.id_producto = $2
+						AND inv.cantidad_lote > 0
+					ORDER BY inv.fecha_ingreso ASC, inv.id_inventario ASC
 				`;
 
 				const lotesResult = await client.query(lotesQuery, [idBodega, detalle.id_producto]);
@@ -396,68 +489,44 @@ class VentasService {
 					throw new Error(`No hay stock disponible para el producto ID ${detalle.id_producto} en la bodega ${idBodega}`);
 				}
 
-				// Calcular stock total disponible
-				const stockTotal = lotesResult.rows.reduce((sum, lote) => sum + parseFloat(lote.cantidad_lote), 0);
-				if (stockTotal < cantidadRestante) {
-					throw new Error(`Stock insuficiente. Disponible: ${stockTotal}, Solicitado: ${cantidadRestante}`);
+				// Calcular stock total disponible: suma de cantidad_lote - total de salidas
+				const totalEntradas = lotesResult.rows.reduce((sum, lote) => sum + parseFloat(lote.cantidad_lote), 0);
+				const stockTotal = totalEntradas - totalSalidas;
+
+				if (stockTotal < detalle.cantidad) {
+					throw new Error(`Stock insuficiente. Disponible: ${stockTotal}, Solicitado: ${detalle.cantidad}`);
 				}
 
-				// Procesar cada lote hasta cubrir la cantidad solicitada
-				for (const lote of lotesResult.rows) {
-					if (cantidadRestante <= 0) break;
+				// Usar precio_unitario_con_impuesto desde detalle_salida (ya calculado y guardado)
+				// Este es el precio de venta con IVA, que se usa como costo en el kardex
+				const costoUnitarioParaKardex = precioUnitarioConImpuesto;
+				const costoTotalMovimiento = costoUnitarioParaKardex * detalle.cantidad;
 
-					const cantidadLote = parseFloat(lote.cantidad_lote);
-					const costoUnitario = parseFloat(lote.costo_producto) / cantidadLote;
-					const cantidadAUsar = Math.min(cantidadLote, cantidadRestante);
-					const costoTotalUsado = costoUnitario * cantidadAUsar;
+				// NO modificar registros de inventario - mantener cantidad_lote original
+				// El stock disponible se calcula dinámicamente: cantidad_lote (entrada) - sum(salidas en kardex)
+				const kardexQuery = `
+					INSERT INTO public.movimientos_kardex (
+						id_bodega,
+						id_producto,
+						tipo_movimiento,
+						tipo_flujo,
+						cantidad,
+						costo_unitario,
+						costo_total_movimiento,
+						"fecha "
+					) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+					RETURNING id_movimientos
+				`;
 
-					// Actualizar o eliminar el lote
-					if (cantidadAUsar >= cantidadLote) {
-						// Eliminar el lote completo
-						await client.query(
-							"DELETE FROM public.inventario WHERE id_inventario = $1",
-							[lote.id_inventario]
-						);
-					} else {
-						// Actualizar la cantidad restante del lote
-						const nuevaCantidad = cantidadLote - cantidadAUsar;
-						const nuevoCosto = parseFloat(lote.costo_producto) - costoTotalUsado;
-						await client.query(
-							`UPDATE public.inventario 
-							 SET cantidad_lote = $1,
-							     costo_producto = $2
-							 WHERE id_inventario = $3`,
-							[nuevaCantidad, nuevoCosto, lote.id_inventario]
-						);
-					}
-
-					// Crear movimiento de kardex (salida)
-					const kardexQuery = `
-						INSERT INTO public.movimientos_kardex (
-							id_bodega,
-							id_producto,
-							tipo_movimiento,
-							tipo_flujo,
-							cantidad,
-							costo_unitario,
-							costo_total_movimiento,
-							"fecha "
-						) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-						RETURNING id_movimientos
-					`;
-
-					await client.query(kardexQuery, [
-						idBodega,
-						detalle.id_producto,
-						"Venta",
-						"Salida",
-						cantidadAUsar,
-						costoUnitario,
-						costoTotalUsado
-					]);
-
-					cantidadRestante -= cantidadAUsar;
-				}
+				await client.query(kardexQuery, [
+					idBodega,
+					detalle.id_producto,
+					`Venta FV-${idSalida}`, // Comprobante con formato FV-{id_salida}
+					"Salida",
+					detalle.cantidad, // Cantidad total del detalle
+					costoUnitarioParaKardex, // Precio unitario con IVA desde detalle_salida
+					costoTotalMovimiento
+				]);
 
 				// 4. Actualizar cantidad_total en producto (restar)
 				const updateProductoQuery = `

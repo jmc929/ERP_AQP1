@@ -134,6 +134,33 @@ const HacerNomina = () => {
     }
   }, []);
 
+  // Función para calcular período automático según la fecha actual
+  const calcularPeriodoAutomatico = () => {
+    const hoy = new Date();
+    const dia = hoy.getDate();
+    const año = hoy.getFullYear();
+    const mes = hoy.getMonth(); // 0-11
+    
+    let inicio: Date;
+    let fin: Date;
+    
+    if (dia >= 1 && dia <= 15) {
+      // Primera quincena: del 1 al 15
+      inicio = new Date(año, mes, 1);
+      fin = new Date(año, mes, 15);
+    } else {
+      // Segunda quincena: del 16 al último día del mes
+      inicio = new Date(año, mes, 16);
+      // Último día del mes
+      fin = new Date(año, mes + 1, 0);
+    }
+    
+    return {
+      inicio: inicio.toISOString().split('T')[0],
+      fin: fin.toISOString().split('T')[0]
+    };
+  };
+
   // Filtrar trabajadores por búsqueda
   const trabajadoresFiltrados = trabajadores.filter((trabajador) => {
     if (!busquedaTrabajador.trim()) return true;
@@ -149,6 +176,10 @@ const HacerNomina = () => {
   // Cargar datos iniciales
   useEffect(() => {
     cargarDatos();
+    // Calcular período automático
+    const periodo = calcularPeriodoAutomatico();
+    setPeriodoInicio(periodo.inicio);
+    setPeriodoFin(periodo.fin);
   }, []);
 
   const cargarDatos = async () => {
@@ -308,6 +339,84 @@ const HacerNomina = () => {
     const auxilioTransporte = parseFloat(valorAuxilioTransporte) || 0;
     return totalBruto - totalDeducciones + auxilioTransporte;
   };
+
+  // Actualizar deducciones automáticas (Fondo de Salud y Fondo de Pensión) cuando cambie el total bruto
+  useEffect(() => {
+    const totalBruto = calcularTotalBrutoNomina();
+    
+    if (tiposDeduccion.length > 0) {
+      const salud = totalBruto * 0.04; // 4%
+      const pension = totalBruto * 0.04; // 4%
+      
+      // Buscar tipos de deducción por nombre exacto
+      const tipoSalud = tiposDeduccion.find(t => 
+        t.nombre.toLowerCase() === 'fondo de salud' ||
+        t.nombre.toLowerCase().includes('fondo de salud')
+      );
+      const tipoPension = tiposDeduccion.find(t => 
+        t.nombre.toLowerCase() === 'fondo de pensión' ||
+        t.nombre.toLowerCase() === 'fondo de pension' ||
+        t.nombre.toLowerCase().includes('fondo de pensión') ||
+        t.nombre.toLowerCase().includes('fondo de pension')
+      );
+      
+      if (tipoSalud || tipoPension) {
+        setFilasDeducciones(prev => {
+          // Filtrar las deducciones automáticas existentes para actualizarlas
+          const otrasDeducciones = prev.filter(f => {
+            if (!f.tipo_deduccion_nombre) return true;
+            const nombre = f.tipo_deduccion_nombre.toLowerCase();
+            return !nombre.includes('salud') && 
+                   !nombre.includes('pensión') && 
+                   !nombre.includes('pension');
+          });
+          
+          const nuevasDeducciones: FilaDeduccion[] = [];
+          
+          // Fondo de Salud
+          if (tipoSalud) {
+            const saludExistente = prev.find(f => 
+              f.id_tipo_deduccion === tipoSalud.id_tipo_deduccion.toString()
+            );
+            nuevasDeducciones.push({
+              id: saludExistente?.id || Date.now(),
+              id_tipo_deduccion: tipoSalud.id_tipo_deduccion.toString(),
+              tipo_deduccion_nombre: tipoSalud.nombre,
+              valor_deduccion: salud.toFixed(2),
+              observaciones: saludExistente?.observaciones || ''
+            });
+          }
+          
+          // Fondo de Pensión
+          if (tipoPension) {
+            const pensionExistente = prev.find(f => 
+              f.id_tipo_deduccion === tipoPension.id_tipo_deduccion.toString()
+            );
+            nuevasDeducciones.push({
+              id: pensionExistente?.id || Date.now() + 1,
+              id_tipo_deduccion: tipoPension.id_tipo_deduccion.toString(),
+              tipo_deduccion_nombre: tipoPension.nombre,
+              valor_deduccion: pension.toFixed(2),
+              observaciones: pensionExistente?.observaciones || ''
+            });
+          }
+          
+          // Si no hay otras deducciones y no hay automáticas, mantener al menos una fila vacía
+          if (otrasDeducciones.length === 0 && nuevasDeducciones.length === 0) {
+            return prev.length > 0 ? prev : [{
+              id: 1,
+              id_tipo_deduccion: "",
+              tipo_deduccion_nombre: "",
+              valor_deduccion: "",
+              observaciones: "",
+            }];
+          }
+          
+          return [...nuevasDeducciones, ...otrasDeducciones];
+        });
+      }
+    }
+  }, [filasHoras, tiposDeduccion]); // Se actualiza cuando cambian las horas o los tipos de deducción
 
   // Guardar nómina
   const handleGuardar = async () => {

@@ -27,7 +27,11 @@ const {
 	obtenerFondosPensiones,
 	crearFondoPensiones,
 	actualizarFondoPensiones,
-	eliminarFondoPensiones
+	eliminarFondoPensiones,
+	obtenerRoles,
+	crearRol,
+	actualizarRol,
+	eliminarRol
 } = require("./configuracion-usuarios.controller");
 
 const configuracionUsuariosRoutes = express.Router();
@@ -73,6 +77,12 @@ configuracionUsuariosRoutes.get("/fondo-pensiones", obtenerFondosPensiones);
 configuracionUsuariosRoutes.post("/fondo-pensiones", crearFondoPensiones);
 configuracionUsuariosRoutes.put("/fondo-pensiones/:id", actualizarFondoPensiones);
 configuracionUsuariosRoutes.delete("/fondo-pensiones/:id", eliminarFondoPensiones);
+
+// Rutas para Roles
+configuracionUsuariosRoutes.get("/rol", obtenerRoles);
+configuracionUsuariosRoutes.post("/rol", crearRol);
+configuracionUsuariosRoutes.put("/rol/:id", actualizarRol);
+configuracionUsuariosRoutes.delete("/rol/:id", eliminarRol);
 
 module.exports = { configuracionUsuariosRoutes };
 

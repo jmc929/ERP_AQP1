@@ -90,7 +90,6 @@ const IngresarFactura = () => {
   const [usuarioLogueado, setUsuarioLogueado] = useState<{ id_usuarios: number } | null>(null);
   
   // Datos desde la BD
-  const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
   const [ivas, setIvas] = useState<Iva[]>([]);
@@ -160,7 +159,7 @@ const IngresarFactura = () => {
         setLoading(true);
         const [facturaRes, proveedoresRes, productosRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
           fetch("http://localhost:4000/api/compras/siguiente-id-factura"),
-          fetch("http://localhost:4000/api/compras/proveedores"),
+          fetch("http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50"),
           fetch("http://localhost:4000/api/compras/productos?page=1&limit=50"),
           fetch("http://localhost:4000/api/compras/bodegas"),
           fetch("http://localhost:4000/api/compras/ivas"),
@@ -177,20 +176,15 @@ const IngresarFactura = () => {
         if (facturaData.success) {
           setFacturaId(facturaData.siguienteId);
         }
+        // Cargar proveedores paginados inicialmente (igual que productos)
         if (proveedoresData.success) {
-          setProveedores(proveedoresData.proveedores);
-          // Cargar proveedores paginados inicialmente
-          const proveedoresPaginadosRes = await fetch("http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50");
-          const proveedoresPaginadosData = await proveedoresPaginadosRes.json();
-          if (proveedoresPaginadosData.success) {
-            setProveedoresCargados(proveedoresPaginadosData.proveedores || []);
-            setPaginacionProveedores({
-              paginaActual: proveedoresPaginadosData.paginacion?.paginaActual || 1,
-              totalPaginas: proveedoresPaginadosData.paginacion?.totalPaginas || 1,
-              hayMas: proveedoresPaginadosData.paginacion?.hayMas || false,
-              cargando: false
-            });
-          }
+          setProveedoresCargados(proveedoresData.proveedores || []);
+          setPaginacionProveedores({
+            paginaActual: proveedoresData.paginacion?.paginaActual || 1,
+            totalPaginas: proveedoresData.paginacion?.totalPaginas || 1,
+            hayMas: proveedoresData.paginacion?.hayMas || false,
+            cargando: false
+          });
         }
         if (productosData.success) {
           setProductosCargados(productosData.productos || []);
@@ -544,25 +538,46 @@ const IngresarFactura = () => {
     campo: keyof FilaFactura,
     valor: string | boolean
   ) => {
-    const nuevaFila = { ...filas.find((f) => f.id === id)!, [campo]: valor };
-    const calculo = await calcularValorTotal(nuevaFila);
-    
-    setFilas(
-      filas.map((fila) => {
+    // Actualizar el valor inmediatamente usando la forma funcional de setState
+    setFilas((filasAnteriores) => {
+      const filaActual = filasAnteriores.find((f) => f.id === id);
+      if (!filaActual) return filasAnteriores;
+      
+      const nuevaFila = { ...filaActual, [campo]: valor };
+      
+      // Si es cantidad, valorUnitario, descuento, idIva o idRetencion, calcular de forma asíncrona después
+      if (campo === "cantidad" || campo === "valorUnitario" || campo === "descuento" || campo === "idIva" || campo === "idRetencion") {
+        // Calcular de forma asíncrona sin bloquear la actualización del input
+        calcularValorTotal(nuevaFila).then((calculo) => {
+          setFilas((filasActuales) =>
+            filasActuales.map((fila) => {
+              if (fila.id === id) {
+                return {
+                  ...fila,
+                  valorTotal: calculo.valorTotal,
+                  ivaMonto: calculo.ivaMonto,
+                  retencionMonto: calculo.retencionMonto,
+                  montoDescuento: calculo.montoDescuento,
+                  porcentajeIva: calculo.porcentajeIva,
+                  porcentajeRetencion: calculo.porcentajeRetencion,
+                };
+              }
+              return fila;
+            })
+          );
+        }).catch((error) => {
+          console.error("Error al calcular valor total:", error);
+        });
+      }
+      
+      // Retornar la fila actualizada inmediatamente (sin esperar el cálculo)
+      return filasAnteriores.map((fila) => {
         if (fila.id === id) {
-            return {
-              ...nuevaFila,
-              valorTotal: calculo.valorTotal,
-              ivaMonto: calculo.ivaMonto,
-              retencionMonto: calculo.retencionMonto,
-              montoDescuento: calculo.montoDescuento,
-              porcentajeIva: calculo.porcentajeIva,
-              porcentajeRetencion: calculo.porcentajeRetencion,
-            };
+          return nuevaFila;
         }
         return fila;
-      })
-    );
+      });
+    });
   };
 
   // Recalcular todas las filas cuando cambie el tipo de descuento (porcentaje o fijo)
@@ -790,15 +805,29 @@ const IngresarFactura = () => {
             <div className="space-y-2">
               <Label htmlFor="proveedor">Proveedor</Label>
               <Select value={proveedor} onValueChange={setProveedor} disabled={loading}>
-                <SelectTrigger id="proveedor">
-                  <SelectValue placeholder={loading ? "Cargando..." : "Seleccione proveedor"} />
+                <SelectTrigger id="proveedor" className="h-9">
+                  <SelectValue placeholder={loading ? "Cargando..." : "Seleccione proveedor"}>
+                    {proveedor && proveedoresCargados.find(p => p.id_proveedor.toString() === proveedor) && (
+                      <div className="flex flex-col items-start text-left">
+                        <span className="font-bold text-sm truncate max-w-[280px]">
+                          {proveedoresCargados.find(p => p.id_proveedor.toString() === proveedor)?.razon_social || 
+                           proveedoresCargados.find(p => p.id_proveedor.toString() === proveedor)?.nombre_comercial}
+                        </span>
+                        {proveedoresCargados.find(p => p.id_proveedor.toString() === proveedor)?.identificacion && (
+                          <span className="text-xs text-muted-foreground">
+                            NIT: {proveedoresCargados.find(p => p.id_proveedor.toString() === proveedor)?.identificacion}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <div className="p-2 border-b">
                     <div className="relative">
                       <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Buscar proveedor..."
+                        placeholder="Buscar por razón social, nombre comercial o NIT..."
                         value={busquedaProveedor}
                         onChange={(e) => {
                           const valor = e.target.value;
@@ -832,12 +861,26 @@ const IngresarFactura = () => {
                       <>
                         {proveedoresCargados.map((prov) => (
                           <SelectItem key={prov.id_proveedor} value={prov.id_proveedor.toString()}>
-                            {prov.razon_social || prov.nombre_comercial}
+                            <div className="flex flex-col">
+                              <span className="font-bold text-sm">
+                                {prov.razon_social || prov.nombre_comercial}
+                              </span>
+                              {prov.identificacion && (
+                                <span className="text-xs text-muted-foreground">
+                                  NIT: {prov.identificacion}{prov.dv ? `-${prov.dv}` : ''}
+                                </span>
+                              )}
+                            </div>
                           </SelectItem>
                         ))}
                         {paginacionProveedores.cargando && (
                           <div className="p-2 text-center text-sm text-muted-foreground">
-                            Cargando...
+                            Cargando más proveedores...
+                          </div>
+                        )}
+                        {!paginacionProveedores.hayMas && proveedoresCargados.length > 0 && (
+                          <div className="p-2 text-center text-xs text-muted-foreground">
+                            No hay más proveedores
                           </div>
                         )}
                       </>
