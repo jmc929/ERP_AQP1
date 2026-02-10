@@ -83,6 +83,7 @@ const VentaProducto = () => {
   const [guardando, setGuardando] = useState(false);
   const [fechaElaboracion, setFechaElaboracion] = useState(new Date().toISOString().split("T")[0]);
   const [cliente, setCliente] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [descuentoEnPorcentaje, setDescuentoEnPorcentaje] = useState(false);
   
   // Obtener usuario logueado
@@ -529,17 +530,52 @@ const VentaProducto = () => {
     setBusquedaProductos(nuevo);
   };
 
+  // Función para formatear número con puntos (solo visual) - formato colombiano
+  const formatearNumeroVisual = (valor: string): string => {
+    if (!valor || valor === "") return "";
+    // Remover todo excepto números, punto y coma
+    const soloNumeros = valor.replace(/[^\d.,]/g, "");
+    // Si está vacío, retornar vacío
+    if (soloNumeros === "" || soloNumeros === "." || soloNumeros === ",") return soloNumeros;
+    
+    // Normalizar: convertir coma a punto para procesamiento
+    const normalizado = soloNumeros.replace(/,/g, ".");
+    // Separar parte entera y decimal
+    const partes = normalizado.split(".");
+    let parteEntera = partes[0] || "";
+    const parteDecimal = partes[1] !== undefined ? "," + partes[1].slice(0, 2) : "";
+    
+    // Agregar puntos cada 3 dígitos en la parte entera
+    parteEntera = parteEntera.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    
+    return parteEntera + parteDecimal;
+  };
+
+  // Función para desformatear número (quitar puntos para guardar) - convertir a formato estándar
+  const desformatearNumero = (valor: string): string => {
+    if (!valor || valor === "") return "";
+    // Remover puntos de miles, convertir coma decimal a punto
+    return valor.replace(/\./g, "").replace(/,/g, ".");
+  };
+
   const handleCambioCampo = async (
     id: number,
     campo: keyof FilaVenta,
     valor: string | boolean
   ) => {
+    // Si es valorUnitario o descuento, desformatear para guardar (quitar puntos)
+    let valorParaGuardar: string | boolean = valor;
+    if ((campo === "valorUnitario" || campo === "descuento") && typeof valor === "string") {
+      // Desformatear para guardar (quitar puntos)
+      valorParaGuardar = desformatearNumero(valor);
+    }
+    
     // Actualizar el valor inmediatamente usando la forma funcional de setState
     setFilas((filasAnteriores) => {
       const filaActual = filasAnteriores.find((f) => f.id === id);
       if (!filaActual) return filasAnteriores;
       
-      const nuevaFila = { ...filaActual, [campo]: valor };
+      const nuevaFila = { ...filaActual, [campo]: valorParaGuardar };
       
       // Si cambió la bodega, cargar productos de esa bodega y limpiar producto seleccionado
       if (campo === "bodega" && typeof valor === "string") {
@@ -727,6 +763,7 @@ const VentaProducto = () => {
           id_usuario: usuarioLogueado.id_usuarios,
           fecha_creacion: fechaElaboracion,
           id_cliente: parseInt(cliente),
+          observaciones: observaciones || null,
           detalles: detalles,
         }),
       });
@@ -752,6 +789,7 @@ const VentaProducto = () => {
       // Limpiar formulario
       setFechaElaboracion(new Date().toISOString().split("T")[0]);
       setCliente("");
+      setObservaciones("");
       setFilas([
         {
           id: 1,
@@ -868,6 +906,17 @@ const VentaProducto = () => {
               className="bg-muted"
             />
           </div>
+        </div>
+        
+        <div className="space-y-2">
+          <Label htmlFor="observaciones">Observaciones</Label>
+          <Input
+            id="observaciones"
+            type="text"
+            value={observaciones}
+            onChange={(e) => setObservaciones(e.target.value)}
+            placeholder="Ingrese observaciones adicionales (opcional)"
+          />
         </div>
         
         <div className="flex items-center space-x-2">
@@ -1013,24 +1062,26 @@ const VentaProducto = () => {
                     </TableCell>
                     <TableCell className="border-r border-border p-2">
                       <Input
-                        type="number"
-                        value={fila.valorUnitario}
+                        type="text"
+                        value={formatearNumeroVisual(fila.valorUnitario)}
                         onChange={(e) =>
                           handleCambioCampo(fila.id, "valorUnitario", e.target.value)
                         }
                         className="h-9"
                         placeholder="0"
+                        inputMode="decimal"
                       />
                     </TableCell>
                     <TableCell className="border-r border-border p-2">
                       <Input
-                        type="number"
-                        value={fila.descuento}
+                        type="text"
+                        value={formatearNumeroVisual(fila.descuento)}
                         onChange={(e) =>
                           handleCambioCampo(fila.id, "descuento", e.target.value)
                         }
                         className="h-9"
                         placeholder={descuentoEnPorcentaje ? "0%" : "0"}
+                        inputMode="decimal"
                       />
                     </TableCell>
                     <TableCell className="border-r border-border font-medium text-center">

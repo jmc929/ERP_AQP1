@@ -221,6 +221,7 @@ async function crearFactura(req, res) {
       id_proveedor,
       numeroFacturaLetras,
       numeroFacturaNumeros,
+      observaciones,
       descuentoEnPorcentaje,
       detalles
     } = req.body;
@@ -271,6 +272,7 @@ async function crearFactura(req, res) {
       id_proveedor: parseInt(id_proveedor),
       numeroFacturaLetras: numeroFacturaLetras || "",
       numeroFacturaNumeros: numeroFacturaNumeros || "",
+      observaciones: observaciones || null,
       descuentoEnPorcentaje: descuentoEnPorcentaje || false,
       total_subtotal,
       total_descuento,

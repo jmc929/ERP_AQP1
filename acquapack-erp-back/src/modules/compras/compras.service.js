@@ -337,8 +337,9 @@ class ComprasService {
 					total_iva,
 					total_retencion,
 					total_factura,
-					id_estado
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+					id_estado,
+					observaciones
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 				RETURNING id_facturas
 			`;
 
@@ -354,7 +355,8 @@ class ComprasService {
 				datosFactura.total_iva || 0,
 				datosFactura.total_retencion || 0,
 				datosFactura.total_factura || 0,
-				idEstado
+				idEstado,
+				datosFactura.observaciones || null
 			]);
 
 			const idFactura = facturaResult.rows[0].id_facturas;
@@ -631,6 +633,7 @@ class ComprasService {
 					f.total_retencion,
 					f.total_factura,
 					f.id_estado,
+					f.observaciones,
 					p.id_proveedor,
 					p.razon_social,
 					p.nombre_comercial,
@@ -671,6 +674,7 @@ class ComprasService {
 					f.total_retencion,
 					f.total_factura,
 					f.id_estado,
+					f.observaciones,
 					p.id_proveedor,
 					p.razon_social,
 					p.nombre_comercial,

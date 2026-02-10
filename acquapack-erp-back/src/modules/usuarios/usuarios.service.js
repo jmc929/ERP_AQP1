@@ -479,6 +479,109 @@ class UsuariosService {
 			client.release();
 		}
 	}
+
+	/**
+	 * Obtiene las alertas/pendientes de todos los usuarios
+	 * @returns {Promise<Array>} Lista de alertas por usuario
+	 */
+	async obtenerAlertasUsuarios() {
+		try {
+			const query = `
+				SELECT 
+					u.id_usuarios,
+					u.documento,
+					u.nombre,
+					u.apellido,
+					u.induccion_sst,
+					u.induccion_puesto_trabajo,
+					u.afiliacion_a_beneficiarios,
+					u.firma_reglamento_interno_trabajo,
+					u.firma_elementos_proteccion,
+					u.firma_contrato,
+					u.arl_fecha_ingreso,
+					u.eps_fecha_ingreso,
+					u.dia_ingreso
+				FROM public.usuarios u
+				WHERE u.id_estado IN (
+					SELECT id_estado FROM public.estado 
+					WHERE nombre ILIKE '%activo%' AND (modulo = 'Usuarios' OR modulo = 'Global')
+				)
+				ORDER BY u.nombre, u.apellido
+			`;
+
+			const result = await pool.query(query);
+			
+			// Procesar alertas para cada usuario
+			const alertas = result.rows.map(usuario => {
+				const pendientes = [];
+				
+				// Verificar firmas y documentos pendientes
+				if (!usuario.firma_contrato) {
+					pendientes.push({
+						tipo: 'firma_contrato',
+						mensaje: 'Falta firma de contrato',
+						prioridad: 'alta'
+					});
+				}
+				
+				if (!usuario.firma_reglamento_interno_trabajo) {
+					pendientes.push({
+						tipo: 'firma_reglamento',
+						mensaje: 'Falta firma de reglamento interno de trabajo',
+						prioridad: 'alta'
+					});
+				}
+				
+				if (!usuario.firma_elementos_proteccion) {
+					pendientes.push({
+						tipo: 'firma_elementos',
+						mensaje: 'Falta firma de elementos de protección',
+						prioridad: 'alta'
+					});
+				}
+				
+				if (!usuario.induccion_sst) {
+					pendientes.push({
+						tipo: 'induccion_sst',
+						mensaje: 'Falta inducción de SST',
+						prioridad: 'alta'
+					});
+				}
+				
+				if (!usuario.induccion_puesto_trabajo) {
+					pendientes.push({
+						tipo: 'induccion_puesto',
+						mensaje: 'Falta inducción de puesto de trabajo',
+						prioridad: 'media'
+					});
+				}
+				
+				if (!usuario.afiliacion_a_beneficiarios) {
+					pendientes.push({
+						tipo: 'afiliacion_beneficiarios',
+						mensaje: 'Falta afiliación a beneficiarios',
+						prioridad: 'media'
+					});
+				}
+				
+				return {
+					id_usuarios: usuario.id_usuarios,
+					documento: usuario.documento,
+					nombre: usuario.nombre,
+					apellido: usuario.apellido,
+					nombre_completo: `${usuario.nombre} ${usuario.apellido}`,
+					pendientes: pendientes,
+					total_pendientes: pendientes.length
+				};
+			}).filter(usuario => usuario.total_pendientes > 0); // Solo usuarios con pendientes
+			
+			logger.info({ total_alertas: alertas.length }, "Alertas de usuarios obtenidas exitosamente");
+			return alertas;
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener alertas de usuarios");
+			throw error;
+		}
+	}
 }
 
 module.exports = new UsuariosService();

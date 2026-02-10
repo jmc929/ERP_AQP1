@@ -5,13 +5,15 @@ const {
 	obtenerUsuarios, 
 	obtenerUsuarioPorId,
 	actualizarEstadoUsuario,
-	actualizarUsuario
+	actualizarUsuario,
+	obtenerAlertasUsuarios
 } = require("./usuarios.controller");
 
 const usuariosRoutes = express.Router();
 
 usuariosRoutes.get("/catalogos", obtenerCatalogos);
 usuariosRoutes.get("/", obtenerUsuarios);
+usuariosRoutes.get("/alertas", obtenerAlertasUsuarios);
 usuariosRoutes.get("/:id", obtenerUsuarioPorId);
 usuariosRoutes.post("/", crearUsuario);
 usuariosRoutes.put("/:id", actualizarUsuario);

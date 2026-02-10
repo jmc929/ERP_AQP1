@@ -46,6 +46,7 @@ interface Salida {
   total_iva: number;
   total_retencion: number;
   total_factura: number;
+  observaciones?: string | null;
   id_cliente: number;
   razon_social: string;
   nombre_comercial?: string;
@@ -277,6 +278,14 @@ const VerVentas = () => {
                 </div>
               </div>
 
+              {/* Observaciones */}
+              {ventaSeleccionada.observaciones && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Observaciones</p>
+                  <p className="text-base">{ventaSeleccionada.observaciones}</p>
+                </div>
+              )}
+
               {/* Tabla de productos */}
               <div>
                 <h3 className="text-lg font-semibold mb-4">Productos</h3>
@@ -303,7 +312,7 @@ const VerVentas = () => {
                             </div>
                           </TableCell>
                           <TableCell className="border-r border-border">
-                            {Number(detalle.cantidad).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {Number(detalle.cantidad).toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                           </TableCell>
                           <TableCell className="border-r border-border">
                             ${Number(detalle.precio_unitario).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}

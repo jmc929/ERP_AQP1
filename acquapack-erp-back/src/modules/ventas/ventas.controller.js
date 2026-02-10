@@ -227,6 +227,7 @@ async function crearSalida(req, res) {
       id_usuario,
       fecha_creacion,
       id_cliente,
+      observaciones,
       detalles
     } = req.body;
 
@@ -274,6 +275,7 @@ async function crearSalida(req, res) {
       id_usuario: parseInt(id_usuario),
       fecha_creacion,
       id_cliente: parseInt(id_cliente),
+      observaciones: observaciones || null,
       total_subtotal,
       total_descuento,
       total_iva,

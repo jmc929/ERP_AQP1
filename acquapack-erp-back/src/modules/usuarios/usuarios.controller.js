@@ -186,12 +186,33 @@ async function actualizarUsuario(req, res) {
 	}
 }
 
+/**
+ * Obtiene las alertas/pendientes de todos los usuarios
+ */
+async function obtenerAlertasUsuarios(req, res) {
+	try {
+		const alertas = await usuariosService.obtenerAlertasUsuarios();
+		
+		res.json({
+			success: true,
+			alertas
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerAlertasUsuarios controller");
+		res.status(500).json({
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	crearUsuario,
 	obtenerCatalogos,
 	obtenerUsuarios,
 	obtenerUsuarioPorId,
 	actualizarEstadoUsuario,
-	actualizarUsuario
+	actualizarUsuario,
+	obtenerAlertasUsuarios
 };
 

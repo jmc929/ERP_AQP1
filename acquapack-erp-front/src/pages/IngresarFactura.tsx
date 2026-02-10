@@ -84,6 +84,7 @@ const IngresarFactura = () => {
   const [proveedor, setProveedor] = useState("");
   const [numeroFacturaLetras, setNumeroFacturaLetras] = useState("");
   const [numeroFacturaNumeros, setNumeroFacturaNumeros] = useState("");
+  const [observaciones, setObservaciones] = useState("");
   const [descuentoEnPorcentaje, setDescuentoEnPorcentaje] = useState(false);
   
   // Obtener usuario logueado
@@ -533,17 +534,52 @@ const IngresarFactura = () => {
     setBusquedaProductos(nuevo);
   };
 
+  // Función para formatear número con puntos (solo visual) - formato colombiano
+  const formatearNumeroVisual = (valor: string): string => {
+    if (!valor || valor === "") return "";
+    // Remover todo excepto números, punto y coma
+    const soloNumeros = valor.replace(/[^\d.,]/g, "");
+    // Si está vacío, retornar vacío
+    if (soloNumeros === "" || soloNumeros === "." || soloNumeros === ",") return soloNumeros;
+    
+    // Normalizar: convertir coma a punto para procesamiento
+    const normalizado = soloNumeros.replace(/,/g, ".");
+    // Separar parte entera y decimal
+    const partes = normalizado.split(".");
+    let parteEntera = partes[0] || "";
+    const parteDecimal = partes[1] !== undefined ? "," + partes[1].slice(0, 2) : "";
+    
+    // Agregar puntos cada 3 dígitos en la parte entera
+    parteEntera = parteEntera.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    
+    return parteEntera + parteDecimal;
+  };
+
+  // Función para desformatear número (quitar puntos para guardar) - convertir a formato estándar
+  const desformatearNumero = (valor: string): string => {
+    if (!valor || valor === "") return "";
+    // Remover puntos de miles, convertir coma decimal a punto
+    return valor.replace(/\./g, "").replace(/,/g, ".");
+  };
+
   const handleCambioCampo = async (
     id: number,
     campo: keyof FilaFactura,
     valor: string | boolean
   ) => {
+    // Si es valorUnitario o descuento, desformatear para guardar (quitar puntos)
+    let valorParaGuardar: string | boolean = valor;
+    if ((campo === "valorUnitario" || campo === "descuento") && typeof valor === "string") {
+      // Desformatear para guardar (quitar puntos)
+      valorParaGuardar = desformatearNumero(valor);
+    }
+    
     // Actualizar el valor inmediatamente usando la forma funcional de setState
     setFilas((filasAnteriores) => {
       const filaActual = filasAnteriores.find((f) => f.id === id);
       if (!filaActual) return filasAnteriores;
       
-      const nuevaFila = { ...filaActual, [campo]: valor };
+      const nuevaFila = { ...filaActual, [campo]: valorParaGuardar };
       
       // Si es cantidad, valorUnitario, descuento, idIva o idRetencion, calcular de forma asíncrona después
       if (campo === "cantidad" || campo === "valorUnitario" || campo === "descuento" || campo === "idIva" || campo === "idRetencion") {
@@ -727,6 +763,7 @@ const IngresarFactura = () => {
           id_proveedor: parseInt(proveedor),
           numeroFacturaLetras: numeroFacturaLetras,
           numeroFacturaNumeros: numeroFacturaNumeros,
+          observaciones: observaciones || null,
           descuentoEnPorcentaje: descuentoEnPorcentaje,
           detalles: detalles,
         }),
@@ -755,6 +792,7 @@ const IngresarFactura = () => {
       setProveedor("");
       setNumeroFacturaLetras("");
       setNumeroFacturaNumeros("");
+      setObservaciones("");
       setFilas([
         {
           id: 1,
@@ -921,6 +959,17 @@ const IngresarFactura = () => {
             </div>
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="observaciones">Observaciones</Label>
+            <Input
+              id="observaciones"
+              type="text"
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Ingrese observaciones adicionales (opcional)"
+            />
+          </div>
+          
           <div className="flex items-center space-x-2">
             <Checkbox
               id="descuentoPorcentaje"
@@ -1073,24 +1122,26 @@ const IngresarFactura = () => {
                     </TableCell>
                     <TableCell className="border-r border-border p-2">
                       <Input
-                        type="number"
-                        value={fila.valorUnitario}
+                        type="text"
+                        value={formatearNumeroVisual(fila.valorUnitario)}
                         onChange={(e) =>
                           handleCambioCampo(fila.id, "valorUnitario", e.target.value)
                         }
                         className="h-9"
                         placeholder="0"
+                        inputMode="decimal"
                       />
                     </TableCell>
                     <TableCell className="border-r border-border p-2">
                       <Input
-                        type="number"
-                        value={fila.descuento}
+                        type="text"
+                        value={formatearNumeroVisual(fila.descuento)}
                         onChange={(e) =>
                           handleCambioCampo(fila.id, "descuento", e.target.value)
                         }
                         className="h-9"
                         placeholder={descuentoEnPorcentaje ? "0%" : "0"}
+                        inputMode="decimal"
                       />
                     </TableCell>
                     <TableCell className="border-r border-border font-medium text-center">

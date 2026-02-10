@@ -478,13 +478,13 @@ const VerInventarioBodegas = () => {
                               {(esEntrada ? (detalle.cantidad_entrada || detalle.cantidad || 0) : (detalle.cantidad_salida || detalle.cantidad || 0)).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="border-r border-border py-3 px-6 text-sm">
-                              ${(esEntrada ? (detalle.precio_unitario || 0) : (detalle.costo_unitario_con_impuesto || 0)).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(esEntrada ? (detalle.precio_unitario || 0) : (detalle.precio_unitario || 0)).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="border-r border-border py-3 px-6 text-sm font-semibold">
-                              ${(detalle.costo_unitario_con_impuesto || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(detalle.costo_unitario_con_impuesto || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="py-3 px-6 text-sm font-semibold text-primary">
-                              ${(detalle.valor_total || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(detalle.valor_total || 0).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                           </TableRow>
                           {estaAbierto && movimientos.length > 0 && (
@@ -525,13 +525,13 @@ const VerInventarioBodegas = () => {
                                             Cantidad: {movimiento.cantidad}
                                           </div>
                                           <div className="text-xs text-muted-foreground">
-                                            Costo unitario: ${movimiento.costo_unitario.toLocaleString("es-CO", {
+                                            Costo unitario: ${Number(movimiento.costo_unitario).toLocaleString("es-CO", {
                                               minimumFractionDigits: 2,
                                               maximumFractionDigits: 2,
                                             })}
                                           </div>
                                           <div className="text-xs text-muted-foreground">
-                                            Total: ${movimiento.costo_total_movimiento.toLocaleString("es-CO", {
+                                            Total: ${Number(movimiento.costo_total_movimiento).toLocaleString("es-CO", {
                                               minimumFractionDigits: 2,
                                               maximumFractionDigits: 2,
                                             })}

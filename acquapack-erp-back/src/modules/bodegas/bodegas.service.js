@@ -356,7 +356,19 @@ class BodegasService {
 							ELSE inv.fecha_ingreso
 						END as fecha_comprobante,
 						-- Cantidad de entrada específica de este registro de inventario
-						COALESCE(inv.cantidad_lote, 0) as cantidad_entrada,
+						-- Sumar cantidad_lote actual + salidas por traslados (para obtener la cantidad original)
+						COALESCE(
+							inv.cantidad_lote + 
+							COALESCE((
+								SELECT SUM(mk.cantidad)
+								FROM public.movimientos_kardex mk
+								WHERE mk.id_bodega = inv.id_bodega
+								  AND mk.id_producto = inv.id_producto
+								  AND mk.tipo_flujo = 'Salida'
+								  AND mk.tipo_movimiento = 'Traslado Salida'
+							), 0),
+							0
+						) as cantidad_entrada,
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -415,7 +427,19 @@ class BodegasService {
 						END as comprobante,
 						COALESCE(f.fecha_creacion, inv.fecha_ingreso) as fecha_comprobante,
 						-- Cantidad de entrada específica de este registro de inventario
-						COALESCE(inv.cantidad_lote, 0) as cantidad_entrada,
+						-- Sumar cantidad_lote actual + salidas por traslados (para obtener la cantidad original)
+						COALESCE(
+							inv.cantidad_lote + 
+							COALESCE((
+								SELECT SUM(mk.cantidad)
+								FROM public.movimientos_kardex mk
+								WHERE mk.id_bodega = inv.id_bodega
+								  AND mk.id_producto = inv.id_producto
+								  AND mk.tipo_flujo = 'Salida'
+								  AND mk.tipo_movimiento = 'Traslado Salida'
+							), 0),
+							0
+						) as cantidad_entrada,
 						COALESCE(
 							(SELECT SUM(mk.cantidad)
 							 FROM public.movimientos_kardex mk
@@ -946,8 +970,8 @@ class BodegasService {
 				const key = salidaRow.id_producto;
 				
 				// Obtener todas las salidas de este producto
-				// Extraer id_salida del tipo_movimiento (formato: "Venta FV-{id_salida}")
-				// Obtener precio_unitario y precio_unitario_con_impuesto desde detalle_salida
+				// Para ventas: obtener precio_unitario y precio_unitario_con_impuesto desde detalle_salida
+				// Para traslados: obtener precio_unitario y costo_unitario_con_impuesto desde detalle_factura de la factura original
 				const salidasDetalleQuery = `
 					SELECT 
 						mk.id_movimientos,
@@ -962,13 +986,22 @@ class BodegasService {
 								'FV-' || SUBSTRING(mk.tipo_movimiento FROM 'FV-([0-9]+)')
 							ELSE mk.tipo_movimiento
 						END as comprobante,
-						COALESCE(ds.precio_unitario, mk.costo_unitario) as precio_unitario,
-						COALESCE(ds.precio_unitario_con_impuesto, mk.costo_unitario) as precio_unitario_con_impuesto,
+						COALESCE(
+							ds.precio_unitario,
+							df.precio_unitario,
+							mk.costo_unitario
+						) as precio_unitario,
+						COALESCE(
+							ds.precio_unitario_con_impuesto,
+							df.costo_unitario_con_impuesto,
+							mk.costo_unitario
+						) as precio_unitario_con_impuesto,
 						'Salida' as tipo_flujo,
 						p.codigo as producto_codigo,
 						p.nombre as producto_nombre
 					FROM public.movimientos_kardex mk
 					INNER JOIN public.producto p ON mk.id_producto = p.id_producto
+					-- Para ventas: obtener desde detalle_salida
 					LEFT JOIN LATERAL (
 						SELECT ds.precio_unitario, ds.precio_unitario_con_impuesto
 						FROM public.detalle_salida ds
@@ -977,6 +1010,20 @@ class BodegasService {
 						ORDER BY ds.id_detalle_salida
 						LIMIT 1
 					) ds ON mk.tipo_movimiento LIKE 'Venta FV-%'
+					-- Para traslados: obtener desde detalle_factura de la factura original del inventario
+					-- Buscar en el inventario de la bodega que tenga ese producto y obtener la factura original
+					LEFT JOIN LATERAL (
+						SELECT df.precio_unitario, df.costo_unitario_con_impuesto
+						FROM public.inventario inv
+						INNER JOIN public.detalle_factura df ON df.id_factura = inv.id_factura 
+							AND df.id_producto = mk.id_producto
+						WHERE inv.id_bodega = mk.id_bodega
+							AND inv.id_producto = mk.id_producto
+							AND inv.id_factura IS NOT NULL
+							AND inv.fecha_ingreso <= mk."fecha "
+						ORDER BY inv.fecha_ingreso DESC, df.id_detalle_factura
+						LIMIT 1
+					) df ON mk.tipo_movimiento = 'Traslado Salida'
 					WHERE mk.id_bodega = $1
 						AND mk.id_producto = $2
 						AND mk.tipo_flujo = 'Salida'

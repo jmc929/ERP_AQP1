@@ -65,6 +65,7 @@ interface Factura {
   total_iva: number;
   total_retencion: number;
   total_factura: number;
+  observaciones?: string | null;
   id_estado: number;
   estado_nombre: string;
   id_proveedor: number;
@@ -416,7 +417,7 @@ const VerFactura = () => {
                 {factura.numero_factura_proveedor || "N/A"}
               </TableCell>
               <TableCell className="font-semibold">
-                ${factura.total_factura.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${Number(factura.total_factura).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </TableCell>
             </TableRow>
           ))
@@ -479,34 +480,42 @@ const VerFactura = () => {
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Subtotal</p>
                   <p className="text-lg font-semibold">
-                    ${facturaCompleta.total_subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${Number(facturaCompleta.total_subtotal).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Descuento</p>
                   <p className="text-lg font-semibold">
-                    ${facturaCompleta.total_descuento.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${Number(facturaCompleta.total_descuento).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">IVA</p>
                   <p className="text-lg font-semibold">
-                    ${facturaCompleta.total_iva.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${Number(facturaCompleta.total_iva).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Retención</p>
                   <p className="text-lg font-semibold">
-                    ${facturaCompleta.total_retencion.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${Number(facturaCompleta.total_retencion).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Total</p>
                   <p className="text-xl font-bold">
-                    ${facturaCompleta.total_factura.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ${Number(facturaCompleta.total_factura).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
+
+              {/* Observaciones */}
+              {facturaCompleta.observaciones && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">Observaciones</p>
+                  <p className="text-base">{facturaCompleta.observaciones}</p>
+                </div>
+              )}
 
               {/* Tabla de productos */}
               <div>
@@ -549,20 +558,20 @@ const VerFactura = () => {
                               {detalle.cantidad}
                             </TableCell>
                             <TableCell className="border-r border-border text-right">
-                              ${detalle.precio_unitario.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(detalle.precio_unitario).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="border-r border-border text-right">
                               {detalle.porcentaje_descuento > 0 ? (
                                 <div className="flex flex-col">
-                                  <span className="text-xs text-muted-foreground">{detalle.porcentaje_descuento.toFixed(2)}%</span>
-                                  <span>${detalle.descuento.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  <span className="text-xs text-muted-foreground">{Number(detalle.porcentaje_descuento).toFixed(2)}%</span>
+                                  <span>${Number(detalle.descuento).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               ) : (
-                                <span>${detalle.descuento.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                <span>${Number(detalle.descuento).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                               )}
                             </TableCell>
                             <TableCell className="border-r border-border text-right">
-                              ${detalle.subtotal.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(detalle.subtotal).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                             <TableCell className="border-r border-border text-right">
                               {detalle.iva_valor > 0 ? (
@@ -570,7 +579,7 @@ const VerFactura = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {detalle.iva_nombre || "N/A"} ({detalle.iva_porcentaje || 0}%)
                                   </span>
-                                  <span>${detalle.iva_valor.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  <span>${Number(detalle.iva_valor).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground">Sin IVA</span>
@@ -582,14 +591,14 @@ const VerFactura = () => {
                                   <span className="text-xs text-muted-foreground">
                                     {detalle.retencion_nombre || "N/A"} ({detalle.retencion_porcentaje || 0}%)
                                   </span>
-                                  <span>${detalle.retefuente_valor.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                  <span>${Number(detalle.retefuente_valor).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                 </div>
                               ) : (
                                 <span className="text-muted-foreground">Sin Retención</span>
                               )}
                             </TableCell>
                             <TableCell className="text-right font-semibold">
-                              ${detalle.valor_total.toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ${Number(detalle.valor_total).toLocaleString("es-CO", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </TableCell>
                           </TableRow>
                         ))

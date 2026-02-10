@@ -6,7 +6,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Eye, Archive, Edit } from "lucide-react";
+import { Eye, Archive, Edit, AlertTriangle, CheckCircle2, Clock } from "lucide-react";
 import SearchBar from "@/components/SearchBar";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
@@ -29,6 +29,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import UsuarioAlertasCard from "@/components/UsuarioAlertasCard";
 
 interface Rol {
   id_rol: number;
@@ -89,6 +91,27 @@ const VerUsuarios = () => {
   const [actualizandoEstado, setActualizandoEstado] = useState(false);
   const [usuarioActual, setUsuarioActual] = useState<any>(null);
   const [esSuperAdministrador, setEsSuperAdministrador] = useState(false);
+  const [alertas, setAlertas] = useState<any[]>([]);
+  const [cargandoAlertas, setCargandoAlertas] = useState(false);
+
+  // Cargar alertas de usuarios
+  useEffect(() => {
+    const cargarAlertas = async () => {
+      setCargandoAlertas(true);
+      try {
+        const response = await fetch("http://localhost:4000/api/usuarios/alertas");
+        if (response.ok) {
+          const data = await response.json();
+          setAlertas(data.alertas || []);
+        }
+      } catch (error) {
+        console.error("Error al cargar alertas:", error);
+      } finally {
+        setCargandoAlertas(false);
+      }
+    };
+    cargarAlertas();
+  }, []);
 
   // Cargar usuario actual y verificar si es super administrador
   useEffect(() => {
@@ -110,6 +133,25 @@ const VerUsuarios = () => {
         console.error("Error al parsear usuario:", error);
       }
     }
+  }, []);
+
+  // Cargar alertas de usuarios
+  useEffect(() => {
+    const cargarAlertas = async () => {
+      setCargandoAlertas(true);
+      try {
+        const response = await fetch("http://localhost:4000/api/usuarios/alertas");
+        if (response.ok) {
+          const data = await response.json();
+          setAlertas(data.alertas || []);
+        }
+      } catch (error) {
+        console.error("Error al cargar alertas:", error);
+      } finally {
+        setCargandoAlertas(false);
+      }
+    };
+    cargarAlertas();
   }, []);
 
   // Cargar usuarios y estados
@@ -251,6 +293,13 @@ const VerUsuarios = () => {
   return (
     <PageContainer>
       <PageTitle title="Ver Usuarios" />
+
+      {/* Tarjetas de alertas - debajo del título */}
+      {!cargandoAlertas && alertas.length > 0 && (
+        <div className="mb-6">
+          <UsuarioAlertasCard alertas={alertas} />
+        </div>
+      )}
 
       {/* Barra de búsqueda */}
       <SearchBar
@@ -487,6 +536,67 @@ const VerUsuarios = () => {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Alertas del Usuario */}
+              {(() => {
+                const pendientesUsuario = alertas.find(a => a.id_usuarios === usuarioSeleccionado.id_usuarios);
+                if (!pendientesUsuario || pendientesUsuario.pendientes.length === 0) {
+                  return (
+                    <Card className="border-green-200 bg-green-50">
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2 text-green-700">
+                          <CheckCircle2 className="h-5 w-5" />
+                          Estado de Documentos
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-green-700">✓ Todos los documentos están al día</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+                return (
+                  <Card className="border-red-200 bg-red-50">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center gap-2 text-red-700">
+                        <AlertTriangle className="h-5 w-5" />
+                        Alertas Pendientes ({pendientesUsuario.total_pendientes})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {pendientesUsuario.pendientes.map((pendiente: any, idx: number) => (
+                        <div
+                          key={idx}
+                          className={`p-3 rounded-lg border ${
+                            pendiente.prioridad === 'alta'
+                              ? 'bg-red-100 border-red-300 text-red-800'
+                              : 'bg-yellow-100 border-yellow-300 text-yellow-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            {pendiente.prioridad === 'alta' ? (
+                              <AlertTriangle className="h-4 w-4" />
+                            ) : (
+                              <Clock className="h-4 w-4" />
+                            )}
+                            <span className="font-medium">{pendiente.mensaje}</span>
+                            <Badge
+                              variant="outline"
+                              className={`ml-auto ${
+                                pendiente.prioridad === 'alta'
+                                  ? 'border-red-500 text-red-700'
+                                  : 'border-yellow-500 text-yellow-700'
+                              }`}
+                            >
+                              {pendiente.prioridad === 'alta' ? 'Alta' : 'Media'}
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
 
               {/* Roles */}
               <Card>

@@ -150,21 +150,31 @@ class VentasService {
 		try {
 			const offset = (page - 1) * limit;
 			let query = `
-				SELECT DISTINCT
+				SELECT 
 					p.id_producto,
 					p.codigo,
 					p.nombre,
 					p.id_estado,
-					COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+					COALESCE((
+						SELECT SUM(i2.cantidad_lote)
+						FROM public.inventario i2
+						WHERE i2.id_producto = p.id_producto AND i2.id_bodega = $1
+					), 0) - 					COALESCE((
 						SELECT SUM(mk.cantidad)
 						FROM public.movimientos_kardex mk
 						WHERE mk.id_bodega = $1
 							AND mk.id_producto = p.id_producto
 							AND mk.tipo_flujo = 'Salida'
+							AND mk.tipo_movimiento LIKE 'Venta FV-%'
 					), 0) as stock_disponible
 				FROM public.producto p
-				LEFT JOIN public.inventario i ON p.id_producto = i.id_producto AND i.id_bodega = $1
 				WHERE p.id_estado IN (1, 2)
+					AND EXISTS (
+						SELECT 1
+						FROM public.inventario i
+						WHERE i.id_producto = p.id_producto
+							AND i.id_bodega = $1
+					)
 			`;
 			const valores = [idBodega];
 			let contador = 2;
@@ -179,13 +189,18 @@ class VentasService {
 				contador++;
 			}
 
-			query += ` GROUP BY p.id_producto, p.codigo, p.nombre, p.id_estado
-				HAVING (COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+			query += ` 
+				AND (COALESCE((
+					SELECT SUM(i2.cantidad_lote)
+					FROM public.inventario i2
+					WHERE i2.id_producto = p.id_producto AND i2.id_bodega = $1
+				), 0) - COALESCE((
 					SELECT SUM(mk.cantidad)
 					FROM public.movimientos_kardex mk
 					WHERE mk.id_bodega = $1
 						AND mk.id_producto = p.id_producto
 						AND mk.tipo_flujo = 'Salida'
+						AND mk.tipo_movimiento LIKE 'Venta FV-%'
 				), 0)) > 0
 				ORDER BY p.codigo, p.nombre 
 				LIMIT $${contador} OFFSET $${contador + 1}`;
@@ -197,8 +212,13 @@ class VentasService {
 				FROM (
 					SELECT DISTINCT p.id_producto
 					FROM public.producto p
-					LEFT JOIN public.inventario i ON p.id_producto = i.id_producto AND i.id_bodega = $1
 					WHERE p.id_estado IN (1, 2)
+						AND EXISTS (
+							SELECT 1
+							FROM public.inventario i
+							WHERE i.id_producto = p.id_producto
+								AND i.id_bodega = $1
+						)
 			`;
 			const countValores = [idBodega];
 			let countContador = 2;
@@ -212,13 +232,18 @@ class VentasService {
 				countContador++;
 			}
 
-			countQuery += ` GROUP BY p.id_producto
-				HAVING (COALESCE(SUM(i.cantidad_lote), 0) - COALESCE((
+			countQuery += ` 
+				AND (COALESCE((
+					SELECT SUM(i2.cantidad_lote)
+					FROM public.inventario i2
+					WHERE i2.id_producto = p.id_producto AND i2.id_bodega = $1
+				), 0) - COALESCE((
 					SELECT SUM(mk.cantidad)
 					FROM public.movimientos_kardex mk
 					WHERE mk.id_bodega = $1
 						AND mk.id_producto = p.id_producto
 						AND mk.tipo_flujo = 'Salida'
+						AND mk.tipo_movimiento LIKE 'Venta FV-%'
 				), 0)) > 0
 			) as productos_con_stock`;
 
@@ -339,8 +364,9 @@ class VentasService {
 					total_descuento,
 					total_iva,
 					total_retencion,
-					total_factura
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+					total_factura,
+					observaciones
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 				RETURNING id_salida
 			`;
 
@@ -352,7 +378,8 @@ class VentasService {
 				datosSalida.total_descuento || 0,
 				datosSalida.total_iva || 0,
 				datosSalida.total_retencion || 0,
-				datosSalida.total_factura || 0
+				datosSalida.total_factura || 0,
+				datosSalida.observaciones || null
 			]);
 
 			const idSalida = salidaResult.rows[0].id_salida;
@@ -459,13 +486,14 @@ class VentasService {
 
 				// Obtener lotes ordenados por fecha_ingreso (FIFO: más antiguos primero)
 				// Calcular stock disponible restando las salidas del kardex
-				// Primero obtener el total de salidas para este producto en esta bodega
+				// Primero obtener el total de salidas de VENTAS (no traslados) para este producto en esta bodega
 				const salidasTotalQuery = `
 					SELECT COALESCE(SUM(mk.cantidad), 0) as total_salidas
 					FROM public.movimientos_kardex mk
 					WHERE mk.id_bodega = $1
 						AND mk.id_producto = $2
 						AND mk.tipo_flujo = 'Salida'
+						AND mk.tipo_movimiento LIKE 'Venta FV-%'
 				`;
 				const salidasTotalResult = await client.query(salidasTotalQuery, [idBodega, detalle.id_producto]);
 				const totalSalidas = parseFloat(salidasTotalResult.rows[0]?.total_salidas || 0);
@@ -582,6 +610,7 @@ class VentasService {
 					s.total_iva,
 					s.total_retencion,
 					s.total_factura,
+					s.observaciones,
 					c.id_cliente,
 					c.razon_social,
 					c.nombre_comercial,
@@ -618,6 +647,7 @@ class VentasService {
 					s.total_iva,
 					s.total_retencion,
 					s.total_factura,
+					s.observaciones,
 					c.id_cliente,
 					c.razon_social,
 					c.nombre_comercial,
