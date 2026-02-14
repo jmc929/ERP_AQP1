@@ -37,6 +37,9 @@ import VerNominas from "./pages/VerNominas";
 import ConfiguracionProduccion from "./pages/ConfiguracionProduccion";
 import AgregarProduccion from "./pages/AgregarProduccion";
 import VerProduccion from "./pages/VerProduccion";
+import VerCajas from "./pages/VerCajas";
+import ConfiguracionCajas from "./pages/ConfiguracionCajas";
+import HacerMovimientosCaja from "./pages/HacerMovimientosCaja";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -81,6 +84,9 @@ const App = () => (
             <Route path="inventario/traslados-bodegas" element={<TrasladosBodegas />} />
             <Route path="inventario/ver-inventario" element={<VerInventarioBodegas />} />
             <Route path="costos/ver-costos" element={<VerCostosProductos />} />
+            <Route path="cajas/ver-cajas" element={<VerCajas />} />
+            <Route path="cajas/hacer-movimientos" element={<HacerMovimientosCaja />} />
+            <Route path="cajas/configuracion" element={<ConfiguracionCajas />} />
             <Route path="nomina/hacer-nomina" element={<HacerNomina />} />
             <Route path="nomina/ver-nominas" element={<VerNominas />} />
             <Route path="nomina/configuracion" element={<ConfiguracionNomina />} />

@@ -18,6 +18,8 @@ const { clientesRoutes } = require("../modules/clientes");
 const { bodegasRoutes } = require("../modules/bodegas");
 const { ventasRouter } = require("../modules/ventas");
 const { notasRoutes } = require("../modules/notas");
+const { cajasRouter } = require("../modules/cajas");
+const { configuracionCajasRouter } = require("../modules/configuracion-cajas");
 const { logger } = require("../common/logger");
 
 const routes = express.Router();
@@ -41,9 +43,11 @@ routes.use("/clientes", clientesRoutes);
 routes.use("/bodegas", bodegasRoutes);
 routes.use("/ventas", ventasRouter);
 routes.use("/notas", notasRoutes);
+routes.use("/cajas", cajasRouter);
+routes.use("/configuracion-cajas", configuracionCajasRouter);
 
 // Log para verificar que las rutas se cargaron
-logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /configuracion-nomina, /configuracion-produccion, /produccion, /nomina, /tareas, /proveedores, /clientes, /bodegas, /ventas, /notas");
+logger.info("Rutas cargadas: /health, /compras, /auth, /usuarios, /productos, /configuracion-productos, /configuracion-usuarios, /configuracion-proveedores, /configuracion-clientes, /configuracion-nomina, /configuracion-produccion, /produccion, /nomina, /tareas, /proveedores, /clientes, /bodegas, /ventas, /notas, /cajas, /configuracion-cajas");
 
 module.exports = { routes };
 

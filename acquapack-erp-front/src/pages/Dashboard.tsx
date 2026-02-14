@@ -9,13 +9,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare, BookOpen, Edit, Cog, Tag, Archive, FileText, StickyNote, Menu, Receipt, Factory, Plus } from "lucide-react";
+import { User, ShoppingCart, TrendingUp, Package, DollarSign, Settings, LogOut, Home, Search, Box, Users, CheckSquare, BookOpen, Edit, Cog, Tag, Archive, FileText, StickyNote, Menu, Receipt, Factory, Plus, Wallet } from "lucide-react";
 import ModuleCard from "@/components/ModuleCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type Module = "productos" | "compras" | "ventas" | "inventario" | "costos" | "nomina" | "produccion" | "gestion-tareas" | "usuarios" | "documentos" | "notas" | null;
+type Module = "productos" | "compras" | "ventas" | "inventario" | "costos" | "cajas" | "nomina" | "produccion" | "gestion-tareas" | "usuarios" | "documentos" | "notas" | null;
 
 interface ModuleOption {
   title: string;
@@ -128,6 +128,18 @@ const Dashboard = () => {
     if (pathname.includes("/costos")) {
       return { module: "costos", option: null };
     }
+    if (pathname.includes("/cajas/ver-cajas")) {
+      return { module: "cajas", option: "Ver Cajas" };
+    }
+    if (pathname.includes("/cajas/hacer-movimientos")) {
+      return { module: "cajas", option: "Hacer Movimientos" };
+    }
+    if (pathname.includes("/cajas/configuracion")) {
+      return { module: "cajas", option: "Configuración de Cajas" };
+    }
+    if (pathname.includes("/cajas")) {
+      return { module: "cajas", option: null };
+    }
     if (pathname.includes("/nomina/hacer-nomina")) {
       return { module: "nomina", option: "Hacer Nómina" };
     }
@@ -185,6 +197,7 @@ const Dashboard = () => {
     { id: "ventas" as Module, name: "Ventas", icon: TrendingUp },
     { id: "inventario" as Module, name: "Inventario", icon: Package },
     { id: "costos" as Module, name: "Costos", icon: DollarSign },
+    { id: "cajas" as Module, name: "Cajas", icon: Wallet },
     { id: "nomina" as Module, name: "Nómina", icon: Receipt },
     { id: "produccion" as Module, name: "Producción", icon: Factory },
     { id: "gestion-tareas" as Module, name: "Gestión de Tareas", icon: CheckSquare },
@@ -222,6 +235,11 @@ const Dashboard = () => {
     ],
     costos: [
       { title: "Ver Costos por Productos", icon: DollarSign },
+    ],
+    cajas: [
+      { title: "Ver Cajas", icon: Wallet },
+      { title: "Hacer Movimientos", icon: Plus },
+      { title: "Configuración de Cajas", icon: Cog },
     ],
     nomina: [
       { title: "Hacer Nómina", icon: Receipt },
@@ -704,6 +722,12 @@ const Dashboard = () => {
                     navigate("/dashboard/inventario/ver-inventario");
                   } else if (selectedModule === "costos" && option.title === "Ver Costos por Productos") {
                     navigate("/dashboard/costos/ver-costos");
+                  } else if (selectedModule === "cajas" && option.title === "Ver Cajas") {
+                    navigate("/dashboard/cajas/ver-cajas");
+                  } else if (selectedModule === "cajas" && option.title === "Hacer Movimientos") {
+                    navigate("/dashboard/cajas/hacer-movimientos");
+                  } else if (selectedModule === "cajas" && option.title === "Configuración de Cajas") {
+                    navigate("/dashboard/cajas/configuracion");
                   } else if (selectedModule === "nomina" && option.title === "Hacer Nómina") {
                     navigate("/dashboard/nomina/hacer-nomina");
                   } else if (selectedModule === "nomina" && option.title === "Ver Nóminas") {
