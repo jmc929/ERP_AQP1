@@ -35,7 +35,7 @@ services:
       - ./acquapack-erp-front:/app      # <--- ¡LA MAGIA! (Espejo)
       - /app/node_modules
     environment:
-      - VITE_API_URL=http://localhost:4000
+      - VITE_API_URL=https://api.erp-aqp.com
 
 # ¡NOTA QUE NO HAY SERVICIO "DB"!
 # Porque usamos la del servidor Linux.
