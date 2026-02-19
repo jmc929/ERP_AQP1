@@ -1,20 +1,17 @@
-# Usamos una imagen ligera de Node
 FROM node:18-alpine
 
-# Creamos la carpeta de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copiamos los archivos de dependencias primero (para aprovechar el caché)
 COPY package*.json ./
+RUN npm ci --omit=dev
 
-# Instalamos las dependencias (npm ci es más rápido y confiable que npm install)
-RUN npm ci
-
-# Copiamos el resto del código
 COPY . .
 
-# Exponemos el puerto (asegúrate que sea el mismo que usa tu index.js, ej: 3000 o 4000)
+ENV NODE_ENV=production
 EXPOSE 4000
 
-# Comando para iniciar
-CMD ["npm", "start"]
+# Si tu backend usa TypeScript/Nest y requiere build:
+# RUN npm run build
+# CMD ["npm","run","start:prod"]
+
+CMD ["npm","start"]

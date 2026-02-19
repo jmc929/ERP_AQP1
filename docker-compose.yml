@@ -1,41 +1,51 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  # ==============================
-  # BACKEND (Tu código Node)
-  # ==============================
-  backend:
-    build: ./acquapack-erp-back  # Busca tu carpeta de código
-    container_name: erp_backend_dev
+  postgres:
+    image: postgres:16-alpine
     restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  backend:
+    build:
+      context: ./acquapack-erp-back
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      NODE_ENV: production
+      PORT: 4000
+    volumes:
+      - documentos:/app/documentos
     ports:
       - "4000:4000"
-    volumes:
-      - ./acquapack-erp-back:/app       # <--- ¡LA MAGIA! (Espejo)
-      - /app/node_modules
-      - ./documentos:/app/documentos    # <--- Carpeta para PDFs y documentos
-    environment:
-      # AQUÍ APUNTAS AL SERVIDOR LINUX
-      - DB_HOST=100.77.172.10   # <--- IP TAILSCALE DEL SERVIDOR
-      - DB_PORT=5432
-      - DB_NAME=ERP_ACQ
-      - DB_USER=postgres
-      - DB_PASSWORD=1478
-      - CORS_ORIGIN=http://localhost:8080
+    depends_on:
+      - postgres
 
-  # ==============================
-  # FRONTEND (Tu código React)
-  # ==============================
   frontend:
-    build: ./acquapack-erp-front
-    container_name: erp_frontend_dev
+    build:
+      context: ./acquapack-erp-front
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: always
     ports:
-      - "8080:8080"
-    volumes:
-      - ./acquapack-erp-front:/app      # <--- ¡LA MAGIA! (Espejo)
-      - /app/node_modules
-    environment:
-      - VITE_API_URL=https://api.erp-aqp.com
+      - "8080:80"
+    depends_on:
+      - backend
 
-# ¡NOTA QUE NO HAY SERVICIO "DB"!
-# Porque usamos la del servidor Linux.
+volumes:
+  pgdata:
+  documentos:
