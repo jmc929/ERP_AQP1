@@ -33,7 +33,7 @@ const GestionTareas = () => {
         // Cargar usuarios
         let usuariosData;
         try {
-          const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
+          const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios`);
           usuariosData = await usuariosRes.json();
           
           if (!usuariosRes.ok) {
@@ -54,7 +54,7 @@ const GestionTareas = () => {
         // Cargar tareas (permitir que falle)
         let tareas: any[] = [];
         try {
-          const tareasRes = await fetch(`${API_BASE_URL}/api/tareas");
+          const tareasRes = await fetch(`${API_BASE_URL}/api/tareas`);
           if (tareasRes.ok) {
             const tareasData = await tareasRes.json();
             if (tareasData.success && Array.isArray(tareasData.tareas)) {

@@ -37,7 +37,7 @@ const VerCostosProductos = () => {
   const cargarCostos = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/productos/costos");
+      const response = await fetch(`${API_BASE_URL}/api/productos/costos`);
       
       if (!response.ok) {
         throw new Error("Error al cargar los costos");
@@ -108,16 +108,17 @@ const VerCostosProductos = () => {
 
   return (
     <PageContainer>
-      <PageTitle>Ver Costos por Productos</PageTitle>
+      <PageTitle title="Ver Costos por Productos" />
 
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <SearchBar
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por código o nombre de producto..."
-            className="max-w-md"
-          />
+          <div className="max-w-md">
+            <SearchBar
+              value={busqueda}
+              onChange={setBusqueda}
+              placeholder="Buscar por código o nombre de producto..."
+            />
+          </div>
           <div className="text-sm text-muted-foreground">
             Mostrando {costosPaginados.length > 0 ? inicio + 1 : 0}-{Math.min(fin, costosFiltrados.length)} de {costosFiltrados.length} productos
             {costos.length !== costosFiltrados.length && ` (${costos.length} total)`}

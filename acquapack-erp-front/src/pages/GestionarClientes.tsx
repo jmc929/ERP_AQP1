@@ -118,7 +118,7 @@ const GestionarClientes = () => {
     const cargarCatalogos = async () => {
       try {
         setLoadingCatalogos(true);
-        const catalogosRes = await fetch(`${API_BASE_URL}/api/clientes/catalogos");
+        const catalogosRes = await fetch(`${API_BASE_URL}/api/clientes/catalogos`);
         const catalogosData = await catalogosRes.json();
 
         if (catalogosData.success) {
@@ -143,7 +143,7 @@ const GestionarClientes = () => {
     const cargarClientes = async () => {
       try {
         setLoading(true);
-        const url = new URL(`${API_BASE_URL}/api/clientes/paginados");
+        const url = new URL(`${API_BASE_URL}/api/clientes/paginados`);
         url.searchParams.append("page", paginaActual.toString());
         url.searchParams.append("limit", "30");
         if (busqueda.trim()) {
@@ -344,7 +344,7 @@ const GestionarClientes = () => {
 
     try {
       setGuardando(true);
-      const response = await fetch(`${API_BASE_URL}/api/clientes", {
+      const response = await fetch(`${API_BASE_URL}/api/clientes`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -72,7 +72,7 @@ const EtiquetaCodigos = () => {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/productos/catalogos");
+        const response = await fetch(`${API_BASE_URL}/api/productos/catalogos`);
         const data = await response.json();
         if (data.success) {
           setCatalogos(data.catalogos);
@@ -194,7 +194,7 @@ const EtiquetaCodigos = () => {
 
       // Llamar al backend para generar el PDF
       const response = await fetch(
-        `${API_BASE_URL}/api/configuracion-productos/generar-pdf-codigos-barras",
+        `${API_BASE_URL}/api/configuracion-productos/generar-pdf-codigos-barras`,
         {
           method: "POST",
           headers: {

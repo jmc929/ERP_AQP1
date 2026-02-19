@@ -75,7 +75,7 @@ const TrasladosBodegas = () => {
     const cargarBodegas = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/bodegas");
+        const response = await fetch(`${API_BASE_URL}/api/bodegas`);
         const data = await response.json();
 
         if (data.success) {
@@ -253,7 +253,7 @@ const TrasladosBodegas = () => {
           cantidad: parseFloat(p.cantidad)
         }));
 
-        const response = await fetch(`${API_BASE_URL}/api/bodegas/traslado", {
+        const response = await fetch(`${API_BASE_URL}/api/bodegas/traslado`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

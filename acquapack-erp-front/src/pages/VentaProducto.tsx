@@ -157,11 +157,11 @@ const VentaProducto = () => {
       try {
         setLoading(true);
         const [salidaRes, bodegasRes, ivasRes, retencionesRes, clientesPaginadosRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida"),
-          fetch(`${API_BASE_URL}/api/ventas/bodegas"),
-          fetch(`${API_BASE_URL}/api/ventas/ivas"),
-          fetch(`${API_BASE_URL}/api/ventas/retenciones"),
-          fetch(`${API_BASE_URL}/api/ventas/clientes/buscar?page=1&limit=50") // Carga inicial de clientes paginados
+          fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida`),
+          fetch(`${API_BASE_URL}/api/ventas/bodegas`),
+          fetch(`${API_BASE_URL}/api/ventas/ivas`),
+          fetch(`${API_BASE_URL}/api/ventas/retenciones`),
+          fetch(`${API_BASE_URL}/api/ventas/clientes/buscar?page=1&limit=50`) // Carga inicial de clientes paginados
         ]);
 
         const salidaData = await salidaRes.json();
@@ -362,7 +362,7 @@ const VentaProducto = () => {
   // Calcular valor total de una fila y obtener desglose
   const calcularValorTotal = async (fila: FilaVenta): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/ventas/calcular-valor-total", {
+      const response = await fetch(`${API_BASE_URL}/api/ventas/calcular-valor-total`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -755,7 +755,7 @@ const VentaProducto = () => {
         })
       );
 
-      const response = await fetch(`${API_BASE_URL}/api/ventas/salidas", {
+      const response = await fetch(`${API_BASE_URL}/api/ventas/salidas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -781,7 +781,7 @@ const VentaProducto = () => {
       });
 
       // Recargar el siguiente ID de salida
-      const salidaRes = await fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida");
+      const salidaRes = await fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida`);
       const salidaData = await salidaRes.json();
       if (salidaData.success) {
         setSalidaId(salidaData.siguienteId);

@@ -87,7 +87,7 @@ const EditarUsuarios = () => {
     const cargarDatos = async () => {
       try {
         const [catalogosRes, usuarioRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/usuarios/catalogos"),
+          fetch(`${API_BASE_URL}/api/usuarios/catalogos`),
           fetch(`${API_BASE_URL}/api/usuarios/${id}`)
         ]);
 

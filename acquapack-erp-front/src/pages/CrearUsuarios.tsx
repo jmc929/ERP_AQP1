@@ -91,7 +91,7 @@ const CrearUsuarios = () => {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/usuarios/catalogos");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/catalogos`);
         const data = await response.json();
         if (data.success) {
           setCatalogos(data.catalogos);
@@ -163,7 +163,7 @@ const CrearUsuarios = () => {
         roles: rolesSeleccionados.map((r) => parseInt(r)),
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/usuarios", {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

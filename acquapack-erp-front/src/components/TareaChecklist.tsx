@@ -74,7 +74,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
       // Generar fecha y hora localmente en el frontend
       const fechaAsignacion = new Date().toISOString();
       
-      const response = await fetch(`${API_BASE_URL}/api/tareas", {
+      const response = await fetch(`${API_BASE_URL}/api/tareas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -85,7 +85,7 @@ const CrearEditarProductos = () => {
       const cargarCatalogos = async () => {
         try {
           setCargandoDatos(true);
-          const catalogosRes = await fetch(`${API_BASE_URL}/api/productos/catalogos");
+          const catalogosRes = await fetch(`${API_BASE_URL}/api/productos/catalogos`);
 
           if (!catalogosRes.ok) {
             const errorData = await catalogosRes.json().catch(() => ({}));
@@ -123,7 +123,7 @@ const CrearEditarProductos = () => {
     if (modo === "crear") {
       const cargarCodigoBarras = async () => {
         try {
-          const codigoBarrasRes = await fetch(`${API_BASE_URL}/api/productos/siguiente-codigo-barras");
+          const codigoBarrasRes = await fetch(`${API_BASE_URL}/api/productos/siguiente-codigo-barras`);
 
           if (!codigoBarrasRes.ok) {
             const errorData = await codigoBarrasRes.json().catch(() => ({}));
@@ -257,7 +257,7 @@ const CrearEditarProductos = () => {
 
       const url = modo === "editar" && productoId
         ? `${API_BASE_URL}/api/productos/${productoId}`
-        : `${API_BASE_URL}/api/productos";
+        : `${API_BASE_URL}/api/productos`;
       
       const method = modo === "editar" ? "PUT" : "POST";
 

@@ -82,8 +82,8 @@ const ConfiguracionNomina = () => {
     try {
       setLoading(true);
       const endpoint = tipo === "tipo-hora" 
-        ? `${API_BASE_URL}/api/configuracion-nomina/tipo-hora"
-        : `${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion";
+        ? `${API_BASE_URL}/api/configuracion-nomina/tipo-hora`
+        : `${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion`;
       
       const response = await fetch(endpoint);
       const data = await response.json();
@@ -118,7 +118,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-hora", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-hora`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -167,7 +167,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

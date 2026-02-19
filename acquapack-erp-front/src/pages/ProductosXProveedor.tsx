@@ -72,8 +72,8 @@ const ProductosXProveedor = () => {
     try {
       setLoading(true);
       const [productosRes, proveedoresRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/compras/productos-x-proveedor"),
-        fetch(`${API_BASE_URL}/api/compras/proveedores")
+        fetch(`${API_BASE_URL}/api/compras/productos-x-proveedor`),
+        fetch(`${API_BASE_URL}/api/compras/proveedores`)
       ]);
 
       const productosData = await productosRes.json();
@@ -109,7 +109,7 @@ const ProductosXProveedor = () => {
       setLoading(true);
       const url = filtroProveedor 
         ? `${API_BASE_URL}/api/compras/productos-x-proveedor?id_proveedor=${filtroProveedor}`
-        : `${API_BASE_URL}/api/compras/productos-x-proveedor";
+        : `${API_BASE_URL}/api/compras/productos-x-proveedor`;
       
       const response = await fetch(url);
       const data = await response.json();

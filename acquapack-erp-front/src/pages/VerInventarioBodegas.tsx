@@ -110,7 +110,7 @@ const VerInventarioBodegas = () => {
     const cargarBodegas = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/compras/bodegas");
+        const response = await fetch(`${API_BASE_URL}/api/compras/bodegas`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);

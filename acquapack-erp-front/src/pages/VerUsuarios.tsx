@@ -100,7 +100,7 @@ const VerUsuarios = () => {
     const cargarAlertas = async () => {
       setCargandoAlertas(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas`);
         if (response.ok) {
           const data = await response.json();
           setAlertas(data.alertas || []);
@@ -141,7 +141,7 @@ const VerUsuarios = () => {
     const cargarAlertas = async () => {
       setCargandoAlertas(true);
       try {
-        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas`);
         if (response.ok) {
           const data = await response.json();
           setAlertas(data.alertas || []);
@@ -161,8 +161,8 @@ const VerUsuarios = () => {
       try {
         setLoading(true);
         const [usuariosRes, catalogosRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/usuarios"),
-          fetch(`${API_BASE_URL}/api/usuarios/catalogos")
+          fetch(`${API_BASE_URL}/api/usuarios`),
+          fetch(`${API_BASE_URL}/api/usuarios/catalogos`)
         ]);
 
         const usuariosData = await usuariosRes.json();
@@ -240,7 +240,7 @@ const VerUsuarios = () => {
         });
 
         // Actualizar la lista de usuarios
-        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
+        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios`);
         const usuariosData = await usuariosRes.json();
         if (usuariosData.success) {
           setUsuarios(usuariosData.usuarios);

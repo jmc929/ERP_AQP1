@@ -76,8 +76,8 @@ const GestionarBodegas = () => {
         setLoading(true);
         setLoadingCatalogos(true);
         const [bodegasRes, catalogosRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/bodegas"),
-          fetch(`${API_BASE_URL}/api/bodegas/catalogos")
+          fetch(`${API_BASE_URL}/api/bodegas`),
+          fetch(`${API_BASE_URL}/api/bodegas/catalogos`)
         ]);
 
         const bodegasData = await bodegasRes.json();
@@ -164,7 +164,7 @@ const GestionarBodegas = () => {
       setGuardando(true);
       const url = bodegaEditando 
         ? `${API_BASE_URL}/api/bodegas/${bodegaEditando.id_bodega}`
-        : `${API_BASE_URL}/api/bodegas";
+        : `${API_BASE_URL}/api/bodegas`;
       
       const method = bodegaEditando ? "PUT" : "POST";
 
@@ -193,7 +193,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas`);
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);
@@ -259,7 +259,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas`);
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);
@@ -314,7 +314,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas`);
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);

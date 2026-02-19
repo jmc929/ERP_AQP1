@@ -188,10 +188,10 @@ const HacerNomina = () => {
       setLoading(true);
       
       const [trabajadoresRes, estadosRes, tiposHoraRes, tiposDeduccionRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/nomina/trabajadores"),
-        fetch(`${API_BASE_URL}/api/nomina/estados"),
-        fetch(`${API_BASE_URL}/api/nomina/tipos-hora"),
-        fetch(`${API_BASE_URL}/api/nomina/tipos-deduccion"),
+        fetch(`${API_BASE_URL}/api/nomina/trabajadores`),
+        fetch(`${API_BASE_URL}/api/nomina/estados`),
+        fetch(`${API_BASE_URL}/api/nomina/tipos-hora`),
+        fetch(`${API_BASE_URL}/api/nomina/tipos-deduccion`),
       ]);
 
       const trabajadoresData = await trabajadoresRes.json();
@@ -494,7 +494,7 @@ const HacerNomina = () => {
         headers["x-user-id"] = usuarioLogueado.id_usuarios.toString();
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/nomina/crear", {
+      const response = await fetch(`${API_BASE_URL}/api/nomina/crear`, {
         method: "POST",
         headers,
         body: JSON.stringify({

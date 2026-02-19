@@ -71,7 +71,7 @@ const GestionarNotas = () => {
       // Cargar usuarios
       let usuariosData;
       try {
-        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
+        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios`);
         usuariosData = await usuariosRes.json();
         
         if (!usuariosRes.ok) {
@@ -91,7 +91,7 @@ const GestionarNotas = () => {
       // Cargar todas las notas
       let notas: Nota[] = [];
       try {
-        const notasRes = await fetch(`${API_BASE_URL}/api/notas");
+        const notasRes = await fetch(`${API_BASE_URL}/api/notas`);
         if (notasRes.ok) {
           const notasData = await notasRes.json();
           if (notasData.success && Array.isArray(notasData.notas)) {
@@ -200,7 +200,7 @@ const GestionarNotas = () => {
 
       const url = notaSeleccionada
         ? `${API_BASE_URL}/api/notas/${notaSeleccionada.id_notas}`
-        : `${API_BASE_URL}/api/notas";
+        : `${API_BASE_URL}/api/notas`;
 
       const method = notaSeleccionada ? "PUT" : "POST";
 

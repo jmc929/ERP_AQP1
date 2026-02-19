@@ -222,8 +222,8 @@ const AgregarProduccion = () => {
     try {
       setLoading(true);
       const [tiposMaquinaRes, catalogosRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina"),
-        fetch(`${API_BASE_URL}/api/produccion/catalogos"),
+        fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina`),
+        fetch(`${API_BASE_URL}/api/produccion/catalogos`),
       ]);
 
       const tiposMaquinaData = await tiposMaquinaRes.json();
@@ -406,7 +406,7 @@ const AgregarProduccion = () => {
           cantidad: parseFloat(m.cantidad),
         }));
 
-      const response = await fetch(`${API_BASE_URL}/api/produccion", {
+      const response = await fetch(`${API_BASE_URL}/api/produccion`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

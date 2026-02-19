@@ -120,14 +120,14 @@ const VerFactura = () => {
   const cargarDatosFiltros = async () => {
     try {
       // Cargar proveedores
-      const proveedoresRes = await fetch(`${API_BASE_URL}/api/compras/proveedores");
+      const proveedoresRes = await fetch(`${API_BASE_URL}/api/compras/proveedores`);
       const proveedoresData = await proveedoresRes.json();
       if (proveedoresData.success) {
         setProveedores(proveedoresData.proveedores || []);
       }
 
       // Cargar estados únicos de las facturas
-      const facturasRes = await fetch(`${API_BASE_URL}/api/compras/facturas");
+      const facturasRes = await fetch(`${API_BASE_URL}/api/compras/facturas`);
       const facturasData = await facturasRes.json();
       if (facturasData.success && facturasData.facturas) {
         // Obtener estados únicos
@@ -148,7 +148,7 @@ const VerFactura = () => {
   const cargarFacturas = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/compras/facturas");
+      const response = await fetch(`${API_BASE_URL}/api/compras/facturas`);
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);

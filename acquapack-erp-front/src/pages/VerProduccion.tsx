@@ -121,21 +121,21 @@ const VerProduccion = () => {
         setLoading(true);
         
         // Cargar tipos de máquina
-        const tiposResponse = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina");
+        const tiposResponse = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina`);
         const tiposData = await tiposResponse.json();
         if (tiposData.success) {
           setTiposMaquina(tiposData.tiposMaquina || []);
         }
 
         // Cargar turnos
-        const turnosResponse = await fetch(`${API_BASE_URL}/api/produccion/turnos");
+        const turnosResponse = await fetch(`${API_BASE_URL}/api/produccion/turnos`);
         const turnosData = await turnosResponse.json();
         if (turnosData.success) {
           setTurnos(turnosData.turnos || []);
         }
 
         // Cargar usuarios
-        const usuariosResponse = await fetch(`${API_BASE_URL}/api/produccion/usuarios");
+        const usuariosResponse = await fetch(`${API_BASE_URL}/api/produccion/usuarios`);
         const usuariosData = await usuariosResponse.json();
         if (usuariosData.success) {
           setUsuarios(usuariosData.usuarios || []);

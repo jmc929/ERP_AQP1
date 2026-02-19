@@ -71,7 +71,7 @@ const VerVentas = () => {
     const cargarSalidas = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE_URL}/api/ventas/salidas");
+        const response = await fetch(`${API_BASE_URL}/api/ventas/salidas`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);

@@ -160,12 +160,12 @@ const IngresarFactura = () => {
       try {
         setLoading(true);
         const [facturaRes, proveedoresRes, productosRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura"),
-          fetch(`${API_BASE_URL}/api/compras/proveedores/buscar?page=1&limit=50"),
-          fetch(`${API_BASE_URL}/api/compras/productos?page=1&limit=50"),
-          fetch(`${API_BASE_URL}/api/compras/bodegas"),
-          fetch(`${API_BASE_URL}/api/compras/ivas"),
-          fetch(`${API_BASE_URL}/api/compras/retenciones")
+          fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura`),
+          fetch(`${API_BASE_URL}/api/compras/proveedores/buscar?page=1&limit=50`),
+          fetch(`${API_BASE_URL}/api/compras/productos?page=1&limit=50`),
+          fetch(`${API_BASE_URL}/api/compras/bodegas`),
+          fetch(`${API_BASE_URL}/api/compras/ivas`),
+          fetch(`${API_BASE_URL}/api/compras/retenciones`)
         ]);
 
         const facturaData = await facturaRes.json();
@@ -366,7 +366,7 @@ const IngresarFactura = () => {
   // Calcular valor total de una fila y obtener desglose
   const calcularValorTotal = async (fila: FilaFactura): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/compras/calcular-valor-total", {
+      const response = await fetch(`${API_BASE_URL}/api/compras/calcular-valor-total`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -753,7 +753,7 @@ const IngresarFactura = () => {
         })
       );
 
-      const response = await fetch(`${API_BASE_URL}/api/compras/facturas", {
+      const response = await fetch(`${API_BASE_URL}/api/compras/facturas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -782,7 +782,7 @@ const IngresarFactura = () => {
       });
 
       // Recargar el siguiente ID de factura
-      const facturaRes = await fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura");
+      const facturaRes = await fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura`);
       const facturaData = await facturaRes.json();
       if (facturaData.success) {
         setFacturaId(facturaData.siguienteId);

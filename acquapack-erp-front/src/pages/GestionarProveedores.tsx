@@ -118,7 +118,7 @@ const GestionarProveedores = () => {
     const cargarCatalogos = async () => {
       try {
         setLoadingCatalogos(true);
-        const catalogosRes = await fetch(`${API_BASE_URL}/api/proveedores/catalogos");
+        const catalogosRes = await fetch(`${API_BASE_URL}/api/proveedores/catalogos`);
         const catalogosData = await catalogosRes.json();
 
         if (catalogosData.success) {
@@ -143,7 +143,7 @@ const GestionarProveedores = () => {
     const cargarProveedores = async () => {
       try {
         setLoading(true);
-        const url = new URL(`${API_BASE_URL}/api/proveedores/paginados");
+        const url = new URL(`${API_BASE_URL}/api/proveedores/paginados`);
         url.searchParams.append("page", paginaActual.toString());
         url.searchParams.append("limit", "30");
         if (busqueda.trim()) {
@@ -344,7 +344,7 @@ const GestionarProveedores = () => {
 
     try {
       setGuardando(true);
-      const response = await fetch(`${API_BASE_URL}/api/proveedores", {
+      const response = await fetch(`${API_BASE_URL}/api/proveedores`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

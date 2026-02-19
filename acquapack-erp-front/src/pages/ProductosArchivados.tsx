@@ -65,7 +65,7 @@ const ProductosArchivados = () => {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/productos/catalogos");
+        const response = await fetch(`${API_BASE_URL}/api/productos/catalogos`);
         const data = await response.json();
         if (data.success) {
           setCatalogos(data.catalogos);

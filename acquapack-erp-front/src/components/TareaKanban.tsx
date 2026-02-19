@@ -108,7 +108,7 @@ const TareaKanban = ({
       console.log("Body que se enviará:", bodyData);
       console.log("Headers que se enviarán:", headers);
 
-      const response = await fetch(`${API_BASE_URL}/api/tareas", {
+      const response = await fetch(`${API_BASE_URL}/api/tareas`, {
         method: "POST",
         headers,
         body: JSON.stringify(bodyData),
