@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus, Save, Search } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interfaces
 interface Trabajador {
@@ -187,10 +188,10 @@ const HacerNomina = () => {
       setLoading(true);
       
       const [trabajadoresRes, estadosRes, tiposHoraRes, tiposDeduccionRes] = await Promise.all([
-        fetch("http://localhost:4000/api/nomina/trabajadores"),
-        fetch("http://localhost:4000/api/nomina/estados"),
-        fetch("http://localhost:4000/api/nomina/tipos-hora"),
-        fetch("http://localhost:4000/api/nomina/tipos-deduccion"),
+        fetch(`${API_BASE_URL}/api/nomina/trabajadores"),
+        fetch(`${API_BASE_URL}/api/nomina/estados"),
+        fetch(`${API_BASE_URL}/api/nomina/tipos-hora"),
+        fetch(`${API_BASE_URL}/api/nomina/tipos-deduccion"),
       ]);
 
       const trabajadoresData = await trabajadoresRes.json();
@@ -493,7 +494,7 @@ const HacerNomina = () => {
         headers["x-user-id"] = usuarioLogueado.id_usuarios.toString();
       }
 
-      const response = await fetch("http://localhost:4000/api/nomina/crear", {
+      const response = await fetch(`${API_BASE_URL}/api/nomina/crear", {
         method: "POST",
         headers,
         body: JSON.stringify({

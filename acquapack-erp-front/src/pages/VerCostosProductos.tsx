@@ -10,6 +10,7 @@ import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 interface CostoProducto {
   id_producto: number;
@@ -36,7 +37,7 @@ const VerCostosProductos = () => {
   const cargarCostos = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/productos/costos");
+      const response = await fetch(`${API_BASE_URL}/api/productos/costos");
       
       if (!response.ok) {
         throw new Error("Error al cargar los costos");

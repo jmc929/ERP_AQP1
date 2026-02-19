@@ -23,6 +23,7 @@ import TableCard from "@/components/TableCard";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface TipoHora {
   id_tipo_hora: number;
@@ -81,8 +82,8 @@ const ConfiguracionNomina = () => {
     try {
       setLoading(true);
       const endpoint = tipo === "tipo-hora" 
-        ? "http://localhost:4000/api/configuracion-nomina/tipo-hora"
-        : "http://localhost:4000/api/configuracion-nomina/tipo-deduccion";
+        ? `${API_BASE_URL}/api/configuracion-nomina/tipo-hora"
+        : `${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion";
       
       const response = await fetch(endpoint);
       const data = await response.json();
@@ -117,7 +118,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-nomina/tipo-hora", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-hora", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -166,7 +167,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-nomina/tipo-deduccion", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -243,7 +244,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-nomina/tipo-hora/${editandoId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-hora/${editandoId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -292,7 +293,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-nomina/tipo-deduccion/${editandoId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion/${editandoId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -334,7 +335,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-nomina/tipo-hora/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-hora/${id}`, {
         method: "DELETE",
       });
 
@@ -368,7 +369,7 @@ const ConfiguracionNomina = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-nomina/tipo-deduccion/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion/${id}`, {
         method: "DELETE",
       });
 

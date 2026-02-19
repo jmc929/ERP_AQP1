@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, ChevronLeft, ChevronRight, Pencil, Check, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 export interface Tarea {
   id: number;
@@ -107,7 +108,7 @@ const TareaKanban = ({
       console.log("Body que se enviará:", bodyData);
       console.log("Headers que se enviarán:", headers);
 
-      const response = await fetch("http://localhost:4000/api/tareas", {
+      const response = await fetch(`${API_BASE_URL}/api/tareas", {
         method: "POST",
         headers,
         body: JSON.stringify(bodyData),
@@ -162,7 +163,7 @@ const TareaKanban = ({
   const handleMoverTarea = async (tareaId: number, nuevoEstado: number, direccion: "izquierda" | "derecha") => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}/estado`, {
+      const response = await fetch(`${API_BASE_URL}/api/tareas/${tareaId}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -222,7 +223,7 @@ const TareaKanban = ({
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tareas/${tareaId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -274,7 +275,7 @@ const TareaKanban = ({
   const handleEliminarTarea = async (tareaId: number) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tareas/${tareaId}`, {
         method: "DELETE",
       });
 

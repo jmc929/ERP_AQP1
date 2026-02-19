@@ -15,6 +15,7 @@ import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 interface Catalogos {
   tiposIdentificacion: Array<{ id_tipo_identificacion: number; nombre: string }>;
@@ -86,8 +87,8 @@ const EditarUsuarios = () => {
     const cargarDatos = async () => {
       try {
         const [catalogosRes, usuarioRes] = await Promise.all([
-          fetch("http://localhost:4000/api/usuarios/catalogos"),
-          fetch(`http://localhost:4000/api/usuarios/${id}`)
+          fetch(`${API_BASE_URL}/api/usuarios/catalogos"),
+          fetch(`${API_BASE_URL}/api/usuarios/${id}`)
         ]);
 
         const catalogosData = await catalogosRes.json();
@@ -230,7 +231,7 @@ const EditarUsuarios = () => {
         datosUsuario.password = password;
       }
 
-      const response = await fetch(`http://localhost:4000/api/usuarios/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

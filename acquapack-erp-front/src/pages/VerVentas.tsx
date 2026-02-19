@@ -21,6 +21,7 @@ import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interfaces desde la BD
 interface DetalleSalida {
@@ -70,7 +71,7 @@ const VerVentas = () => {
     const cargarSalidas = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:4000/api/ventas/salidas");
+        const response = await fetch(`${API_BASE_URL}/api/ventas/salidas");
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -120,7 +121,7 @@ const VerVentas = () => {
       }
 
       // Cargar detalles desde la API
-      const response = await fetch(`http://localhost:4000/api/ventas/salidas/${venta.id_salida}`);
+      const response = await fetch(`${API_BASE_URL}/api/ventas/salidas/${venta.id_salida}`);
       
       if (!response.ok) {
         throw new Error(`Error ${response.status}: ${response.statusText}`);

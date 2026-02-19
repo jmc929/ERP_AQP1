@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { API_BASE_URL } from "@/config/api";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -70,7 +71,7 @@ const GestionarNotas = () => {
       // Cargar usuarios
       let usuariosData;
       try {
-        const usuariosRes = await fetch("http://localhost:4000/api/usuarios");
+        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
         usuariosData = await usuariosRes.json();
         
         if (!usuariosRes.ok) {
@@ -90,7 +91,7 @@ const GestionarNotas = () => {
       // Cargar todas las notas
       let notas: Nota[] = [];
       try {
-        const notasRes = await fetch("http://localhost:4000/api/notas");
+        const notasRes = await fetch(`${API_BASE_URL}/api/notas");
         if (notasRes.ok) {
           const notasData = await notasRes.json();
           if (notasData.success && Array.isArray(notasData.notas)) {
@@ -198,8 +199,8 @@ const GestionarNotas = () => {
       }
 
       const url = notaSeleccionada
-        ? `http://localhost:4000/api/notas/${notaSeleccionada.id_notas}`
-        : "http://localhost:4000/api/notas";
+        ? `${API_BASE_URL}/api/notas/${notaSeleccionada.id_notas}`
+        : `${API_BASE_URL}/api/notas";
 
       const method = notaSeleccionada ? "PUT" : "POST";
 
@@ -324,7 +325,7 @@ const GestionarNotas = () => {
     if (!confirm("¿Estás seguro de eliminar esta nota?")) return;
 
     try {
-      const response = await fetch(`http://localhost:4000/api/notas/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/notas/${id}`, {
         method: "DELETE",
       });
 

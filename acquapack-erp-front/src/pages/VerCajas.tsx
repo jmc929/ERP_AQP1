@@ -23,6 +23,7 @@ import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { API_BASE_URL } from "@/config/api";
 
 interface Caja {
   id_caja: number;
@@ -71,7 +72,7 @@ const VerCajas = () => {
   const cargarCajas = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/cajas");
+      const response = await fetch(`${API_BASE_URL}/api/cajas`);
       
       if (!response.ok) {
         throw new Error("Error al cargar las cajas");
@@ -142,7 +143,7 @@ const VerCajas = () => {
     setCargandoHistorial(true);
     
     try {
-      const response = await fetch(`http://localhost:4000/api/cajas/${caja.id_caja}/historial`);
+      const response = await fetch(`${API_BASE_URL}/api/cajas/${caja.id_caja}/historial`);
       
       if (!response.ok) {
         throw new Error("Error al cargar el historial");

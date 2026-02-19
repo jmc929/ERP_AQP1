@@ -28,6 +28,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { API_BASE_URL } from "@/config/api";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import UsuarioAlertasCard from "@/components/UsuarioAlertasCard";
@@ -99,7 +100,7 @@ const VerUsuarios = () => {
     const cargarAlertas = async () => {
       setCargandoAlertas(true);
       try {
-        const response = await fetch("http://localhost:4000/api/usuarios/alertas");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas");
         if (response.ok) {
           const data = await response.json();
           setAlertas(data.alertas || []);
@@ -140,7 +141,7 @@ const VerUsuarios = () => {
     const cargarAlertas = async () => {
       setCargandoAlertas(true);
       try {
-        const response = await fetch("http://localhost:4000/api/usuarios/alertas");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/alertas");
         if (response.ok) {
           const data = await response.json();
           setAlertas(data.alertas || []);
@@ -160,8 +161,8 @@ const VerUsuarios = () => {
       try {
         setLoading(true);
         const [usuariosRes, catalogosRes] = await Promise.all([
-          fetch("http://localhost:4000/api/usuarios"),
-          fetch("http://localhost:4000/api/usuarios/catalogos")
+          fetch(`${API_BASE_URL}/api/usuarios"),
+          fetch(`${API_BASE_URL}/api/usuarios/catalogos")
         ]);
 
         const usuariosData = await usuariosRes.json();
@@ -192,7 +193,7 @@ const VerUsuarios = () => {
   const handleVerDetalles = async (idUsuario: number) => {
     try {
       setCargandoUsuario(true);
-      const response = await fetch(`http://localhost:4000/api/usuarios/${idUsuario}`);
+      const response = await fetch(`${API_BASE_URL}/api/usuarios/${idUsuario}`);
       const data = await response.json();
 
       if (data.success) {
@@ -218,7 +219,7 @@ const VerUsuarios = () => {
     try {
       setActualizandoEstado(true);
       const response = await fetch(
-        `http://localhost:4000/api/usuarios/${usuarioSeleccionado.id_usuarios}/estado`,
+        `${API_BASE_URL}/api/usuarios/${usuarioSeleccionado.id_usuarios}/estado`,
         {
           method: "PATCH",
           headers: {
@@ -239,7 +240,7 @@ const VerUsuarios = () => {
         });
 
         // Actualizar la lista de usuarios
-        const usuariosRes = await fetch("http://localhost:4000/api/usuarios");
+        const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
         const usuariosData = await usuariosRes.json();
         if (usuariosData.success) {
           setUsuarios(usuariosData.usuarios);
@@ -248,7 +249,7 @@ const VerUsuarios = () => {
         // Actualizar el usuario en el modal
         if (usuarioSeleccionado) {
           const usuarioRes = await fetch(
-            `http://localhost:4000/api/usuarios/${usuarioSeleccionado.id_usuarios}`
+            `${API_BASE_URL}/api/usuarios/${usuarioSeleccionado.id_usuarios}`
           );
           const usuarioData = await usuarioRes.json();
           if (usuarioData.success) {

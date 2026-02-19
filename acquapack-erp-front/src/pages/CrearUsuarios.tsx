@@ -15,6 +15,7 @@ import PageTitle from "@/components/PageTitle";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Search } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Catalogos {
   tiposIdentificacion: Array<{ id_tipo_identificacion: number; nombre: string }>;
@@ -90,7 +91,7 @@ const CrearUsuarios = () => {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const response = await fetch("http://localhost:4000/api/usuarios/catalogos");
+        const response = await fetch(`${API_BASE_URL}/api/usuarios/catalogos");
         const data = await response.json();
         if (data.success) {
           setCatalogos(data.catalogos);
@@ -162,7 +163,7 @@ const CrearUsuarios = () => {
         roles: rolesSeleccionados.map((r) => parseInt(r)),
       };
 
-      const response = await fetch("http://localhost:4000/api/usuarios", {
+      const response = await fetch(`${API_BASE_URL}/api/usuarios", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

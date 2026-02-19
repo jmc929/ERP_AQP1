@@ -24,6 +24,7 @@ import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 import {
   Dialog,
   DialogContent,
@@ -75,8 +76,8 @@ const GestionarBodegas = () => {
         setLoading(true);
         setLoadingCatalogos(true);
         const [bodegasRes, catalogosRes] = await Promise.all([
-          fetch("http://localhost:4000/api/bodegas"),
-          fetch("http://localhost:4000/api/bodegas/catalogos")
+          fetch(`${API_BASE_URL}/api/bodegas"),
+          fetch(`${API_BASE_URL}/api/bodegas/catalogos")
         ]);
 
         const bodegasData = await bodegasRes.json();
@@ -162,8 +163,8 @@ const GestionarBodegas = () => {
     try {
       setGuardando(true);
       const url = bodegaEditando 
-        ? `http://localhost:4000/api/bodegas/${bodegaEditando.id_bodega}`
-        : "http://localhost:4000/api/bodegas";
+        ? `${API_BASE_URL}/api/bodegas/${bodegaEditando.id_bodega}`
+        : `${API_BASE_URL}/api/bodegas";
       
       const method = bodegaEditando ? "PUT" : "POST";
 
@@ -192,7 +193,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);
@@ -236,7 +237,7 @@ const GestionarBodegas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaCambiandoEstado.id_bodega}/estado`, {
+      const response = await fetch(`${API_BASE_URL}/api/bodegas/${bodegaCambiandoEstado.id_bodega}/estado`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -258,7 +259,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);
@@ -294,7 +295,7 @@ const GestionarBodegas = () => {
     try {
       setLoading(true);
       const promesas = Array.from(bodegasSeleccionadas).map((id) =>
-        fetch(`http://localhost:4000/api/bodegas/${id}/estado`, {
+        fetch(`${API_BASE_URL}/api/bodegas/${id}/estado`, {
           method: "PATCH",
           headers: {
             "Content-Type": "application/json",
@@ -313,7 +314,7 @@ const GestionarBodegas = () => {
       });
 
       // Recargar bodegas
-      const bodegasRes = await fetch("http://localhost:4000/api/bodegas");
+      const bodegasRes = await fetch(`${API_BASE_URL}/api/bodegas");
       const bodegasData = await bodegasRes.json();
       if (bodegasData.success) {
         setBodegas(bodegasData.bodegas);

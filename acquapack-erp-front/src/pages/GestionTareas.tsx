@@ -8,6 +8,7 @@ import PageTitle from "@/components/PageTitle";
 import TrabajadorCard from "@/components/TrabajadorCard";
 import TareaKanban, { Tarea } from "@/components/TareaKanban";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 interface Trabajador {
   id: number;
@@ -32,7 +33,7 @@ const GestionTareas = () => {
         // Cargar usuarios
         let usuariosData;
         try {
-          const usuariosRes = await fetch("http://localhost:4000/api/usuarios");
+          const usuariosRes = await fetch(`${API_BASE_URL}/api/usuarios");
           usuariosData = await usuariosRes.json();
           
           if (!usuariosRes.ok) {
@@ -53,7 +54,7 @@ const GestionTareas = () => {
         // Cargar tareas (permitir que falle)
         let tareas: any[] = [];
         try {
-          const tareasRes = await fetch("http://localhost:4000/api/tareas");
+          const tareasRes = await fetch(`${API_BASE_URL}/api/tareas");
           if (tareasRes.ok) {
             const tareasData = await tareasRes.json();
             if (tareasData.success && Array.isArray(tareasData.tareas)) {

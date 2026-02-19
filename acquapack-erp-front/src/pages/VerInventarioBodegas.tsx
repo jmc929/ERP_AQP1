@@ -20,6 +20,7 @@ import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
 import { BodegaSelect } from "@/components/BodegaSelect";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interface para bodegas desde la BD
 interface Bodega {
@@ -109,7 +110,7 @@ const VerInventarioBodegas = () => {
     const cargarBodegas = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:4000/api/compras/bodegas");
+        const response = await fetch(`${API_BASE_URL}/api/compras/bodegas");
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -155,7 +156,7 @@ const VerInventarioBodegas = () => {
 
       try {
         setLoadingProductos(true);
-        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaSeleccionada}/productos?agrupado=true`);
+        const response = await fetch(`${API_BASE_URL}/api/bodegas/${bodegaSeleccionada}/productos?agrupado=true`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -258,7 +259,7 @@ const VerInventarioBodegas = () => {
       setLoadingMovimientos(nuevoLoading);
 
       const response = await fetch(
-        `http://localhost:4000/api/bodegas/${producto.id_bodega}/movimientos-kardex?id_producto=${producto.id_producto}`
+        `${API_BASE_URL}/api/bodegas/${producto.id_bodega}/movimientos-kardex?id_producto=${producto.id_producto}`
       );
 
       if (!response.ok) {

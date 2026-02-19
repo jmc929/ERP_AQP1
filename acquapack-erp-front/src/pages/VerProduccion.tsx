@@ -30,6 +30,7 @@ import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 interface TipoMaquina {
   id_tipo_maquina: number;
@@ -120,21 +121,21 @@ const VerProduccion = () => {
         setLoading(true);
         
         // Cargar tipos de máquina
-        const tiposResponse = await fetch("http://localhost:4000/api/configuracion-produccion/tipo-maquina");
+        const tiposResponse = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina");
         const tiposData = await tiposResponse.json();
         if (tiposData.success) {
           setTiposMaquina(tiposData.tiposMaquina || []);
         }
 
         // Cargar turnos
-        const turnosResponse = await fetch("http://localhost:4000/api/produccion/turnos");
+        const turnosResponse = await fetch(`${API_BASE_URL}/api/produccion/turnos");
         const turnosData = await turnosResponse.json();
         if (turnosData.success) {
           setTurnos(turnosData.turnos || []);
         }
 
         // Cargar usuarios
-        const usuariosResponse = await fetch("http://localhost:4000/api/produccion/usuarios");
+        const usuariosResponse = await fetch(`${API_BASE_URL}/api/produccion/usuarios");
         const usuariosData = await usuariosResponse.json();
         if (usuariosData.success) {
           setUsuarios(usuariosData.usuarios || []);
@@ -190,7 +191,7 @@ const VerProduccion = () => {
         }
 
         const response = await fetch(
-          `http://localhost:4000/api/produccion/productos?id_grupo_producto=${idGrupoProducto}`
+          `${API_BASE_URL}/api/produccion/productos?id_grupo_producto=${idGrupoProducto}`
         );
         const data = await response.json();
         
@@ -248,7 +249,7 @@ const VerProduccion = () => {
         params.append("id_producto", filtroProducto);
       }
 
-      const url = `http://localhost:4000/api/produccion/filtradas?${params.toString()}`;
+      const url = `${API_BASE_URL}/api/produccion/filtradas?${params.toString()}`;
       const response = await fetch(url);
       
       if (!response.ok) {
@@ -643,7 +644,7 @@ const VerProduccion = () => {
                   onClick={async () => {
                     try {
                       const response = await fetch(
-                        `http://localhost:4000/api/produccion/${produccion.id_produccion}`
+                        `${API_BASE_URL}/api/produccion/${produccion.id_produccion}`
                       );
                       const data = await response.json();
                       if (data.success) {

@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus, Search, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interfaces desde la BD
 interface Producto {
@@ -156,11 +157,11 @@ const VentaProducto = () => {
       try {
         setLoading(true);
         const [salidaRes, bodegasRes, ivasRes, retencionesRes, clientesPaginadosRes] = await Promise.all([
-          fetch("http://localhost:4000/api/ventas/siguiente-id-salida"),
-          fetch("http://localhost:4000/api/ventas/bodegas"),
-          fetch("http://localhost:4000/api/ventas/ivas"),
-          fetch("http://localhost:4000/api/ventas/retenciones"),
-          fetch("http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50") // Carga inicial de clientes paginados
+          fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida"),
+          fetch(`${API_BASE_URL}/api/ventas/bodegas"),
+          fetch(`${API_BASE_URL}/api/ventas/ivas"),
+          fetch(`${API_BASE_URL}/api/ventas/retenciones"),
+          fetch(`${API_BASE_URL}/api/ventas/clientes/buscar?page=1&limit=50") // Carga inicial de clientes paginados
         ]);
 
         const salidaData = await salidaRes.json();
@@ -238,7 +239,7 @@ const VentaProducto = () => {
     const nuevoTimeout = setTimeout(async () => {
       try {
         setPaginacionClientes(prev => ({ ...prev, cargando: true }));
-        const url = `http://localhost:4000/api/ventas/clientes/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        const url = `${API_BASE_URL}/api/ventas/clientes/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -268,7 +269,7 @@ const VentaProducto = () => {
     try {
       setPaginacionClientes(prev => ({ ...prev, cargando: true }));
       const siguientePagina = paginacionClientes.paginaActual + 1;
-      const url = `http://localhost:4000/api/ventas/clientes/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      const url = `${API_BASE_URL}/api/ventas/clientes/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -307,7 +308,7 @@ const VentaProducto = () => {
       });
       setPaginacionPorFila(nuevoPaginacion);
 
-      const url = `http://localhost:4000/api/ventas/productos?id_bodega=${idBodega}&page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      const url = `${API_BASE_URL}/api/ventas/productos?id_bodega=${idBodega}&page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
       const response = await fetch(url);
       const data = await response.json();
 
@@ -361,7 +362,7 @@ const VentaProducto = () => {
   // Calcular valor total de una fila y obtener desglose
   const calcularValorTotal = async (fila: FilaVenta): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
     try {
-      const response = await fetch("http://localhost:4000/api/ventas/calcular-valor-total", {
+      const response = await fetch(`${API_BASE_URL}/api/ventas/calcular-valor-total", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -489,7 +490,7 @@ const VentaProducto = () => {
     
     if (!producto) {
       try {
-        const response = await fetch(`http://localhost:4000/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
+        const response = await fetch(`${API_BASE_URL}/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
         const data = await response.json();
         if (data.success && data.productos && data.productos.length > 0) {
           producto = data.productos.find((p: Producto) => p.codigo === codigo);
@@ -715,7 +716,7 @@ const VentaProducto = () => {
             
             if (!producto && fila.bodega) {
               try {
-                const response = await fetch(`http://localhost:4000/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
+                const response = await fetch(`${API_BASE_URL}/api/ventas/productos?id_bodega=${fila.bodega}&page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
                 const data = await response.json();
                 if (data.success && data.productos && data.productos.length > 0) {
                   producto = data.productos.find((p: Producto) => p.codigo === fila.productoCodigo);
@@ -754,7 +755,7 @@ const VentaProducto = () => {
         })
       );
 
-      const response = await fetch("http://localhost:4000/api/ventas/salidas", {
+      const response = await fetch(`${API_BASE_URL}/api/ventas/salidas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -780,7 +781,7 @@ const VentaProducto = () => {
       });
 
       // Recargar el siguiente ID de salida
-      const salidaRes = await fetch("http://localhost:4000/api/ventas/siguiente-id-salida");
+      const salidaRes = await fetch(`${API_BASE_URL}/api/ventas/siguiente-id-salida");
       const salidaData = await salidaRes.json();
       if (salidaData.success) {
         setSalidaId(salidaData.siguienteId);

@@ -22,6 +22,7 @@ import TableCard from "@/components/TableCard";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Registro {
   id: number;
@@ -53,7 +54,7 @@ const ConfiguracionProductos = () => {
   const cargarDatos = async (tipo: TipoRegistro) => {
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-productos/${tipo}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-productos/${tipo}`;
       const response = await fetch(endpoint);
       const data = await response.json();
 
@@ -97,7 +98,7 @@ const ConfiguracionProductos = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-productos/${tabActivo}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-productos/${tabActivo}`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -158,7 +159,7 @@ const ConfiguracionProductos = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-productos/${tabActivo}/${editandoId}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-productos/${tabActivo}/${editandoId}`;
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
@@ -202,7 +203,7 @@ const ConfiguracionProductos = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-productos/${tabActivo}/${id}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-productos/${tabActivo}/${id}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
       });

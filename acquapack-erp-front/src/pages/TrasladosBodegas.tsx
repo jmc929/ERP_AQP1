@@ -15,6 +15,7 @@ import FormCard from "@/components/FormCard";
 import TableCard from "@/components/TableCard";
 import { BodegaSelect } from "@/components/BodegaSelect";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interface de bodega desde la BD
 interface Bodega {
@@ -74,7 +75,7 @@ const TrasladosBodegas = () => {
     const cargarBodegas = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:4000/api/bodegas");
+        const response = await fetch(`${API_BASE_URL}/api/bodegas");
         const data = await response.json();
 
         if (data.success) {
@@ -109,7 +110,7 @@ const TrasladosBodegas = () => {
 
       try {
         setLoadingProductos(true);
-        const response = await fetch(`http://localhost:4000/api/bodegas/${bodegaOrigen}/productos`);
+        const response = await fetch(`${API_BASE_URL}/api/bodegas/${bodegaOrigen}/productos`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -252,7 +253,7 @@ const TrasladosBodegas = () => {
           cantidad: parseFloat(p.cantidad)
         }));
 
-        const response = await fetch("http://localhost:4000/api/bodegas/traslado", {
+        const response = await fetch(`${API_BASE_URL}/api/bodegas/traslado", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -275,7 +276,7 @@ const TrasladosBodegas = () => {
           });
 
           // Recargar productos de la bodega origen
-          const productosResponse = await fetch(`http://localhost:4000/api/bodegas/${bodegaOrigen}/productos`);
+          const productosResponse = await fetch(`${API_BASE_URL}/api/bodegas/${bodegaOrigen}/productos`);
           const productosData = await productosResponse.json();
           if (productosData.success) {
             setProductosBodegaOrigen(productosData.productos || []);

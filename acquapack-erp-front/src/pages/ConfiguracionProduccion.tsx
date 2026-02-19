@@ -30,6 +30,7 @@ import TableCard from "@/components/TableCard";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface TipoMaquina {
   id_tipo_maquina: number;
@@ -88,8 +89,8 @@ const ConfiguracionProduccion = () => {
     try {
       setLoading(true);
       const endpoint = tipo === "tipo-maquina" 
-        ? "http://localhost:4000/api/configuracion-produccion/tipo-maquina"
-        : "http://localhost:4000/api/configuracion-produccion/maquina";
+        ? `${API_BASE_URL}/api/configuracion-produccion/tipo-maquina`
+        : `${API_BASE_URL}/api/configuracion-produccion/maquina`;
       
       const response = await fetch(endpoint);
       const data = await response.json();
@@ -124,7 +125,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-produccion/tipo-maquina", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -171,7 +172,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-produccion/maquina", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/maquina`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -248,7 +249,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-produccion/tipo-maquina/${editandoId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina/${editandoId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -295,7 +296,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-produccion/maquina/${editandoId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/maquina/${editandoId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -338,7 +339,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-produccion/tipo-maquina/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina/${id}`, {
         method: "DELETE",
       });
 
@@ -372,7 +373,7 @@ const ConfiguracionProduccion = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-produccion/maquina/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-produccion/maquina/${id}`, {
         method: "DELETE",
       });
 

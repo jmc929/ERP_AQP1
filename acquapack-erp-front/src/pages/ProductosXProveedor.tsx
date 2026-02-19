@@ -30,6 +30,7 @@ import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interfaces
 interface ProductoXProveedor {
@@ -71,8 +72,8 @@ const ProductosXProveedor = () => {
     try {
       setLoading(true);
       const [productosRes, proveedoresRes] = await Promise.all([
-        fetch("http://localhost:4000/api/compras/productos-x-proveedor"),
-        fetch("http://localhost:4000/api/compras/proveedores")
+        fetch(`${API_BASE_URL}/api/compras/productos-x-proveedor"),
+        fetch(`${API_BASE_URL}/api/compras/proveedores")
       ]);
 
       const productosData = await productosRes.json();
@@ -107,8 +108,8 @@ const ProductosXProveedor = () => {
     try {
       setLoading(true);
       const url = filtroProveedor 
-        ? `http://localhost:4000/api/compras/productos-x-proveedor?id_proveedor=${filtroProveedor}`
-        : "http://localhost:4000/api/compras/productos-x-proveedor";
+        ? `${API_BASE_URL}/api/compras/productos-x-proveedor?id_proveedor=${filtroProveedor}`
+        : `${API_BASE_URL}/api/compras/productos-x-proveedor";
       
       const response = await fetch(url);
       const data = await response.json();

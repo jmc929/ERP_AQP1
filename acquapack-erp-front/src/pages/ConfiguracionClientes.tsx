@@ -19,6 +19,7 @@ import FormCard from "@/components/FormCard";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Registro {
   id: number;
@@ -81,7 +82,7 @@ const ConfiguracionClientes = () => {
   const cargarDatos = async (tipo: TipoRegistro) => {
     try {
       setLoading(true);
-      let endpoint = `http://localhost:4000/api/configuracion-clientes/${tipo}`;
+      let endpoint = `${API_BASE_URL}/api/configuracion-clientes/${tipo}`;
       
       // Si es ciudad, agregar parámetros de paginación
       if (tipo === "ciudad") {
@@ -175,7 +176,7 @@ const ConfiguracionClientes = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-clientes/${tabActivo}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-clientes/${tabActivo}`;
       const body: any = { nombre: nombreNuevo.trim() };
       
       // Si es responsabilidad fiscal, incluir código
@@ -249,7 +250,7 @@ const ConfiguracionClientes = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-clientes/${tabActivo}/${editandoId}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-clientes/${tabActivo}/${editandoId}`;
       const body: any = { nombre: nombreEditando.trim() };
       
       // Si es responsabilidad fiscal, incluir código
@@ -299,7 +300,7 @@ const ConfiguracionClientes = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-clientes/${tabActivo}/${id}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-clientes/${tabActivo}/${id}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
       });

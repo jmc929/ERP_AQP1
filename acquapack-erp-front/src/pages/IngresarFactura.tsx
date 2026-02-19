@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/select";
 import { Trash2, Plus, Search, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 // Interfaces desde la BD
 interface Producto {
@@ -159,12 +160,12 @@ const IngresarFactura = () => {
       try {
         setLoading(true);
         const [facturaRes, proveedoresRes, productosRes, bodegasRes, ivasRes, retencionesRes] = await Promise.all([
-          fetch("http://localhost:4000/api/compras/siguiente-id-factura"),
-          fetch("http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50"),
-          fetch("http://localhost:4000/api/compras/productos?page=1&limit=50"),
-          fetch("http://localhost:4000/api/compras/bodegas"),
-          fetch("http://localhost:4000/api/compras/ivas"),
-          fetch("http://localhost:4000/api/compras/retenciones")
+          fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura"),
+          fetch(`${API_BASE_URL}/api/compras/proveedores/buscar?page=1&limit=50"),
+          fetch(`${API_BASE_URL}/api/compras/productos?page=1&limit=50"),
+          fetch(`${API_BASE_URL}/api/compras/bodegas"),
+          fetch(`${API_BASE_URL}/api/compras/ivas"),
+          fetch(`${API_BASE_URL}/api/compras/retenciones")
         ]);
 
         const facturaData = await facturaRes.json();
@@ -247,7 +248,7 @@ const IngresarFactura = () => {
     try {
       setPaginacionProductos(prev => ({ ...prev, cargando: true }));
       const siguientePagina = paginacionProductos.paginaActual + 1;
-      const url = `http://localhost:4000/api/compras/productos?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      const url = `${API_BASE_URL}/api/compras/productos?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -279,7 +280,7 @@ const IngresarFactura = () => {
     const nuevoTimeout = setTimeout(async () => {
       try {
         setPaginacionProveedores(prev => ({ ...prev, cargando: true }));
-        const url = `http://localhost:4000/api/compras/proveedores/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        const url = `${API_BASE_URL}/api/compras/proveedores/buscar?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -309,7 +310,7 @@ const IngresarFactura = () => {
     try {
       setPaginacionProveedores(prev => ({ ...prev, cargando: true }));
       const siguientePagina = paginacionProveedores.paginaActual + 1;
-      const url = `http://localhost:4000/api/compras/proveedores/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+      const url = `${API_BASE_URL}/api/compras/proveedores/buscar?page=${siguientePagina}&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
       
       const response = await fetch(url);
       const data = await response.json();
@@ -339,7 +340,7 @@ const IngresarFactura = () => {
     const nuevoTimeout = setTimeout(async () => {
       try {
         setPaginacionProductos(prev => ({ ...prev, cargando: true }));
-        const url = `http://localhost:4000/api/compras/productos?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
+        const url = `${API_BASE_URL}/api/compras/productos?page=1&limit=50${busqueda ? `&busqueda=${encodeURIComponent(busqueda)}` : ""}`;
         
         const response = await fetch(url);
         const data = await response.json();
@@ -365,7 +366,7 @@ const IngresarFactura = () => {
   // Calcular valor total de una fila y obtener desglose
   const calcularValorTotal = async (fila: FilaFactura): Promise<{ valorTotal: number; ivaMonto: number; retencionMonto: number; montoDescuento: number; porcentajeIva: number; porcentajeRetencion: number }> => {
     try {
-      const response = await fetch("http://localhost:4000/api/compras/calcular-valor-total", {
+      const response = await fetch(`${API_BASE_URL}/api/compras/calcular-valor-total", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -493,7 +494,7 @@ const IngresarFactura = () => {
     // Si no está en productosCargados, buscarlo en la BD
     if (!producto) {
       try {
-        const response = await fetch(`http://localhost:4000/api/compras/productos?page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
+        const response = await fetch(`${API_BASE_URL}/api/compras/productos?page=1&limit=1&busqueda=${encodeURIComponent(codigo)}`);
         const data = await response.json();
         if (data.success && data.productos && data.productos.length > 0) {
           producto = data.productos.find((p: Producto) => p.codigo === codigo);
@@ -712,7 +713,7 @@ const IngresarFactura = () => {
             // Si no está en productosCargados, buscarlo en la BD
             if (!producto) {
               try {
-                const response = await fetch(`http://localhost:4000/api/compras/productos?page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
+                const response = await fetch(`${API_BASE_URL}/api/compras/productos?page=1&limit=1&busqueda=${encodeURIComponent(fila.productoCodigo)}`);
                 const data = await response.json();
                 if (data.success && data.productos && data.productos.length > 0) {
                   producto = data.productos.find((p: Producto) => p.codigo === fila.productoCodigo);
@@ -752,7 +753,7 @@ const IngresarFactura = () => {
         })
       );
 
-      const response = await fetch("http://localhost:4000/api/compras/facturas", {
+      const response = await fetch(`${API_BASE_URL}/api/compras/facturas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -781,7 +782,7 @@ const IngresarFactura = () => {
       });
 
       // Recargar el siguiente ID de factura
-      const facturaRes = await fetch("http://localhost:4000/api/compras/siguiente-id-factura");
+      const facturaRes = await fetch(`${API_BASE_URL}/api/compras/siguiente-id-factura");
       const facturaData = await facturaRes.json();
       if (facturaData.success) {
         setFacturaId(facturaData.siguienteId);

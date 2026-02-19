@@ -18,6 +18,7 @@ import TableCard from "@/components/TableCard";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Registro {
   id: number;
@@ -62,7 +63,7 @@ const ConfiguracionUsuarios = () => {
   const cargarDatos = async (tipo: TipoRegistro) => {
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-usuarios/${tipo}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-usuarios/${tipo}`;
       const response = await fetch(endpoint);
       
       if (!response.ok) {
@@ -169,7 +170,7 @@ const ConfiguracionUsuarios = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-usuarios/${tabActivo}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-usuarios/${tabActivo}`;
       const response = await fetch(endpoint, {
         method: "POST",
         headers: {
@@ -229,7 +230,7 @@ const ConfiguracionUsuarios = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-usuarios/${tabActivo}/${editandoId}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-usuarios/${tabActivo}/${editandoId}`;
       const response = await fetch(endpoint, {
         method: "PUT",
         headers: {
@@ -271,7 +272,7 @@ const ConfiguracionUsuarios = () => {
 
     try {
       setLoading(true);
-      const endpoint = `http://localhost:4000/api/configuracion-usuarios/${tabActivo}/${id}`;
+      const endpoint = `${API_BASE_URL}/api/configuracion-usuarios/${tabActivo}/${id}`;
       const response = await fetch(endpoint, {
         method: "DELETE",
       });

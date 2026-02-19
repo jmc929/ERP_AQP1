@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/popover";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { API_BASE_URL } from "@/config/api";
 
 interface Caja {
   id_caja: number;
@@ -81,7 +82,7 @@ const HacerMovimientosCaja = () => {
         setLoading(true);
         
         // Cargar cajas
-        const cajasRes = await fetch("http://localhost:4000/api/cajas");
+        const cajasRes = await fetch(`${API_BASE_URL}/api/cajas`);
         const cajasData = await cajasRes.json();
         
         if (cajasData.success) {
@@ -97,7 +98,7 @@ const HacerMovimientosCaja = () => {
         }
 
         // Cargar tipos de movimiento
-        const tiposRes = await fetch("http://localhost:4000/api/cajas/tipos-movimiento");
+        const tiposRes = await fetch(`${API_BASE_URL}/api/cajas/tipos-movimiento`);
         const tiposData = await tiposRes.json();
         
         if (tiposData.success) {
@@ -211,7 +212,7 @@ const HacerMovimientosCaja = () => {
 
     try {
       setGuardando(true);
-      const response = await fetch("http://localhost:4000/api/cajas/movimientos", {
+      const response = await fetch(`${API_BASE_URL}/api/cajas/movimientos`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -246,7 +247,7 @@ const HacerMovimientosCaja = () => {
       setObservaciones("");
 
       // Recargar cajas para actualizar saldos
-      const cajasRes = await fetch("http://localhost:4000/api/cajas");
+      const cajasRes = await fetch(`${API_BASE_URL}/api/cajas`);
       const cajasData = await cajasRes.json();
       if (cajasData.success) {
         const cajasActivas = cajasData.cajas.filter(

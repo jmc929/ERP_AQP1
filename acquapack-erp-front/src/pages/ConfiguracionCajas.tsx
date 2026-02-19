@@ -30,6 +30,7 @@ import TableCard from "@/components/TableCard";
 import FormCard from "@/components/FormCard";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Edit, Trash2, X, Check, Archive, RotateCcw } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface TipoMovimiento {
   id_tipo_movimiento: number;
@@ -89,7 +90,7 @@ const ConfiguracionCajas = () => {
 
   const cargarEstados = async () => {
     try {
-      const response = await fetch("http://localhost:4000/api/configuracion-cajas/estados");
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/estados`);
       const data = await response.json();
       if (data.success) {
         setEstados(data.estados || []);
@@ -103,8 +104,8 @@ const ConfiguracionCajas = () => {
     try {
       setLoading(true);
       const endpoint = tipo === "tipo-movimiento" 
-        ? "http://localhost:4000/api/configuracion-cajas/tipo-movimiento"
-        : "http://localhost:4000/api/configuracion-cajas/cajas";
+        ? `${API_BASE_URL}/api/configuracion-cajas/tipo-movimiento`
+        : `${API_BASE_URL}/api/configuracion-cajas/cajas`;
       
       const response = await fetch(endpoint);
       const data = await response.json();
@@ -139,7 +140,7 @@ const ConfiguracionCajas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-cajas/tipo-movimiento", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/tipo-movimiento`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -192,7 +193,7 @@ const ConfiguracionCajas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/configuracion-cajas/cajas", {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/cajas`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -257,8 +258,8 @@ const ConfiguracionCajas = () => {
     try {
       setLoading(true);
       const endpoint = tabActivo === "tipo-movimiento"
-        ? `http://localhost:4000/api/configuracion-cajas/tipo-movimiento/${editandoId}`
-        : `http://localhost:4000/api/configuracion-cajas/cajas/${editandoId}`;
+        ? `${API_BASE_URL}/api/configuracion-cajas/tipo-movimiento/${editandoId}`
+        : `${API_BASE_URL}/api/configuracion-cajas/cajas/${editandoId}`;
       
       const body = tabActivo === "tipo-movimiento"
         ? { nombre: nombreEditando.trim() }
@@ -304,7 +305,7 @@ const ConfiguracionCajas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-cajas/tipo-movimiento/${id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/tipo-movimiento/${id}`, {
         method: "DELETE",
       });
 
@@ -353,7 +354,7 @@ const ConfiguracionCajas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-cajas/cajas/${id}/archivar`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/cajas/${id}/archivar`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -393,7 +394,7 @@ const ConfiguracionCajas = () => {
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/configuracion-cajas/cajas/${id}/desarchivar`, {
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-cajas/cajas/${id}/desarchivar`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

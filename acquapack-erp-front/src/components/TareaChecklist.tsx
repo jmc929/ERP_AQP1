@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Plus, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 
 export interface Tarea {
   id: number;
@@ -32,7 +33,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tareas/${tareaId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -73,7 +74,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
       // Generar fecha y hora localmente en el frontend
       const fechaAsignacion = new Date().toISOString();
       
-      const response = await fetch("http://localhost:4000/api/tareas", {
+      const response = await fetch(`${API_BASE_URL}/api/tareas", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -120,7 +121,7 @@ const TareaChecklist = ({ trabajadorId, trabajadorNombre, tareas, onTareasChange
   const handleEliminarTarea = async (tareaId: number) => {
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:4000/api/tareas/${tareaId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/tareas/${tareaId}`, {
         method: "DELETE",
       });
 

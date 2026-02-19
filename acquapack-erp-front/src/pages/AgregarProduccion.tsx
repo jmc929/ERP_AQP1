@@ -16,6 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import NumericKeyboard from "@/components/NumericKeyboard";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { ChevronLeft, Factory } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface TipoMaquina {
   id_tipo_maquina: number;
@@ -221,8 +222,8 @@ const AgregarProduccion = () => {
     try {
       setLoading(true);
       const [tiposMaquinaRes, catalogosRes] = await Promise.all([
-        fetch("http://localhost:4000/api/configuracion-produccion/tipo-maquina"),
-        fetch("http://localhost:4000/api/produccion/catalogos"),
+        fetch(`${API_BASE_URL}/api/configuracion-produccion/tipo-maquina"),
+        fetch(`${API_BASE_URL}/api/produccion/catalogos"),
       ]);
 
       const tiposMaquinaData = await tiposMaquinaRes.json();
@@ -257,7 +258,7 @@ const AgregarProduccion = () => {
   const cargarMaquinas = async (idTipo: number) => {
     try {
       const response = await fetch(
-        `http://localhost:4000/api/produccion/maquinas?id_tipo_maquina=${idTipo}`
+        `${API_BASE_URL}/api/produccion/maquinas?id_tipo_maquina=${idTipo}`
       );
       const data = await response.json();
       if (data.success) {
@@ -287,7 +288,7 @@ const AgregarProduccion = () => {
       }
 
       const response = await fetch(
-        `http://localhost:4000/api/produccion/productos?id_grupo_producto=${idGrupo}`
+        `${API_BASE_URL}/api/produccion/productos?id_grupo_producto=${idGrupo}`
       );
       const data = await response.json();
       if (data.success) {
@@ -405,7 +406,7 @@ const AgregarProduccion = () => {
           cantidad: parseFloat(m.cantidad),
         }));
 
-      const response = await fetch("http://localhost:4000/api/produccion", {
+      const response = await fetch(`${API_BASE_URL}/api/produccion", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

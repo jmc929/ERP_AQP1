@@ -27,6 +27,7 @@ import SearchBar from "@/components/SearchBar";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { Plus, Edit } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Catalogos {
   familias: Array<{ id_familia_producto: number; nombre: string }>;
@@ -84,7 +85,7 @@ const CrearEditarProductos = () => {
       const cargarCatalogos = async () => {
         try {
           setCargandoDatos(true);
-          const catalogosRes = await fetch("http://localhost:4000/api/productos/catalogos");
+          const catalogosRes = await fetch(`${API_BASE_URL}/api/productos/catalogos");
 
           if (!catalogosRes.ok) {
             const errorData = await catalogosRes.json().catch(() => ({}));
@@ -122,7 +123,7 @@ const CrearEditarProductos = () => {
     if (modo === "crear") {
       const cargarCodigoBarras = async () => {
         try {
-          const codigoBarrasRes = await fetch("http://localhost:4000/api/productos/siguiente-codigo-barras");
+          const codigoBarrasRes = await fetch(`${API_BASE_URL}/api/productos/siguiente-codigo-barras");
 
           if (!codigoBarrasRes.ok) {
             const errorData = await codigoBarrasRes.json().catch(() => ({}));
@@ -159,7 +160,7 @@ const CrearEditarProductos = () => {
           }
 
           const response = await fetch(
-            `http://localhost:4000/api/productos?${params.toString()}`
+            `${API_BASE_URL}/api/productos?${params.toString()}`
           );
           const data = await response.json();
 
@@ -191,7 +192,7 @@ const CrearEditarProductos = () => {
       const cargarProducto = async () => {
         try {
           setCargandoDatos(true);
-          const response = await fetch(`http://localhost:4000/api/productos/${productoId}`);
+          const response = await fetch(`${API_BASE_URL}/api/productos/${productoId}`);
 
           if (!response.ok) {
             throw new Error("No se pudo cargar el producto");
@@ -255,8 +256,8 @@ const CrearEditarProductos = () => {
       };
 
       const url = modo === "editar" && productoId
-        ? `http://localhost:4000/api/productos/${productoId}`
-        : "http://localhost:4000/api/productos";
+        ? `${API_BASE_URL}/api/productos/${productoId}`
+        : `${API_BASE_URL}/api/productos";
       
       const method = modo === "editar" ? "PUT" : "POST";
 

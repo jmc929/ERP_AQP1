@@ -15,6 +15,7 @@ import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
 import { useDebounce } from "@/hooks/use-debounce";
 import { FileDown } from "lucide-react";
+import { API_BASE_URL } from "@/config/api";
 
 interface Producto {
   id_producto: number;
@@ -71,7 +72,7 @@ const EtiquetaCodigos = () => {
   useEffect(() => {
     const cargarCatalogos = async () => {
       try {
-        const response = await fetch("http://localhost:4000/api/productos/catalogos");
+        const response = await fetch(`${API_BASE_URL}/api/productos/catalogos");
         const data = await response.json();
         if (data.success) {
           setCatalogos(data.catalogos);
@@ -115,7 +116,7 @@ const EtiquetaCodigos = () => {
         }
 
         const response = await fetch(
-          `http://localhost:4000/api/productos?${params.toString()}`
+          `${API_BASE_URL}/api/productos?${params.toString()}`
         );
         const data = await response.json();
 
@@ -193,7 +194,7 @@ const EtiquetaCodigos = () => {
 
       // Llamar al backend para generar el PDF
       const response = await fetch(
-        "http://localhost:4000/api/configuracion-productos/generar-pdf-codigos-barras",
+        `${API_BASE_URL}/api/configuracion-productos/generar-pdf-codigos-barras",
         {
           method: "POST",
           headers: {

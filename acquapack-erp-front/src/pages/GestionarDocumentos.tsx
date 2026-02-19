@@ -35,6 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { API_BASE_URL } from "@/config/api";
 
 interface Documento {
   id_documento: number;
@@ -116,7 +117,7 @@ const GestionarDocumentos = () => {
   const cargarDocumentos = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/documentos");
+      const response = await fetch(`${API_BASE_URL}/api/documentos`);
       
       if (!response.ok) {
         // Si la API no existe o hay error, usar array vacío
@@ -239,7 +240,7 @@ const GestionarDocumentos = () => {
       formDataToSend.append("categoria", formData.categoria);
       formDataToSend.append("id_usuario_creador", "1"); // TODO: Obtener del contexto de usuario
 
-      const response = await fetch("http://localhost:4000/api/documentos/subir", {
+      const response = await fetch(`${API_BASE_URL}/api/documentos/subir`, {
         method: "POST",
         body: formDataToSend,
       });
@@ -273,7 +274,7 @@ const GestionarDocumentos = () => {
   // Descargar documento
   const handleDescargarDocumento = async (documento: Documento) => {
     try {
-      const response = await fetch(`http://localhost:4000/api/documentos/descargar/${documento.id_documento}`);
+      const response = await fetch(`${API_BASE_URL}/api/documentos/descargar/${documento.id_documento}`);
       
       if (!response.ok) {
         throw new Error("Error al descargar el documento");
@@ -312,7 +313,7 @@ const GestionarDocumentos = () => {
 
     try {
       const response = await fetch(
-        `http://localhost:4000/api/documentos/${documentoSeleccionado.id_documento}`,
+        `${API_BASE_URL}/api/documentos/${documentoSeleccionado.id_documento}`,
         {
           method: "DELETE",
         }

@@ -26,6 +26,7 @@ import ActionButton from "@/components/ActionButton";
 import FormCard from "@/components/FormCard";
 import Pagination from "@/components/Pagination";
 import { useToast } from "@/hooks/use-toast";
+import { API_BASE_URL } from "@/config/api";
 import {
   Dialog,
   DialogContent,
@@ -117,7 +118,7 @@ const GestionarProveedores = () => {
     const cargarCatalogos = async () => {
       try {
         setLoadingCatalogos(true);
-        const catalogosRes = await fetch("http://localhost:4000/api/proveedores/catalogos");
+        const catalogosRes = await fetch(`${API_BASE_URL}/api/proveedores/catalogos");
         const catalogosData = await catalogosRes.json();
 
         if (catalogosData.success) {
@@ -142,7 +143,7 @@ const GestionarProveedores = () => {
     const cargarProveedores = async () => {
       try {
         setLoading(true);
-        const url = new URL("http://localhost:4000/api/proveedores/paginados");
+        const url = new URL(`${API_BASE_URL}/api/proveedores/paginados");
         url.searchParams.append("page", paginaActual.toString());
         url.searchParams.append("limit", "30");
         if (busqueda.trim()) {
@@ -181,7 +182,7 @@ const GestionarProveedores = () => {
   const cargarProveedorCompleto = async (idProveedor: number) => {
     try {
       setCargandoProveedor(true);
-      const response = await fetch(`http://localhost:4000/api/proveedores/${idProveedor}`);
+      const response = await fetch(`${API_BASE_URL}/api/proveedores/${idProveedor}`);
       const data = await response.json();
 
       if (data.success) {
@@ -248,7 +249,7 @@ const GestionarProveedores = () => {
 
     try {
       setGuardando(true);
-      const response = await fetch(`http://localhost:4000/api/proveedores/${proveedorEditando.id_proveedor}`, {
+      const response = await fetch(`${API_BASE_URL}/api/proveedores/${proveedorEditando.id_proveedor}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -343,7 +344,7 @@ const GestionarProveedores = () => {
 
     try {
       setGuardando(true);
-      const response = await fetch("http://localhost:4000/api/proveedores", {
+      const response = await fetch(`${API_BASE_URL}/api/proveedores", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -471,7 +472,7 @@ const GestionarProveedores = () => {
                       if (nuevaIdentificacion.trim()) {
                         try {
                           const response = await fetch(
-                            `http://localhost:4000/api/proveedores/calcular-dv?identificacion=${encodeURIComponent(nuevaIdentificacion)}`
+                            `${API_BASE_URL}/api/proveedores/calcular-dv?identificacion=${encodeURIComponent(nuevaIdentificacion)}`
                           );
                           const data = await response.json();
                           if (data.success && data.dv !== null) {

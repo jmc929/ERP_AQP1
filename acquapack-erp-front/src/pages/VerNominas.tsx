@@ -22,6 +22,7 @@ import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from "jspdf";
+import { API_BASE_URL } from "@/config/api";
 
 interface DetalleHora {
   id_detalle_nomina: number;
@@ -84,7 +85,7 @@ const VerNominas = () => {
     const cargarNominas = async () => {
       try {
         setLoading(true);
-        const response = await fetch("http://localhost:4000/api/nomina");
+        const response = await fetch(`${API_BASE_URL}/api/nomina`);
         
         if (!response.ok) {
           throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -127,7 +128,7 @@ const VerNominas = () => {
       setMostrarDialogo(true);
       setNominaCompleta(null);
 
-      const response = await fetch(`http://localhost:4000/api/nomina/${idNomina}`);
+      const response = await fetch(`${API_BASE_URL}/api/nomina/${idNomina}`);
       const data = await response.json();
 
       if (!response.ok) {
@@ -583,7 +584,7 @@ const VerNominas = () => {
       formData.append("total_pagar", nominaCompleta.total_pagar.toString());
 
       // Enviar al backend
-      const response = await fetch("http://localhost:4000/api/nomina/enviar-email", {
+      const response = await fetch(`${API_BASE_URL}/api/nomina/enviar-email`, {
         method: "POST",
         body: formData,
       });
