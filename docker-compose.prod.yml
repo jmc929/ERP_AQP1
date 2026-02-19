@@ -1,0 +1,50 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  backend:
+    build:
+      context: ./acquapack-erp-back
+      dockerfile: Dockerfile
+    restart: always
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      CORS_ORIGIN: ${CORS_ORIGIN}
+      NODE_ENV: production
+    volumes:
+      - documentos:/app/documentos
+    expose:
+      - "4000"
+    depends_on:
+      - postgres
+
+  frontend:
+    build:
+      context: ./acquapack-erp-front
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL}
+    restart: always
+    expose:
+      - "80"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  documentos:
