@@ -24,6 +24,7 @@ class NominaService {
 					n.total_deducciones,
 					n.total_pagar,
 					n.valor_auxilio_transporte,
+					n.dias_trabajados,
 					n.observaciones,
 					n.fecha_creacion,
 					u.nombre || ' ' || u.apellido as nombre_trabajador,
@@ -66,6 +67,7 @@ class NominaService {
 					n.total_deducciones,
 					n.total_pagar,
 					n.valor_auxilio_transporte,
+					n.dias_trabajados,
 					n.observaciones,
 					n.fecha_creacion,
 					u.nombre || ' ' || u.apellido as nombre_trabajador,
@@ -152,7 +154,17 @@ class NominaService {
 				return sum + (parseFloat(deduccion.valor_deduccion) || 0);
 			}, 0) || 0;
 
-			const valorAuxilioTransporte = parseFloat(datosNomina.valor_auxilio_transporte) || 0;
+			const diasTrabajados = parseInt(datosNomina.dias_trabajados, 10) || 0;
+			let valorAuxilioTransporte;
+			if (diasTrabajados > 0) {
+				const vigenteResult = await client.query(`
+					SELECT valor FROM public.valor_auxilio_transporte WHERE id = 1
+				`);
+				const valorPorDia = vigenteResult.rows.length > 0 ? parseFloat(vigenteResult.rows[0].valor) || 0 : 0;
+				valorAuxilioTransporte = Math.round(valorPorDia * diasTrabajados * 100) / 100;
+			} else {
+				valorAuxilioTransporte = parseFloat(datosNomina.valor_auxilio_transporte) || 0;
+			}
 			const totalPagar = totalBrutoNomina - totalDeducciones + valorAuxilioTransporte;
 
 			// Sincronizar secuencia de id_nomina antes de insertar (por si está desincronizada)
@@ -177,8 +189,9 @@ class NominaService {
 					valor_auxilio_transporte,
 					total_pagar,
 					id_usuario_creador,
-					observaciones
-				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+					observaciones,
+					dias_trabajados
+				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 				RETURNING id_nomina
 			`, [
 				datosNomina.id_usuario_trabajador,
@@ -191,7 +204,8 @@ class NominaService {
 				valorAuxilioTransporte,
 				totalPagar,
 				datosNomina.id_usuario_creador,
-				datosNomina.observaciones || null
+				datosNomina.observaciones || null,
+				diasTrabajados || null
 			]);
 
 			const idNomina = nominaResult.rows[0].id_nomina;

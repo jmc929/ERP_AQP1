@@ -94,6 +94,7 @@ const HacerNomina = () => {
   const [fechaNomina, setFechaNomina] = useState(new Date().toISOString().split("T")[0]);
   const [idEstado, setIdEstado] = useState<string>("");
   const [valorAuxilioTransporte, setValorAuxilioTransporte] = useState("249095");
+  const [diasTrabajados, setDiasTrabajados] = useState("");
   const [observaciones, setObservaciones] = useState("");
   
   // Búsqueda de trabajadores
@@ -134,6 +135,29 @@ const HacerNomina = () => {
       }
     }
   }, []);
+
+  // Al cambiar días trabajados, calcular y rellenar auxilio de transporte (valor día × días)
+  useEffect(() => {
+    if (diasTrabajados === "") return;
+    const dias = parseInt(diasTrabajados, 10);
+    if (isNaN(dias) || dias <= 0) {
+      setValorAuxilioTransporte("0");
+      return;
+    }
+    const controller = new AbortController();
+    fetch(
+      `${API_BASE_URL}/api/configuracion-nomina/valor-auxilio-transporte/calcular?dias=${dias}`,
+      { signal: controller.signal }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && typeof data.valor_auxilio === "number") {
+          setValorAuxilioTransporte(data.valor_auxilio.toString());
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [diasTrabajados]);
 
   // Función para calcular período automático según la fecha actual
   const calcularPeriodoAutomatico = () => {
@@ -507,6 +531,7 @@ const HacerNomina = () => {
           detalles_horas: detallesHoras,
           detalles_deducciones: detallesDeducciones,
           valor_auxilio_transporte: parseFloat(valorAuxilioTransporte) || 249095,
+          dias_trabajados: parseInt(diasTrabajados, 10) || 0,
           observaciones: observaciones || null,
         }),
       });
@@ -529,6 +554,7 @@ const HacerNomina = () => {
       setFechaNomina(new Date().toISOString().split("T")[0]);
       setIdEstado("");
       setValorAuxilioTransporte("249095");
+      setDiasTrabajados("");
       setObservaciones("");
       setFilasHoras([
         {
@@ -667,15 +693,28 @@ const HacerNomina = () => {
                 </Select>
               </div>
 
-              <div>
-                <Label htmlFor="auxilio-transporte">Auxilio de Transporte</Label>
-                <Input
-                  id="auxilio-transporte"
-                  type="number"
-                  value={valorAuxilioTransporte}
-                  onChange={(e) => setValorAuxilioTransporte(e.target.value)}
-                  placeholder="249095"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="auxilio-transporte">Auxilio de Transporte</Label>
+                  <Input
+                    id="auxilio-transporte"
+                    type="number"
+                    value={valorAuxilioTransporte}
+                    onChange={(e) => setValorAuxilioTransporte(e.target.value)}
+                    placeholder="249095"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dias-trabajados">Días Trabajados</Label>
+                  <Input
+                    id="dias-trabajados"
+                    type="number"
+                    min={0}
+                    value={diasTrabajados}
+                    onChange={(e) => setDiasTrabajados(e.target.value)}
+                    placeholder="Ej: 5, 15, 30"
+                  />
+                </div>
               </div>
 
               <div>

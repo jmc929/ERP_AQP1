@@ -239,6 +239,117 @@ async function eliminarTipoDeduccion(req, res) {
 	}
 }
 
+// ========== VALOR AUXILIO TRANSPORTE ==========
+
+async function calcularAuxilioPorDias(req, res) {
+	try {
+		const dias = parseInt(req.query.dias, 10) || 0;
+		const resultado = await configuracionNominaService.calcularAuxilioPorDias(dias);
+		res.json({
+			success: true,
+			...resultado
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en calcularAuxilioPorDias controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function obtenerValoresAuxilioTransporte(req, res) {
+	try {
+		const valores = await configuracionNominaService.obtenerValoresAuxilioTransporte();
+		res.json({
+			success: true,
+			valoresAuxilioTransporte: valores
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en obtenerValoresAuxilioTransporte controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function crearValorAuxilioTransporte(req, res) {
+	try {
+		const { nombre, valor } = req.body;
+		const registro = await configuracionNominaService.crearValorAuxilioTransporte({
+			nombre: nombre || null,
+			valor
+		});
+		res.status(201).json({
+			success: true,
+			message: "Valor de auxilio de transporte creado exitosamente",
+			valorAuxilioTransporte: registro
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en crearValorAuxilioTransporte controller");
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function actualizarValorAuxilioTransporte(req, res) {
+	try {
+		const { id } = req.params;
+		const datos = req.body;
+		const registro = await configuracionNominaService.actualizarValorAuxilioTransporte(parseInt(id), datos);
+		res.json({
+			success: true,
+			message: "Valor de auxilio de transporte actualizado exitosamente",
+			valorAuxilioTransporte: registro
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en actualizarValorAuxilioTransporte controller");
+		if (error.message === "Valor de auxilio de transporte no encontrado") {
+			return res.status(404).json({
+				success: false,
+				error: "No encontrado",
+				message: error.message
+			});
+		}
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
+async function eliminarValorAuxilioTransporte(req, res) {
+	try {
+		const { id } = req.params;
+		await configuracionNominaService.eliminarValorAuxilioTransporte(parseInt(id));
+		res.json({
+			success: true,
+			message: "Valor de auxilio de transporte eliminado exitosamente"
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en eliminarValorAuxilioTransporte controller");
+		if (error.message === "Valor de auxilio de transporte no encontrado") {
+			return res.status(404).json({
+				success: false,
+				error: "No encontrado",
+				message: error.message
+			});
+		}
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	obtenerTiposHora,
 	crearTipoHora,
@@ -247,6 +358,11 @@ module.exports = {
 	obtenerTiposDeduccion,
 	crearTipoDeduccion,
 	actualizarTipoDeduccion,
-	eliminarTipoDeduccion
+	eliminarTipoDeduccion,
+	calcularAuxilioPorDias,
+	obtenerValoresAuxilioTransporte,
+	crearValorAuxilioTransporte,
+	actualizarValorAuxilioTransporte,
+	eliminarValorAuxilioTransporte
 };
 

@@ -37,6 +37,7 @@ import VerNominas from "./pages/VerNominas";
 import ConfiguracionProduccion from "./pages/ConfiguracionProduccion";
 import AgregarProduccion from "./pages/AgregarProduccion";
 import VerProduccion from "./pages/VerProduccion";
+import CorregirProduccion from "./pages/CorregirProduccion";
 import VerCajas from "./pages/VerCajas";
 import ConfiguracionCajas from "./pages/ConfiguracionCajas";
 import HacerMovimientosCaja from "./pages/HacerMovimientosCaja";
@@ -92,6 +93,7 @@ const App = () => (
             <Route path="nomina/configuracion" element={<ConfiguracionNomina />} />
             <Route path="produccion/agregar" element={<AgregarProduccion />} />
             <Route path="produccion/ver" element={<VerProduccion />} />
+            <Route path="produccion/corregir" element={<CorregirProduccion />} />
             <Route path="produccion/configuracion" element={<ConfiguracionProduccion />} />
             <Route path="documentos/gestionar" element={<GestionarDocumentos />} />
             <Route path="notas" element={<GestionarNotas />} />

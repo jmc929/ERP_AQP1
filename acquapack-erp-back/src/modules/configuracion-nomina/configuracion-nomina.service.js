@@ -340,6 +340,151 @@ class ConfiguracionNominaService {
 			throw error;
 		}
 	}
+
+	// ========== VALOR AUXILIO TRANSPORTE ==========
+
+	/**
+	 * Obtiene el valor por día de auxilio de transporte (registro id = 1)
+	 * En la tabla ese valor es el valor por día (ej: 8303).
+	 * @returns {Promise<{ valor: number }|null>}
+	 */
+	async obtenerValorVigenteAuxilioTransporte() {
+		try {
+			const result = await pool.query(`
+				SELECT valor FROM public.valor_auxilio_transporte WHERE id = 1
+			`);
+			if (result.rows.length === 0) return null;
+			return { valor: parseFloat(result.rows[0].valor) || 0 };
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener valor vigente auxilio transporte");
+			throw error;
+		}
+	}
+
+	/**
+	 * Calcula el valor de auxilio de transporte para N días (valor_por_dia * dias)
+	 * El valor en la tabla (id 1) es el valor por día.
+	 * @param {number} dias - Cantidad de días trabajados
+	 * @returns {Promise<{ valor_auxilio: number }>}
+	 */
+	async calcularAuxilioPorDias(dias) {
+		const vigente = await this.obtenerValorVigenteAuxilioTransporte();
+		const valorPorDia = vigente ? vigente.valor : 0;
+		const valorAuxilio = Math.round(valorPorDia * (dias || 0) * 100) / 100;
+		return { valor_auxilio: valorAuxilio };
+	}
+
+	/**
+	 * Obtiene todos los valores de auxilio de transporte
+	 * @returns {Promise<Array>} Lista de valores
+	 */
+	async obtenerValoresAuxilioTransporte() {
+		try {
+			const result = await pool.query(`
+				SELECT id, nombre, valor
+				FROM public.valor_auxilio_transporte
+				ORDER BY id
+			`);
+			logger.info({ count: result.rows.length }, "Valores auxilio transporte obtenidos");
+			return result.rows;
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener valores auxilio transporte");
+			throw error;
+		}
+	}
+
+	/**
+	 * Crea un nuevo valor de auxilio de transporte
+	 * @param {Object} datos - { nombre, valor }
+	 * @returns {Promise<Object>} Registro creado
+	 */
+	async crearValorAuxilioTransporte(datos) {
+		try {
+			const result = await pool.query(`
+				INSERT INTO public.valor_auxilio_transporte (nombre, valor)
+				VALUES ($1, $2)
+				RETURNING id, nombre, valor
+			`, [
+				datos.nombre || null,
+				parseFloat(datos.valor) || 0
+			]);
+			logger.info({ id: result.rows[0].id }, "Valor auxilio transporte creado");
+			return result.rows[0];
+		} catch (error) {
+			logger.error({ err: error }, "Error al crear valor auxilio transporte");
+			throw error;
+		}
+	}
+
+	/**
+	 * Actualiza un valor de auxilio de transporte
+	 * @param {number} id - ID del registro
+	 * @param {Object} datos - { nombre, valor }
+	 * @returns {Promise<Object>} Registro actualizado
+	 */
+	async actualizarValorAuxilioTransporte(id, datos) {
+		try {
+			const existente = await pool.query(
+				"SELECT id FROM public.valor_auxilio_transporte WHERE id = $1",
+				[id]
+			);
+			if (existente.rows.length === 0) {
+				throw new Error("Valor de auxilio de transporte no encontrado");
+			}
+
+			const campos = [];
+			const valores = [];
+			let contador = 1;
+			if (datos.nombre !== undefined) {
+				campos.push(`nombre = $${contador}`);
+				valores.push(datos.nombre);
+				contador++;
+			}
+			if (datos.valor !== undefined) {
+				campos.push(`valor = $${contador}`);
+				valores.push(parseFloat(datos.valor) || 0);
+				contador++;
+			}
+			if (campos.length === 0) {
+				throw new Error("No se proporcionaron campos para actualizar");
+			}
+			valores.push(id);
+			const query = `
+				UPDATE public.valor_auxilio_transporte
+				SET ${campos.join(", ")}
+				WHERE id = $${contador}
+				RETURNING id, nombre, valor
+			`;
+			const result = await pool.query(query, valores);
+			logger.info({ id }, "Valor auxilio transporte actualizado");
+			return result.rows[0];
+		} catch (error) {
+			logger.error({ err: error, id }, "Error al actualizar valor auxilio transporte");
+			throw error;
+		}
+	}
+
+	/**
+	 * Elimina un valor de auxilio de transporte
+	 * @param {number} id - ID del registro
+	 * @returns {Promise<boolean>}
+	 */
+	async eliminarValorAuxilioTransporte(id) {
+		try {
+			const result = await pool.query(
+				"DELETE FROM public.valor_auxilio_transporte WHERE id = $1 RETURNING id",
+				[id]
+			);
+			if (result.rows.length === 0) {
+				throw new Error("Valor de auxilio de transporte no encontrado");
+			}
+			logger.info({ id }, "Valor auxilio transporte eliminado");
+			return true;
+		} catch (error) {
+			logger.error({ err: error, id }, "Error al eliminar valor auxilio transporte");
+			throw error;
+		}
+	}
 }
 
 module.exports = new ConfiguracionNominaService();

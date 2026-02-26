@@ -317,6 +317,35 @@ async function obtenerProduccionPorId(req, res) {
 	}
 }
 
+/**
+ * Actualiza una producción (medidas: kilos, metros, etc.)
+ */
+async function actualizarProduccion(req, res) {
+	try {
+		const idProduccion = parseInt(req.params.id);
+		const datos = req.body;
+		const produccion = await produccionService.actualizarProduccion(idProduccion, datos);
+		res.json({
+			success: true,
+			message: "Producción actualizada exitosamente",
+			produccion
+		});
+	} catch (error) {
+		logger.error({ err: error }, "Error en actualizarProduccion controller");
+		if (error.message === "Producción no encontrada") {
+			return res.status(404).json({
+				success: false,
+				error: error.message
+			});
+		}
+		res.status(500).json({
+			success: false,
+			error: "Error interno del servidor",
+			message: error.message
+		});
+	}
+}
+
 module.exports = {
 	obtenerTurnos,
 	obtenerMedidas,
@@ -328,6 +357,7 @@ module.exports = {
 	crearProduccion,
 	obtenerProducciones,
 	obtenerProduccionesFiltradas,
-	obtenerProduccionPorId
+	obtenerProduccionPorId,
+	actualizarProduccion
 };
 

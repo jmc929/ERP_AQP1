@@ -411,6 +411,68 @@ class ProduccionService {
 	}
 
 	/**
+	 * Actualiza las medidas de una producción (kilos, metros, etc.)
+	 * @param {number} idProduccion - ID de la producción
+	 * @param {Object} datos - { medidas: [ { id_produccion_medida, cantidad } ] }
+	 * @returns {Promise<Object>} Producción actualizada
+	 */
+	async actualizarProduccion(idProduccion, datos) {
+		const client = await pool.connect();
+		try {
+			await client.query("BEGIN");
+
+			const existente = await client.query(
+				"SELECT id_produccion FROM public.produccion WHERE id_produccion = $1",
+				[idProduccion]
+			);
+			if (existente.rows.length === 0) {
+				throw new Error("Producción no encontrada");
+			}
+
+			if (datos.id_producto !== undefined && datos.id_producto !== null) {
+				const idProducto = parseInt(datos.id_producto, 10);
+				if (!isNaN(idProducto) && idProducto > 0) {
+					const prodExistente = await client.query(
+						"SELECT id_producto FROM public.producto WHERE id_producto = $1",
+						[idProducto]
+					);
+					if (prodExistente.rows.length === 0) {
+						throw new Error("El producto seleccionado no existe");
+					}
+					await client.query(
+						"UPDATE public.produccion SET id_producto = $1 WHERE id_produccion = $2",
+						[idProducto, idProduccion]
+					);
+				}
+			}
+
+			if (datos.medidas && Array.isArray(datos.medidas) && datos.medidas.length > 0) {
+				for (const m of datos.medidas) {
+					const idPm = parseInt(m.id_produccion_medida, 10);
+					const cantidad = parseFloat(m.cantidad);
+					if (isNaN(idPm) || idPm <= 0) continue;
+					await client.query(`
+						UPDATE public.produccion_medida
+						SET cantidad = $1
+						WHERE id_produccion_medida = $2 AND id_produccion = $3
+					`, [cantidad, idPm, idProduccion]);
+				}
+			}
+
+			await client.query("COMMIT");
+			const produccionActualizada = await this.obtenerProduccionPorId(idProduccion);
+			logger.info({ idProduccion }, "Producción actualizada exitosamente");
+			return produccionActualizada;
+		} catch (error) {
+			await client.query("ROLLBACK");
+			logger.error({ err: error, idProduccion }, "Error al actualizar producción");
+			throw error;
+		} finally {
+			client.release();
+		}
+	}
+
+	/**
 	 * Obtiene todas las producciones con información relacionada
 	 * @returns {Promise<Array>} Lista de producciones
 	 */

@@ -45,7 +45,13 @@ interface TipoDeduccion {
   estado_color?: string;
 }
 
-type TipoTab = "tipo-hora" | "tipo-deduccion";
+interface ValorAuxilioTransporte {
+  id: number;
+  nombre: string | null;
+  valor: number;
+}
+
+type TipoTab = "tipo-hora" | "tipo-deduccion" | "valor-auxilio-transporte";
 
 const ConfiguracionNomina = () => {
   const { toast } = useToast();
@@ -54,6 +60,7 @@ const ConfiguracionNomina = () => {
   // Estados para cada tipo de registro
   const [tiposHora, setTiposHora] = useState<TipoHora[]>([]);
   const [tiposDeduccion, setTiposDeduccion] = useState<TipoDeduccion[]>([]);
+  const [valoresAuxilioTransporte, setValoresAuxilioTransporte] = useState<ValorAuxilioTransporte[]>([]);
   
   // Estados para edición
   const [editandoId, setEditandoId] = useState<number | null>(null);
@@ -73,32 +80,54 @@ const ConfiguracionNomina = () => {
     descripcion: "",
   });
 
+  // Estados para formulario valor auxilio transporte
+  const [formValorAuxilioTransporte, setFormValorAuxilioTransporte] = useState({
+    nombre: "",
+    valor: "",
+  });
+
   // Cargar datos según la pestaña activa
   useEffect(() => {
     cargarDatos(tabActivo);
   }, [tabActivo]);
 
+  // Al cambiar de pestaña, cancelar edición para no mezclar formularios
+  useEffect(() => {
+    setEditandoId(null);
+    setFormTipoHora({ nombre: "", horario: "", recargo: "", valor_hora: "" });
+    setFormTipoDeduccion({ nombre: "", descripcion: "" });
+    setFormValorAuxilioTransporte({ nombre: "", valor: "" });
+  }, [tabActivo]);
+
   const cargarDatos = async (tipo: TipoTab) => {
     try {
       setLoading(true);
-      const endpoint = tipo === "tipo-hora" 
-        ? `${API_BASE_URL}/api/configuracion-nomina/tipo-hora`
-        : `${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion`;
-      
+      let endpoint = `${API_BASE_URL}/api/configuracion-nomina/tipo-hora`;
+      if (tipo === "tipo-deduccion") endpoint = `${API_BASE_URL}/api/configuracion-nomina/tipo-deduccion`;
+      if (tipo === "valor-auxilio-transporte") endpoint = `${API_BASE_URL}/api/configuracion-nomina/valor-auxilio-transporte`;
+
       const response = await fetch(endpoint);
       const data = await response.json();
 
       if (data.success) {
         if (tipo === "tipo-hora") {
           setTiposHora(data.tiposHora || []);
-        } else {
+        } else if (tipo === "tipo-deduccion") {
           setTiposDeduccion(data.tiposDeduccion || []);
+        } else {
+          setValoresAuxilioTransporte(data.valoresAuxilioTransporte || []);
         }
       }
     } catch (error) {
+      const msg =
+        tipo === "tipo-hora"
+          ? "tipos de hora"
+          : tipo === "tipo-deduccion"
+          ? "tipos de deducción"
+          : "valores de auxilio de transporte";
       toast({
         title: "Error",
-        description: `No se pudieron cargar los ${tipo === "tipo-hora" ? "tipos de hora" : "tipos de deducción"}`,
+        description: `No se pudieron cargar los ${msg}`,
         variant: "destructive",
       });
     } finally {
@@ -230,6 +259,7 @@ const ConfiguracionNomina = () => {
     setEditandoId(null);
     setFormTipoHora({ nombre: "", horario: "", recargo: "", valor_hora: "" });
     setFormTipoDeduccion({ nombre: "", descripcion: "" });
+    setFormValorAuxilioTransporte({ nombre: "", valor: "" });
   };
 
   const handleGuardarEdicionTipoHora = async () => {
@@ -396,14 +426,116 @@ const ConfiguracionNomina = () => {
     }
   };
 
+  // ========== VALOR AUXILIO TRANSPORTE ==========
+
+  const handleCrearValorAuxilioTransporte = async () => {
+    if (formValorAuxilioTransporte.valor === "" && formValorAuxilioTransporte.nombre.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Ingrese al menos nombre o valor",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_BASE_URL}/api/configuracion-nomina/valor-auxilio-transporte`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: formValorAuxilioTransporte.nombre.trim() || null,
+          valor: parseFloat(formValorAuxilioTransporte.valor) || 0,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al crear");
+      toast({ title: "Éxito", description: "Valor de auxilio de transporte creado" });
+      setFormValorAuxilioTransporte({ nombre: "", valor: "" });
+      cargarDatos("valor-auxilio-transporte");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al crear",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleIniciarEdicionValorAuxilio = (item: ValorAuxilioTransporte) => {
+    if (editandoId !== null) handleCancelarEdicion();
+    setEditandoId(item.id);
+    setFormValorAuxilioTransporte({
+      nombre: item.nombre || "",
+      valor: item.valor.toString(),
+    });
+  };
+
+  const handleGuardarEdicionValorAuxilio = async () => {
+    if (!editandoId) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/api/configuracion-nomina/valor-auxilio-transporte/${editandoId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nombre: formValorAuxilioTransporte.nombre.trim() || null,
+            valor: parseFloat(formValorAuxilioTransporte.valor) || 0,
+          }),
+        }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al actualizar");
+      toast({ title: "Éxito", description: "Valor actualizado exitosamente" });
+      handleCancelarEdicion();
+      await cargarDatos("valor-auxilio-transporte");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al actualizar",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleEliminarValorAuxilioTransporte = async (id: number) => {
+    if (!confirm("¿Está seguro de eliminar este valor?")) return;
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `${API_BASE_URL}/api/configuracion-nomina/valor-auxilio-transporte/${id}`,
+        { method: "DELETE" }
+      );
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || "Error al eliminar");
+      toast({ title: "Éxito", description: "Valor eliminado exitosamente" });
+      cargarDatos("valor-auxilio-transporte");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Error al eliminar",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <PageContainer>
       <PageTitle title="Configuración de Nómina" />
 
       <Tabs value={tabActivo} onValueChange={(value) => setTabActivo(value as TipoTab)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="tipo-hora">Tipos de Hora</TabsTrigger>
           <TabsTrigger value="tipo-deduccion">Tipos de Deducción</TabsTrigger>
+          <TabsTrigger value="valor-auxilio-transporte">Auxilio Transporte</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tipo-hora" className="space-y-4">
@@ -590,6 +722,104 @@ const ConfiguracionNomina = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => handleEliminarTipoDeduccion(tipoDeduccion.id_tipo_deduccion)}
+                      disabled={loading || editandoId !== null}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableCard>
+        </TabsContent>
+
+        <TabsContent value="valor-auxilio-transporte" className="space-y-4">
+          <FormCard
+            title={
+              editandoId && valoresAuxilioTransporte.find((v) => v.id === editandoId)
+                ? "Editar Valor Auxilio Transporte"
+                : "Agregar Valor Auxilio Transporte"
+            }
+          >
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="nombre-auxilio">Nombre</Label>
+                <Input
+                  id="nombre-auxilio"
+                  value={formValorAuxilioTransporte.nombre}
+                  onChange={(e) =>
+                    setFormValorAuxilioTransporte({ ...formValorAuxilioTransporte, nombre: e.target.value })
+                  }
+                  placeholder="Ej: Auxilio 2025, Vigente"
+                />
+              </div>
+              <div>
+                <Label htmlFor="valor-auxilio">Valor *</Label>
+                <Input
+                  id="valor-auxilio"
+                  type="number"
+                  step="0.01"
+                  value={formValorAuxilioTransporte.valor}
+                  onChange={(e) =>
+                    setFormValorAuxilioTransporte({ ...formValorAuxilioTransporte, valor: e.target.value })
+                  }
+                  placeholder="Ej: 249095"
+                />
+              </div>
+              <div className="flex gap-2">
+                {editandoId ? (
+                  <>
+                    <Button onClick={handleGuardarEdicionValorAuxilio} disabled={loading}>
+                      <Check className="h-4 w-4 mr-2" />
+                      Guardar
+                    </Button>
+                    <Button variant="outline" onClick={handleCancelarEdicion} disabled={loading}>
+                      <X className="h-4 w-4 mr-2" />
+                      Cancelar
+                    </Button>
+                  </>
+                ) : (
+                  <Button onClick={handleCrearValorAuxilioTransporte} disabled={loading}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Agregar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </FormCard>
+
+          <TableCard
+            headers={["ID", "Nombre", "Valor", "Acciones"]}
+            emptyMessage={
+              loading
+                ? "Cargando valores..."
+                : valoresAuxilioTransporte.length === 0
+                ? "No hay valores de auxilio de transporte registrados"
+                : undefined
+            }
+            colSpan={4}
+          >
+            {valoresAuxilioTransporte.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-medium">{item.id}</TableCell>
+                <TableCell>{item.nombre || "-"}</TableCell>
+                <TableCell>
+                  ${parseFloat(item.valor.toString()).toLocaleString("es-CO", { minimumFractionDigits: 2 })}
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleIniciarEdicionValorAuxilio(item)}
+                      disabled={loading || (editandoId !== null && editandoId !== item.id)}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEliminarValorAuxilioTransporte(item.id)}
                       disabled={loading || editandoId !== null}
                     >
                       <Trash2 className="h-4 w-4" />

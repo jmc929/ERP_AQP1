@@ -7,7 +7,12 @@ const {
 	obtenerTiposDeduccion,
 	crearTipoDeduccion,
 	actualizarTipoDeduccion,
-	eliminarTipoDeduccion
+	eliminarTipoDeduccion,
+	calcularAuxilioPorDias,
+	obtenerValoresAuxilioTransporte,
+	crearValorAuxilioTransporte,
+	actualizarValorAuxilioTransporte,
+	eliminarValorAuxilioTransporte
 } = require("./configuracion-nomina.controller");
 
 const configuracionNominaRoutes = express.Router();
@@ -23,6 +28,13 @@ configuracionNominaRoutes.get("/tipo-deduccion", obtenerTiposDeduccion);
 configuracionNominaRoutes.post("/tipo-deduccion", crearTipoDeduccion);
 configuracionNominaRoutes.put("/tipo-deduccion/:id", actualizarTipoDeduccion);
 configuracionNominaRoutes.delete("/tipo-deduccion/:id", eliminarTipoDeduccion);
+
+// Rutas para Valor Auxilio Transporte (calcular debe ir antes de :id)
+configuracionNominaRoutes.get("/valor-auxilio-transporte/calcular", calcularAuxilioPorDias);
+configuracionNominaRoutes.get("/valor-auxilio-transporte", obtenerValoresAuxilioTransporte);
+configuracionNominaRoutes.post("/valor-auxilio-transporte", crearValorAuxilioTransporte);
+configuracionNominaRoutes.put("/valor-auxilio-transporte/:id", actualizarValorAuxilioTransporte);
+configuracionNominaRoutes.delete("/valor-auxilio-transporte/:id", eliminarValorAuxilioTransporte);
 
 module.exports = { configuracionNominaRoutes };
 

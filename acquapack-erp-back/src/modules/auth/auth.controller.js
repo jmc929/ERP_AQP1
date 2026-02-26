@@ -102,21 +102,8 @@ async function login(req, res) {
 			});
 		}
 
-		// Verificar que el pool esté disponible
-		if (!pool) {
-			console.error("Pool de base de datos no está disponible");
-			return res.status(500).json({
-				error: "Error de configuración",
-				message: "La conexión a la base de datos no está disponible"
-			});
-		}
-
 		// Consultar el usuario en la base de datos con sus roles
-		try {
-			logger.info({ documento }, "Intentando autenticar usuario");
-		} catch (logError) {
-			console.log("Intentando autenticar usuario:", documento);
-		}
+		logger.info({ documento }, "Intentando autenticar usuario");
 		
 		const query = `
 			SELECT 
@@ -144,22 +131,14 @@ async function login(req, res) {
 		
 		const result = await pool.query(query, [documento, password]);
 
-		try {
-			logger.info({ 
-				documento, 
-				rowsFound: result.rows.length 
-			}, "Resultado de consulta de login");
-		} catch (logError) {
-			console.log("Resultado de consulta de login:", { documento, rowsFound: result.rows.length });
-		}
+		logger.info({ 
+			documento, 
+			rowsFound: result.rows.length 
+		}, "Resultado de consulta de login");
 
 		// Verificar si se encontró el usuario
 		if (result.rows.length === 0) {
-			try {
-				logger.warn({ documento }, "Intento de login fallido - credenciales inválidas");
-			} catch (logError) {
-				console.log("Intento de login fallido:", documento);
-			}
+			logger.warn({ documento }, "Intento de login fallido - credenciales inválidas");
 			return res.status(401).json({
 				error: "Credenciales inválidas",
 				message: "El documento o la contraseña son incorrectos"
@@ -173,11 +152,7 @@ async function login(req, res) {
 			usuario.roles = JSON.parse(usuario.roles);
 		}
 
-		try {
-			logger.info({ documento, usuarioId: usuario.id_usuarios }, "Usuario autenticado exitosamente");
-		} catch (logError) {
-			console.log("Usuario autenticado exitosamente:", { documento, usuarioId: usuario.id_usuarios });
-		}
+		logger.info({ documento, usuarioId: usuario.id_usuarios }, "Usuario autenticado exitosamente");
 
 		res.json({
 			success: true,
@@ -186,26 +161,11 @@ async function login(req, res) {
 		});
 
 	} catch (error) {
-		// Intentar usar logger, pero si falla usar console.error
-		try {
-			logger.error({ err: error }, "Error al realizar login");
-		} catch (logError) {
-			console.error("Error al realizar login:", error);
-		}
-		
-		// Proporcionar más información del error en desarrollo
-		const errorResponse = {
+		logger.error({ err: error }, "Error al realizar login");
+		res.status(500).json({
 			error: "Error interno del servidor",
 			message: error.message
-		};
-		
-		// En desarrollo, incluir más detalles
-		if (process.env.NODE_ENV !== 'production') {
-			errorResponse.stack = error.stack;
-			errorResponse.name = error.name;
-		}
-		
-		res.status(500).json(errorResponse);
+		});
 	}
 }
 

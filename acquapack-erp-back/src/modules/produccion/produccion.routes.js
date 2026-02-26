@@ -10,7 +10,8 @@ const {
 	crearProduccion,
 	obtenerProducciones,
 	obtenerProduccionesFiltradas,
-	obtenerProduccionPorId
+	obtenerProduccionPorId,
+	actualizarProduccion
 } = require("./produccion.controller");
 
 const produccionRoutes = express.Router();
@@ -29,6 +30,7 @@ produccionRoutes.post("/", crearProduccion);
 produccionRoutes.get("/filtradas", obtenerProduccionesFiltradas);
 produccionRoutes.get("/", obtenerProducciones);
 produccionRoutes.get("/:id", obtenerProduccionPorId);
+produccionRoutes.put("/:id", actualizarProduccion);
 
 module.exports = { produccionRoutes };
 
