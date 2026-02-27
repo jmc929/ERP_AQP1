@@ -119,6 +119,9 @@ const Dashboard = () => {
     if (pathname.includes("/inventario/ver-inventario")) {
       return { module: "inventario", option: "Ver Inventario (Bodegas)" };
     }
+    if (pathname.includes("/inventario/ajuste-inventario")) {
+      return { module: "inventario", option: "Ajuste de inventario" };
+    }
     if (pathname.includes("/inventario")) {
       return { module: "inventario", option: null };
     }
@@ -233,6 +236,7 @@ const Dashboard = () => {
     ],
     inventario: [
       { title: "Ver Inventario (Bodegas)", icon: Package },
+      { title: "Ajuste de inventario", icon: Package },
       { title: "Traslados entre Bodegas", icon: Package },
       { title: "Gestionar Bodegas", icon: Package },
     ],
@@ -393,6 +397,8 @@ const Dashboard = () => {
         navigate("/dashboard/inventario/traslados-bodegas");
       } else if (result.moduleId === "inventario" && result.title === "Ver Inventario (Bodegas)") {
         navigate("/dashboard/inventario/ver-inventario");
+      } else if (result.moduleId === "inventario" && result.title === "Ajuste de inventario") {
+        navigate("/dashboard/inventario/ajuste-inventario");
       } else if (result.moduleId === "costos" && result.title === "Ver Costos por Productos") {
         navigate("/dashboard/costos/ver-costos");
       } else if (result.moduleId === "nomina" && result.title === "Hacer N?mina") {
@@ -726,6 +732,8 @@ const Dashboard = () => {
                     navigate("/dashboard/inventario/traslados-bodegas");
                   } else if (selectedModule === "inventario" && option.title === "Ver Inventario (Bodegas)") {
                     navigate("/dashboard/inventario/ver-inventario");
+                  } else if (selectedModule === "inventario" && option.title === "Ajuste de inventario") {
+                    navigate("/dashboard/inventario/ajuste-inventario");
                   } else if (selectedModule === "costos" && option.title === "Ver Costos por Productos") {
                     navigate("/dashboard/costos/ver-costos");
                   } else if (selectedModule === "cajas" && option.title === "Ver Cajas") {

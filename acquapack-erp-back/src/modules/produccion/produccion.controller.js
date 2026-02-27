@@ -63,11 +63,30 @@ async function obtenerMaquinas(req, res) {
 }
 
 /**
- * Obtiene productos activos (opcionalmente filtrados por grupo)
+ * Obtiene productos activos (opcionalmente filtrados por grupo).
+ * Si se envían page y limit, devuelve resultados paginados con búsqueda opcional.
  */
 async function obtenerProductos(req, res) {
 	try {
 		const idGrupoProducto = req.query.id_grupo_producto ? parseInt(req.query.id_grupo_producto) : null;
+		const page = req.query.page ? parseInt(req.query.page) : null;
+		const limit = req.query.limit ? parseInt(req.query.limit) : 30;
+		const busqueda = req.query.busqueda ? String(req.query.busqueda).trim() : null;
+
+		if (idGrupoProducto != null && page != null && page >= 1) {
+			const { productos, paginacion } = await produccionService.obtenerProductosPaginados(
+				idGrupoProducto,
+				page,
+				limit,
+				busqueda || null
+			);
+			return res.json({
+				success: true,
+				productos,
+				paginacion
+			});
+		}
+
 		const productos = await produccionService.obtenerProductos(idGrupoProducto);
 		res.json({
 			success: true,
