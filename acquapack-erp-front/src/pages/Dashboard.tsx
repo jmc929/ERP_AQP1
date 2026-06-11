@@ -38,6 +38,37 @@ const Dashboard = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobile();
+  const [userRoles, setUserRoles] = useState<number[]>([]);
+
+  useEffect(() => {
+    const usuarioStr = localStorage.getItem("usuario");
+    if (usuarioStr) {
+      try {
+        const usuario = JSON.parse(usuarioStr);
+        if (usuario.roles) {
+          setUserRoles(usuario.roles.map((r: any) => r.id_rol));
+        }
+      } catch (e) {
+        console.error("Error parsing user from localStorage", e);
+      }
+    }
+  }, []);
+
+  const isSpecialProductionRole = userRoles.some(rolId => [8, 9, 10, 11].includes(rolId));
+
+  // Redirigir si intenta acceder a rutas no permitidas en rol de produccion especial
+  useEffect(() => {
+    if (isSpecialProductionRole && location.pathname !== "/dashboard" && location.pathname !== "/dashboard/produccion/agregar") {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isSpecialProductionRole, location.pathname, navigate]);
+
+  // Autoseleccionar modulo de produccion si tiene rol especial
+  useEffect(() => {
+    if (isSpecialProductionRole && location.pathname === "/dashboard" && selectedModule !== "produccion") {
+      setSelectedModule("produccion");
+    }
+  }, [isSpecialProductionRole, location.pathname, selectedModule]);
 
   // Mapeo de rutas a m?dulos y opciones
   const routeToModuleAndOption = (pathname: string): { module: Module; option: string | null } => {
@@ -308,7 +339,11 @@ const Dashboard = () => {
     const results: SearchResult[] = [];
 
     // Buscar en m?dulos
-    modules.forEach((module) => {
+    const filteredSearchModules = isSpecialProductionRole
+      ? modules.filter((m) => m.id === "produccion")
+      : modules;
+
+    filteredSearchModules.forEach((module) => {
       if (module.name.toLowerCase().includes(query)) {
         results.push({
           type: "module",
@@ -321,7 +356,13 @@ const Dashboard = () => {
 
     // Buscar en opciones de m?dulos
     Object.entries(moduleOptions).forEach(([moduleId, options]) => {
-      options.forEach((option, index) => {
+      if (isSpecialProductionRole && moduleId !== "produccion") return;
+
+      const filteredOptions = (moduleId === "produccion" && isSpecialProductionRole)
+        ? options.filter((o) => o.title.toLowerCase().includes("agregar"))
+        : options;
+
+      filteredOptions.forEach((option, index) => {
         if (option.title.toLowerCase().includes(query)) {
           const module = modules.find((m) => m.id === moduleId);
           if (module) {
@@ -461,42 +502,49 @@ const Dashboard = () => {
 
   const SidebarContent = () => (
     <div className="p-4 space-y-2 h-full">
-      {/* Opci?n Inicio */}
-      <button
-        onClick={() => {
-          setSelectedModule(null);
-          navigate("/dashboard");
-          if (isMobile) setSidebarOpen(false);
-        }}
-        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-          selectedModule === null && location.pathname === "/dashboard"
-            ? "bg-sidebar-active text-white shadow-md"
-            : "text-sidebar-text hover:bg-sidebar-hover"
-        }`}
-      >
-        <Home className="h-5 w-5" />
-        <span className="font-medium">Inicio</span>
-      </button>
+      {/* Opci?n Inicio (ocultar si es rol especial) */}
+      {!isSpecialProductionRole && (
+        <button
+          onClick={() => {
+            setSelectedModule(null);
+            navigate("/dashboard");
+            if (isMobile) setSidebarOpen(false);
+          }}
+          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+            selectedModule === null && location.pathname === "/dashboard"
+              ? "bg-sidebar-active text-white shadow-md"
+              : "text-sidebar-text hover:bg-sidebar-hover"
+          }`}
+        >
+          <Home className="h-5 w-5" />
+          <span className="font-medium">Inicio</span>
+        </button>
+      )}
       
-      {modules.map((module) => {
-        return (
-          <button
-            key={module.id}
-            onClick={() => {
-              selectModule(module.id);
-              if (isMobile) setSidebarOpen(false);
-            }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-              selectedModule === module.id
-                ? "bg-sidebar-active text-white shadow-md"
-                : "text-sidebar-text hover:bg-sidebar-hover"
-            }`}
-          >
-            <module.icon className="h-5 w-5" />
-            <span className="font-medium flex-1 text-left">{module.name}</span>
-          </button>
-        );
-      })}
+      {(() => {
+        const allowedModules = isSpecialProductionRole
+          ? modules.filter((m) => m.id === "produccion")
+          : modules;
+        return allowedModules.map((module) => {
+          return (
+            <button
+              key={module.id}
+              onClick={() => {
+                selectModule(module.id);
+                if (isMobile) setSidebarOpen(false);
+              }}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                selectedModule === module.id
+                  ? "bg-sidebar-active text-white shadow-md"
+                  : "text-sidebar-text hover:bg-sidebar-hover"
+              }`}
+            >
+              <module.icon className="h-5 w-5" />
+              <span className="font-medium flex-1 text-left">{module.name}</span>
+            </button>
+          );
+        });
+      })()}
     </div>
   );
 
@@ -682,7 +730,10 @@ const Dashboard = () => {
             )
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-              {moduleOptions[selectedModule].map((option, index) => {
+              {(selectedModule === "produccion" && isSpecialProductionRole
+                ? moduleOptions[selectedModule].filter((o) => o.title.toLowerCase().includes("agregar"))
+                : moduleOptions[selectedModule]
+              ).map((option, index) => {
                 const handleClick = () => {
                   if (selectedModule === "productos" && option.title === "Cat?logo General") {
                     navigate("/dashboard/productos/catalogo-general");

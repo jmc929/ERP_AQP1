@@ -686,6 +686,10 @@ const AgregarProduccion = () => {
           }}
           onBackspace={handleKeyboardBackspace}
           onClear={handleKeyboardClear}
+          onEnter={() => {
+            setShowKeyboard(false);
+            setActiveInput(null);
+          }}
         />
       )}
 

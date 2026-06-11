@@ -156,7 +156,7 @@ const NumericKeyboard = ({ onInput, onClose, onBackspace, onClear, onEnter }: Nu
               className="flex-1 h-12"
               onClick={onEnter}
             >
-              Aceptar
+              Confirmar
             </Button>
           )}
         </div>

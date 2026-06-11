@@ -1,4 +1,9 @@
-require("dotenv/config");
+const path = require("path");
+const dotenv = require("dotenv");
+
+// Cargar primero .env.local para desarrollo local (no sobrescribe variables si ya existen en process.env)
+dotenv.config({ path: path.resolve(process.cwd(), ".env.local") });
+dotenv.config(); // Cargar .env por defecto
 
 function parseCorsOrigins(value) {
 	if (!value) {
