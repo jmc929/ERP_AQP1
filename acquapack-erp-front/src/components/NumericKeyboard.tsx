@@ -8,9 +8,10 @@ interface NumericKeyboardProps {
   onBackspace?: () => void;
   onClear?: () => void;
   onEnter?: () => void;
+  value?: string;
 }
 
-const NumericKeyboard = ({ onInput, onClose, onBackspace, onClear, onEnter }: NumericKeyboardProps) => {
+const NumericKeyboard = ({ onInput, onClose, onBackspace, onClear, onEnter, value }: NumericKeyboardProps) => {
   const handleNumberClick = (num: string) => {
     onInput(num);
   };
@@ -18,8 +19,11 @@ const NumericKeyboard = ({ onInput, onClose, onBackspace, onClear, onEnter }: Nu
   return (
     <Card className="fixed bottom-0 left-0 right-0 z-50 border-t-2 rounded-t-2xl shadow-2xl bg-background">
       <div className="p-4">
-        {/* Header con botón cerrar */}
-        <div className="flex justify-end mb-2">
+        {/* Header con botón cerrar y visualización del valor */}
+        <div className="flex justify-between items-center mb-3 max-w-md mx-auto">
+          <div className="text-xl font-mono font-bold px-3 py-1 bg-muted rounded border min-w-[140px] text-center">
+            {value || "0"}
+          </div>
           <Button
             variant="ghost"
             size="icon"

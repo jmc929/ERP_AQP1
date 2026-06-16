@@ -443,13 +443,18 @@ class ProduccionService {
 					u.nombre || ' ' || u.apellido as usuario_nombre,
 					u.documento as usuario_documento,
 					t.nombre as turno_nombre,
-					t.horario as turno_horario
+					t.horario as turno_horario,
+					dt.diametro_manguera,
+					dt.pn_manguera,
+					dt.calibre_manguera,
+					dt.presion_manguera
 				FROM public.produccion p
 				LEFT JOIN public.producto pr ON p.id_producto = pr.id_producto
 				LEFT JOIN public.maquinas m ON p.id_maquina = m.id_maquina
 				LEFT JOIN public.tipo_maquina tm ON m.id_tipo_maquina = tm.id_tipo_maquina
 				LEFT JOIN public.usuarios u ON p.id_usuario = u.id_usuarios
 				LEFT JOIN public.turno t ON p.id_turno = t.id_turno
+				LEFT JOIN public.detalle_tuberia dt ON pr.id_producto = dt.id_producto_tuberia
 				WHERE p.id_produccion = $1
 			`, [idProduccion]);
 

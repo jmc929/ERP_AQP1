@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import { Button } from "@/components/ui/button";
@@ -15,8 +16,15 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import NumericKeyboard from "@/components/NumericKeyboard";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { ChevronLeft, Factory } from "lucide-react";
+import { ChevronLeft, Factory, Printer } from "lucide-react";
 import { API_BASE_URL } from "@/config/api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 interface TipoMaquina {
   id_tipo_maquina: number;
@@ -69,6 +77,10 @@ const AgregarProduccion = () => {
   const [loading, setLoading] = useState(false);
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [activeInput, setActiveInput] = useState<string | null>(null);
+
+  // Estados para impresión de etiqueta (sticker)
+  const [ultimoRegistroProduccion, setUltimoRegistroProduccion] = useState<any | null>(null);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Catálogos
   const [tiposMaquina, setTiposMaquina] = useState<TipoMaquina[]>([]);
@@ -432,6 +444,14 @@ const AgregarProduccion = () => {
           title: "Éxito",
           description: "Producción registrada correctamente",
         });
+        
+        // Guardar registro para impresión y evaluar si es extrusora
+        setUltimoRegistroProduccion(data.produccion);
+        const isExtrusora = 
+          nombreTipoMaquina.toLowerCase().includes("extrusora") || 
+          (data.produccion?.tipo_maquina_nombre && 
+           data.produccion.tipo_maquina_nombre.toLowerCase().includes("extrusora"));
+
         // Resetear formulario
         setIdTipoMaquina(null);
         setNombreTipoMaquina("");
@@ -440,6 +460,10 @@ const AgregarProduccion = () => {
         setIdUsuario(null);
         setMedidasProduccion([]);
         setStep(1);
+
+        if (isExtrusora) {
+          setShowPrintModal(true);
+        }
       } else {
         throw new Error(data.message || data.error || "Error al registrar producción");
       }
@@ -690,6 +714,11 @@ const AgregarProduccion = () => {
             setShowKeyboard(false);
             setActiveInput(null);
           }}
+          value={
+            activeInput
+              ? medidasProduccion.find((m) => m.id_medida.toString() === activeInput)?.cantidad || ""
+              : ""
+          }
         />
       )}
 
@@ -708,6 +737,279 @@ const AgregarProduccion = () => {
         onConfirm={handleConfirmarSeleccion}
         variant="default"
       />
+
+      {/* Modal de Impresión de Etiqueta (Sticker) */}
+      <Dialog open={showPrintModal} onOpenChange={setShowPrintModal}>
+        <DialogContent className="max-w-md w-[95%] sm:rounded-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl flex items-center gap-2">
+              <Printer className="h-5 w-5 text-primary" />
+              Imprimir Etiqueta de Producción
+            </DialogTitle>
+          </DialogHeader>
+
+          {ultimoRegistroProduccion && (
+            <div className="flex flex-col items-center justify-center p-4">
+              <p className="text-sm text-muted-foreground mb-4 text-center">
+                La producción se guardó correctamente. A continuación se muestra la vista previa de la etiqueta para la impresora térmica.
+              </p>
+
+              {/* Vista previa en pantalla */}
+              <div className="border border-border rounded-lg p-6 bg-card shadow-sm w-full max-w-[320px] aspect-square flex flex-col justify-between font-mono text-[10px] text-foreground select-none relative overflow-hidden">
+                {/* Header */}
+                <div className="text-center border-b border-border pb-1 flex flex-col items-center">
+                  <div className="text-xs font-bold tracking-widest text-primary">ACQUAPACK S.A.S.</div>
+                  <div className="text-[6.5px] text-muted-foreground opacity-85 leading-normal">
+                    3106001692 | Calle 35 #51-11 | acquapack.co
+                  </div>
+                  <div className="text-[8px] font-semibold opacity-90 mt-0.5">SOPORTE TÉCNICO Y CALIDAD</div>
+                </div>
+
+                {/* Product Info */}
+                <div className="space-y-0.5 my-2">
+                  <div className="text-[10px] font-bold truncate">PROD: {ultimoRegistroProduccion.producto_nombre}</div>
+                  <div className="text-[9px]">CÓDIGO: <span className="font-bold">{ultimoRegistroProduccion.producto_codigo || 'N/A'}</span></div>
+                  
+                  {/* Pipe specs if available */}
+                  {(ultimoRegistroProduccion.diametro_manguera || ultimoRegistroProduccion.pn_manguera || ultimoRegistroProduccion.calibre_manguera || ultimoRegistroProduccion.presion_manguera) && (
+                    <div className="grid grid-cols-2 gap-x-2 text-[8px] border-t border-dashed border-border pt-1 mt-1">
+                      {ultimoRegistroProduccion.diametro_manguera && <div>Ø MANG: <strong>{ultimoRegistroProduccion.diametro_manguera}</strong></div>}
+                      {ultimoRegistroProduccion.pn_manguera && <div>PN: <strong>{ultimoRegistroProduccion.pn_manguera}</strong></div>}
+                      {ultimoRegistroProduccion.calibre_manguera && <div>CALIBRE: <strong>{ultimoRegistroProduccion.calibre_manguera}</strong></div>}
+                      {ultimoRegistroProduccion.presion_manguera && <div>PRESIÓN: <strong>{ultimoRegistroProduccion.presion_manguera}</strong></div>}
+                    </div>
+                  )}
+                </div>
+
+                {/* Measurements */}
+                <div className="grid grid-cols-2 gap-1 text-center border-t border-b border-border py-1.5 my-1">
+                  <div className="border-r border-dashed border-border pr-1 flex flex-col justify-center">
+                    <div className="text-[7px] font-semibold text-muted-foreground uppercase">Metros</div>
+                    <div className="text-base font-bold text-foreground">
+                      {(() => {
+                        const m = ultimoRegistroProduccion.medidas?.find((x: any) => x.id_medida === 2)?.cantidad;
+                        return m ? parseFloat(m).toFixed(2) : "0.00";
+                      })()} m
+                    </div>
+                  </div>
+                  <div className="pl-1 flex flex-col justify-center">
+                    <div className="text-[7px] font-semibold text-muted-foreground uppercase">Kilos</div>
+                    <div className="text-base font-bold text-foreground">
+                      {(() => {
+                        const k = ultimoRegistroProduccion.medidas?.find((x: any) => x.id_medida === 5)?.cantidad;
+                        return k ? parseFloat(k).toFixed(2) : "0.00";
+                      })()} kg
+                    </div>
+                  </div>
+                </div>
+
+                {/* Traceability */}
+                <div className="space-y-0.5 text-[8px] opacity-90">
+                  <div className="flex justify-between">
+                    <span>MÁQ: <strong>{ultimoRegistroProduccion.maquina_nombre || 'N/A'}</strong></span>
+                    <span>TURNO: <strong>{ultimoRegistroProduccion.turno_nombre || 'N/A'}</strong></span>
+                  </div>
+                  <div>OPERARIO: <strong>{ultimoRegistroProduccion.usuario_documento ? ultimoRegistroProduccion.usuario_documento.slice(-4) : 'N/A'}</strong></div>
+                  <div className="flex justify-between">
+                    <span>REG: <strong>#{ultimoRegistroProduccion.id_produccion}</strong></span>
+                    <span>FECHA: <strong>{(() => {
+                      if (!ultimoRegistroProduccion.fecha_hora) return "";
+                      try {
+                        return new Date(ultimoRegistroProduccion.fecha_hora).toLocaleString("es-CO", {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "2-digit",
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        });
+                      } catch (e) { return ""; }
+                    })()}</strong></span>
+                  </div>
+                </div>
+
+                {/* Barcode representation */}
+                <div className="flex flex-col items-center mt-1.5 pt-1 border-t border-dashed border-border">
+                  <div className="flex items-center space-x-[1px] h-3 opacity-80">
+                    <div className="w-[1.5px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[2px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[1px] h-full bg-foreground"></div>
+                    <div className="w-[3px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[1.5px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[2px] h-full bg-foreground"></div>
+                    <div className="w-[1px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[2px] h-full bg-foreground"></div>
+                    <div className="w-[0.5px] h-full bg-foreground"></div>
+                    <div className="w-[3px] h-full bg-foreground"></div>
+                    <div className="w-[1.5px] h-full bg-foreground"></div>
+                  </div>
+                  <div className="text-[6px] tracking-widest mt-0.5">*{ultimoRegistroProduccion.id_produccion}*</div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          <DialogFooter className="gap-2 sm:gap-0 mt-4">
+            <Button variant="outline" onClick={() => setShowPrintModal(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => window.print()} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Imprimir Etiqueta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Contenedor real de impresión portado directamente al body */}
+      {ultimoRegistroProduccion && showPrintModal && createPortal(
+        <div id="sticker-imprimible" className="hidden print:flex print:flex-col print:justify-between">
+          {/* Header */}
+          <div className="text-center border-b border-black pb-1 flex flex-col items-center">
+            <div className="text-xs font-bold tracking-widest uppercase">ACQUAPACK S.A.S.</div>
+            <div className="text-[6.5px] leading-normal font-sans">
+              3106001692 | Calle 35 #51-11 | acquapack.co
+            </div>
+            <div className="text-[8px] font-semibold mt-0.5">SOPORTE TÉCNICO Y CALIDAD</div>
+          </div>
+
+          {/* Product details */}
+          <div className="my-2 space-y-0.5">
+            <div className="text-[10px] font-bold truncate">PROD: {ultimoRegistroProduccion.producto_nombre}</div>
+            <div className="text-[9px]">CÓDIGO: <span className="font-bold">{ultimoRegistroProduccion.producto_codigo || 'N/A'}</span></div>
+            
+            {(ultimoRegistroProduccion.diametro_manguera || ultimoRegistroProduccion.pn_manguera || ultimoRegistroProduccion.calibre_manguera || ultimoRegistroProduccion.presion_manguera) && (
+              <div className="grid grid-cols-2 gap-x-2 text-[8px] border-t border-dashed border-black pt-1 mt-1">
+                {ultimoRegistroProduccion.diametro_manguera && <div>Ø MANG: <strong>{ultimoRegistroProduccion.diametro_manguera}</strong></div>}
+                {ultimoRegistroProduccion.pn_manguera && <div>PN: <strong>{ultimoRegistroProduccion.pn_manguera}</strong></div>}
+                {ultimoRegistroProduccion.calibre_manguera && <div>CALIBRE: <strong>{ultimoRegistroProduccion.calibre_manguera}</strong></div>}
+                {ultimoRegistroProduccion.presion_manguera && <div>PRESIÓN: <strong>{ultimoRegistroProduccion.presion_manguera}</strong></div>}
+              </div>
+            )}
+          </div>
+
+          {/* Quantities */}
+          <div className="grid grid-cols-2 gap-1 text-center border-t border-b border-black py-1.5 my-1">
+            <div className="border-r border-dashed border-black pr-1 flex flex-col justify-center">
+              <div className="text-[7px] font-semibold uppercase">Metros</div>
+              <div className="text-lg font-bold">
+                {(() => {
+                  const m = ultimoRegistroProduccion.medidas?.find((x: any) => x.id_medida === 2)?.cantidad;
+                  return m ? parseFloat(m).toFixed(2) : "0.00";
+                })()} m
+              </div>
+            </div>
+            <div className="pl-1 flex flex-col justify-center">
+              <div className="text-[7px] font-semibold uppercase">Kilos</div>
+              <div className="text-lg font-bold">
+                {(() => {
+                  const k = ultimoRegistroProduccion.medidas?.find((x: any) => x.id_medida === 5)?.cantidad;
+                  return k ? parseFloat(k).toFixed(2) : "0.00";
+                })()} kg
+              </div>
+            </div>
+          </div>
+
+          {/* Traceability info */}
+          <div className="space-y-0.5 text-[8px]">
+            <div className="flex justify-between">
+              <span>MÁQ: <strong>{ultimoRegistroProduccion.maquina_nombre || 'N/A'}</strong></span>
+              <span>TURNO: <strong>{ultimoRegistroProduccion.turno_nombre || 'N/A'}</strong></span>
+            </div>
+            <div>OPERARIO: <strong>{ultimoRegistroProduccion.usuario_documento ? ultimoRegistroProduccion.usuario_documento.slice(-4) : 'N/A'}</strong></div>
+            <div className="flex justify-between">
+              <span>REG: <strong>#{ultimoRegistroProduccion.id_produccion}</strong></span>
+              <span>FECHA: <strong>{(() => {
+                if (!ultimoRegistroProduccion.fecha_hora) return "";
+                try {
+                  return new Date(ultimoRegistroProduccion.fecha_hora).toLocaleString("es-CO", {
+                    day: "2-digit",
+                    month: "2-digit",
+                    year: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit"
+                  });
+                } catch (e) { return ""; }
+              })()}</strong></span>
+            </div>
+          </div>
+
+          {/* Barcode */}
+          <div className="flex flex-col items-center mt-1.5 pt-1 border-t border-dashed border-black">
+            <div className="flex items-center space-x-[1px] h-3">
+              <div className="w-[1.5px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[2px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[1px] h-full bg-black"></div>
+              <div className="w-[3px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[1.5px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[2px] h-full bg-black"></div>
+              <div className="w-[1px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[2px] h-full bg-black"></div>
+              <div className="w-[0.5px] h-full bg-black"></div>
+              <div className="w-[3px] h-full bg-black"></div>
+              <div className="w-[1.5px] h-full bg-black"></div>
+            </div>
+            <div className="text-[6px] tracking-widest mt-0.5">*{ultimoRegistroProduccion.id_produccion}*</div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Estilos para impresión de sticker térmico */}
+      <style>{`
+        @media print {
+          /* Ocultar el root de la aplicación y cualquier portal de Radix (overlays, modales) */
+          #root, [data-radix-portal] {
+            display: none !important;
+          }
+          
+          /* Forzar fondo blanco y eliminar márgenes en el body de impresión */
+          body {
+            margin: 0 !important;
+            padding: 0 !important;
+            background: white !important;
+          }
+
+          /* Mostrar únicamente el sticker de impresión */
+          #sticker-imprimible {
+            display: flex !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 80mm !important;
+            height: 80mm !important;
+            margin: 0 !important;
+            padding: 4mm !important;
+            box-sizing: border-box !important;
+            background: white !important;
+            color: black !important;
+            border: 1px solid black !important;
+            font-family: 'Courier New', Courier, monospace !important;
+            font-size: 8pt !important;
+            line-height: 1.15 !important;
+            z-index: 9999999 !important;
+          }
+          
+          #sticker-imprimible * {
+            visibility: visible !important;
+          }
+
+          @page {
+            size: 80mm 80mm;
+            margin: 0;
+          }
+        }
+      `}</style>
     </PageContainer>
   );
 };
