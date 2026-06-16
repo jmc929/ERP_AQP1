@@ -24,7 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Factory, Loader2, Filter, X, Search } from "lucide-react";
+import { Factory, Loader2, Filter, X, Search, FileSpreadsheet } from "lucide-react";
 import PageContainer from "@/components/PageContainer";
 import PageTitle from "@/components/PageTitle";
 import TableCard from "@/components/TableCard";
@@ -56,6 +56,13 @@ interface Producto {
   codigo?: string;
   nombre: string;
   id_grupos_producto?: number;
+}
+
+interface Maquina {
+  id_maquina: number;
+  id_tipo_maquina: number;
+  nombre: string;
+  tipo_maquina_nombre: string;
 }
 
 interface MedidaProduccion {
@@ -99,6 +106,10 @@ const VerProduccion = () => {
   const [filtroTurno, setFiltroTurno] = useState("");
   const [filtroUsuario, setFiltroUsuario] = useState("");
   const [filtroProducto, setFiltroProducto] = useState("");
+  const [maquinas, setMaquinas] = useState<Maquina[]>([]);
+  const [filtroMaquina, setFiltroMaquina] = useState("");
+  const [filtroKilos, setFiltroKilos] = useState("");
+  const [filtroMetros, setFiltroMetros] = useState("");
   
   // Estados de paginación
   const [pagina, setPagina] = useState(1);
@@ -168,19 +179,28 @@ const VerProduccion = () => {
     return null;
   };
 
-  // Cargar productos cuando se selecciona un tipo de máquina (igual que en AgregarProduccion)
+  // Cargar productos y máquinas cuando se selecciona un tipo de máquina (igual que en AgregarProduccion)
   useEffect(() => {
-    const cargarProductos = async () => {
+    const cargarProductosYMaquinas = async () => {
       if (!tipoMaquinaSeleccionado) {
         setProductos([]);
         setProductosFiltrados([]);
+        setMaquinas([]);
         return;
       }
 
       try {
-        // Determinar el grupo de producto según el tipo de máquina
         const tipoSeleccionado = tiposMaquina.find(t => t.id_tipo_maquina === tipoMaquinaSeleccionado);
         const nombreTipo = tipoSeleccionado?.nombre || "";
+        
+        // Cargar máquinas de este tipo
+        const maquinasResponse = await fetch(
+          `${API_BASE_URL}/api/produccion/maquinas?id_tipo_maquina=${tipoMaquinaSeleccionado}`
+        );
+        const maquinasData = await maquinasResponse.json();
+        if (maquinasData.success) {
+          setMaquinas(maquinasData.maquinas || []);
+        }
         
         const idGrupoProducto = getGrupoProductoPorTipoMaquina(nombreTipo);
         
@@ -200,17 +220,32 @@ const VerProduccion = () => {
           setProductosFiltrados(data.productos || []);
         }
       } catch (error) {
-        console.error("Error al cargar productos:", error);
+        console.error("Error al cargar productos o máquinas:", error);
         toast({
           title: "Error",
-          description: "No se pudieron cargar los productos",
+          description: "No se pudieron cargar los productos o máquinas",
           variant: "destructive",
         });
       }
     };
 
-    cargarProductos();
+    cargarProductosYMaquinas();
   }, [tipoMaquinaSeleccionado, tiposMaquina, toast]);
+
+  // Filtrar productos locales según la búsqueda
+  useEffect(() => {
+    if (!busquedaProducto.trim()) {
+      setProductosFiltrados(productos);
+      return;
+    }
+    const query = busquedaProducto.toLowerCase();
+    const filtrados = productos.filter(
+      (p) =>
+        p.nombre.toLowerCase().includes(query) ||
+        (p.codigo && p.codigo.toLowerCase().includes(query))
+    );
+    setProductosFiltrados(filtrados);
+  }, [busquedaProducto, productos]);
 
   // Función para aplicar filtros (resetea a página 1)
   const aplicarFiltros = async (paginaActual: number = 1) => {
@@ -247,6 +282,15 @@ const VerProduccion = () => {
       }
       if (filtroProducto && filtroProducto.trim() !== "" && filtroProducto !== "none") {
         params.append("id_producto", filtroProducto);
+      }
+      if (filtroMaquina && filtroMaquina.trim() !== "" && filtroMaquina !== "none") {
+        params.append("id_maquina", filtroMaquina);
+      }
+      if (filtroKilos && filtroKilos.trim() !== "") {
+        params.append("kilos", filtroKilos);
+      }
+      if (filtroMetros && filtroMetros.trim() !== "" && esExtrusora()) {
+        params.append("metros", filtroMetros);
       }
 
       const url = `${API_BASE_URL}/api/produccion/filtradas?${params.toString()}`;
@@ -303,11 +347,14 @@ const VerProduccion = () => {
     setFiltroTurno("");
     setFiltroUsuario("");
     setFiltroProducto("");
+    setFiltroMaquina("");
+    setFiltroKilos("");
+    setFiltroMetros("");
     setBusquedaProducto("");
     setProducciones([]);
   };
 
-  const tieneFiltrosActivos = filtroFechaDesde || filtroFechaHasta || filtroTurno || filtroUsuario || filtroProducto;
+  const tieneFiltrosActivos = filtroFechaDesde || filtroFechaHasta || filtroTurno || filtroUsuario || filtroProducto || filtroMaquina || filtroKilos || filtroMetros;
 
   // Formatear fecha para mostrar
   const formatearFecha = (fecha: string) => {
@@ -368,6 +415,94 @@ const VerProduccion = () => {
     }
   };
 
+  const exportarAExcel = () => {
+    if (producciones.length === 0) {
+      toast({
+        title: "Información",
+        description: "No hay datos para exportar",
+      });
+      return;
+    }
+
+    // Headers
+    const headers = [
+      "ID",
+      "Fecha y Hora",
+      "Producto",
+      "Código Producto",
+      "Máquina",
+      "Tipo Máquina",
+      "Usuario",
+      "Documento Usuario",
+      "Turno",
+      "Kilos"
+    ];
+    if (esExtrusora()) {
+      headers.push("Metros");
+    }
+
+    // Rows
+    const rows = producciones.map(p => {
+      const row = [
+        p.id_produccion,
+        formatearFecha(p.fecha_hora),
+        p.producto_nombre,
+        p.producto_codigo || "",
+        p.maquina_nombre,
+        p.tipo_maquina_nombre,
+        p.usuario_nombre,
+        p.usuario_documento,
+        p.turno_nombre,
+        String(obtenerValorMedida(p, 5)).replace(".", ",") // Kilos
+      ];
+      if (esExtrusora()) {
+        row.push(String(obtenerValorMedida(p, 2)).replace(".", ",")); // Metros
+      }
+      return row;
+    });
+
+    // Añadir fila de totales al final
+    const totalesRow = [
+      "TOTALES",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      "",
+      String(totales.totalKilos).replace(".", ",")
+    ];
+    if (esExtrusora()) {
+      totalesRow.push(String(totales.totalMetros).replace(".", ","));
+    }
+    rows.push(totalesRow);
+
+    // Convertir a CSV usando punto y coma (;) para compatibilidad con Excel en español
+    const csvContent = [
+      headers.join(";"),
+      ...rows.map(r => r.map(val => {
+        // Escapar comillas y punto y coma
+        if (typeof val === "string") {
+          return `"${val.replace(/"/g, '""')}"`;
+        }
+        return val;
+      }).join(";"))
+    ].join("\r\n");
+
+    // Crear Blob con UTF-8 BOM para que Excel detecte tildes y eñes correctamente
+    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `produccion_${new Date().toISOString().slice(0,10)}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <PageContainer>
       <PageTitle title="Ver Producción" />
@@ -424,7 +559,7 @@ const VerProduccion = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {/* Fecha Desde */}
               <div className="space-y-2">
                 <Label htmlFor="fecha-desde">Fecha Desde</Label>
@@ -531,6 +666,52 @@ const VerProduccion = () => {
                   </SelectContent>
                 </Select>
               </div>
+
+              {/* Máquina */}
+              <div className="space-y-2">
+                <Label htmlFor="maquina">Máquina</Label>
+                <Select value={filtroMaquina || "none"} onValueChange={(value) => setFiltroMaquina(value === "none" ? "" : value)}>
+                  <SelectTrigger id="maquina">
+                    <SelectValue placeholder="Todas las máquinas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Todas las máquinas</SelectItem>
+                    {maquinas.map((maquina) => (
+                      <SelectItem key={maquina.id_maquina} value={maquina.id_maquina.toString()}>
+                        {maquina.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Kilos */}
+              <div className="space-y-2">
+                <Label htmlFor="kilos">Kilos</Label>
+                <Input
+                  id="kilos"
+                  type="number"
+                  step="any"
+                  placeholder="Ej: 250"
+                  value={filtroKilos}
+                  onChange={(e) => setFiltroKilos(e.target.value)}
+                />
+              </div>
+
+              {/* Metros (solo si es extrusora) */}
+              {esExtrusora() && (
+                <div className="space-y-2">
+                  <Label htmlFor="metros">Metros</Label>
+                  <Input
+                    id="metros"
+                    type="number"
+                    step="any"
+                    placeholder="Ej: 100"
+                    value={filtroMetros}
+                    onChange={(e) => setFiltroMetros(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Botones de acción */}
@@ -570,6 +751,18 @@ const VerProduccion = () => {
       {/* Tabla de Resultados */}
       {tipoMaquinaSeleccionado && (
         <React.Fragment>
+          {producciones.length > 0 && (
+            <div className="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                onClick={exportarAExcel}
+                className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 hover:border-emerald-300 flex items-center gap-2"
+              >
+                <FileSpreadsheet className="h-4 w-4" />
+                Exportar a Excel
+              </Button>
+            </div>
+          )}
           <TableCard
             headers={obtenerHeaders()}
             emptyMessage={

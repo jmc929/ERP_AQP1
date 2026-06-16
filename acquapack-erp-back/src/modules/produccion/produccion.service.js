@@ -619,6 +619,46 @@ class ProduccionService {
 				}
 			}
 
+			// Filtro por máquina - debe ser un ID numérico entero
+			if (filtros.id_maquina !== null && filtros.id_maquina !== undefined) {
+				const idMaquina = parseInt(filtros.id_maquina, 10);
+				if (!isNaN(idMaquina) && idMaquina > 0) {
+					query += ` AND p.id_maquina = $${paramCounter}`;
+					params.push(idMaquina);
+					paramCounter++;
+				}
+			}
+
+			// Filtro por kilos - debe ser un número decimal/float
+			if (filtros.kilos !== null && filtros.kilos !== undefined && filtros.kilos !== '') {
+				const kilosVal = parseFloat(filtros.kilos);
+				if (!isNaN(kilosVal)) {
+					query += ` AND EXISTS (
+						SELECT 1 FROM public.produccion_medida pm_k 
+						WHERE pm_k.id_produccion = p.id_produccion 
+						AND pm_k.id_medida = 5 
+						AND pm_k.cantidad = $${paramCounter}
+					)`;
+					params.push(kilosVal);
+					paramCounter++;
+				}
+			}
+
+			// Filtro por metros - debe ser un número decimal/float
+			if (filtros.metros !== null && filtros.metros !== undefined && filtros.metros !== '') {
+				const metrosVal = parseFloat(filtros.metros);
+				if (!isNaN(metrosVal)) {
+					query += ` AND EXISTS (
+						SELECT 1 FROM public.produccion_medida pm_m 
+						WHERE pm_m.id_produccion = p.id_produccion 
+						AND pm_m.id_medida = 2 
+						AND pm_m.cantidad = $${paramCounter}
+					)`;
+					params.push(metrosVal);
+					paramCounter++;
+				}
+			}
+
 			// Agregar GROUP BY después de todas las condiciones WHERE
 			query += `
 				GROUP BY 
@@ -694,6 +734,43 @@ class ProduccionService {
 				if (!isNaN(idProducto) && idProducto > 0) {
 					countQuery += ` AND p.id_producto = $${countParamCounter}`;
 					countParams.push(idProducto);
+					countParamCounter++;
+				}
+			}
+
+			if (filtros.id_maquina !== null && filtros.id_maquina !== undefined) {
+				const idMaquina = parseInt(filtros.id_maquina, 10);
+				if (!isNaN(idMaquina) && idMaquina > 0) {
+					countQuery += ` AND p.id_maquina = $${countParamCounter}`;
+					countParams.push(idMaquina);
+					countParamCounter++;
+				}
+			}
+
+			if (filtros.kilos !== null && filtros.kilos !== undefined && filtros.kilos !== '') {
+				const kilosVal = parseFloat(filtros.kilos);
+				if (!isNaN(kilosVal)) {
+					countQuery += ` AND EXISTS (
+						SELECT 1 FROM public.produccion_medida pm_k 
+						WHERE pm_k.id_produccion = p.id_produccion 
+						AND pm_k.id_medida = 5 
+						AND pm_k.cantidad = $${countParamCounter}
+					)`;
+					countParams.push(kilosVal);
+					countParamCounter++;
+				}
+			}
+
+			if (filtros.metros !== null && filtros.metros !== undefined && filtros.metros !== '') {
+				const metrosVal = parseFloat(filtros.metros);
+				if (!isNaN(metrosVal)) {
+					countQuery += ` AND EXISTS (
+						SELECT 1 FROM public.produccion_medida pm_m 
+						WHERE pm_m.id_produccion = p.id_produccion 
+						AND pm_m.id_medida = 2 
+						AND pm_m.cantidad = $${countParamCounter}
+					)`;
+					countParams.push(metrosVal);
 					countParamCounter++;
 				}
 			}

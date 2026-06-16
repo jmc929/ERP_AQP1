@@ -29,6 +29,7 @@ En la carpeta `acquapack-erp-back/` se leen los siguientes archivos:
         DB_NAME=ERP_ACQ
         DB_USER=postgres
         DB_PASSWORD=root
+        
         ```
 
 ### B. Para Docker Compose (Local)

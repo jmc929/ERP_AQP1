@@ -246,7 +246,10 @@ async function obtenerProduccionesFiltradas(req, res) {
 			fecha_hasta: req.query.fecha_hasta && req.query.fecha_hasta !== '' ? req.query.fecha_hasta : null,
 			id_turno: parseId(req.query.id_turno),
 			id_usuario: parseId(req.query.id_usuario),
-			id_producto: parseId(req.query.id_producto)
+			id_producto: parseId(req.query.id_producto),
+			id_maquina: parseId(req.query.id_maquina),
+			kilos: req.query.kilos && req.query.kilos !== '' ? req.query.kilos : null,
+			metros: req.query.metros && req.query.metros !== '' ? req.query.metros : null
 		};
 
 		// Validar que id_tipo_maquina sea requerido

@@ -1,0 +1,710 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model arl {
+  id_arl   Int        @id @default(autoincrement())
+  nombre   String?    @db.VarChar(150)
+  usuarios usuarios[]
+}
+
+model bodegas {
+  id_bodega          Int                  @id @default(autoincrement())
+  nombre             String?              @db.VarChar(200)
+  id_estado          Int?
+  estado             estado?              @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "id_estado")
+  inventario         inventario[]
+  movimientos_kardex movimientos_kardex[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model caja_compensacion {
+  id_caja_compensacion Int        @id @default(autoincrement())
+  nombre               String?    @db.VarChar(150)
+  usuarios             usuarios[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model cajas {
+  id_caja         Int               @id @default(autoincrement())
+  nombre          String            @db.VarChar(100)
+  descripcion     String?
+  saldo_actual    Decimal           @default(0.00) @db.Decimal(15, 2)
+  id_estado       Int
+  created_at      DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at      DateTime?         @default(now()) @db.Timestamp(6)
+  estado          estado            @relation(fields: [id_estado], references: [id_estado], map: "fk_cajas_estado")
+  movimiento_caja movimiento_caja[]
+
+  @@index([id_estado], map: "idx_cajas_estado")
+}
+
+model ciudad {
+  id_ciudad Int         @id @default(autoincrement())
+  nombre    String?     @db.VarChar(150)
+  clientes  clientes[]
+  proveedor proveedor[]
+}
+
+model clientes {
+  id_cliente                Int                     @id @default(autoincrement())
+  id_tipo_entidad           Int?
+  id_tipo_identificacion    Int?
+  identificacion            String?                 @db.VarChar(70)
+  dv                        Int?
+  telefono                  String?                 @db.VarChar(70)
+  razon_social              String?                 @db.VarChar(300)
+  nombre_comercial          String?                 @db.VarChar(300)
+  id_ciudad                 Int?
+  direccion                 String?                 @db.VarChar(300)
+  nombre_contacto           String?                 @db.VarChar(300)
+  apellido_contacto         String?                 @db.VarChar(300)
+  correo_electronico        String?                 @db.VarChar(300)
+  id_tipo_regimen_iva       Int?
+  id_responsabilidad_fiscal Int?
+  id_estado                 Int?                    @default(1)
+  estado                    estado?                 @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_clientes_estado")
+  ciudad                    ciudad?                 @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction, map: "id_ciudad")
+  responsabilidad_fiscal    responsabilidad_fiscal? @relation(fields: [id_responsabilidad_fiscal], references: [id_responsabilidad_fiscal], onDelete: NoAction, onUpdate: NoAction, map: "id_responsabilidad_fiscal")
+  tipo_entidad              tipo_entidad?           @relation(fields: [id_tipo_entidad], references: [id_tipo_entidad], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_entidad")
+  tipo_identificacion       tipo_identificacion?    @relation(fields: [id_tipo_identificacion], references: [id_tipo_identificacion], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_identificacion")
+  tipo_regimen_iva          tipo_regimen_iva?       @relation(fields: [id_tipo_regimen_iva], references: [id_regimen_iva], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_regimen_iva")
+  salidas                   salidas[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model detalle_deducciones {
+  id_detalle_deducciones Int            @id @default(autoincrement())
+  id_nomina              Int
+  id_tipo_deduccion      Int
+  valor_deduccion        Decimal        @default(0) @db.Decimal(12, 2)
+  observaciones          String?
+  nomina                 nomina         @relation(fields: [id_nomina], references: [id_nomina], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_deducciones_nomina")
+  tipo_deduccion         tipo_deduccion @relation(fields: [id_tipo_deduccion], references: [id_tipo_deduccion], onDelete: NoAction, onUpdate: NoAction, map: "fk_detalle_deducciones_tipo_deduccion")
+
+  @@index([id_nomina], map: "idx_detalle_deducciones_id_nomina")
+}
+
+model detalle_dotacion {
+  detalle_dotacion     Int                  @id @default(autoincrement())
+  id_entregas_dotacion Int?
+  id_tipo_prendas      Int?
+  cantidad             Int?
+  talla_entregada      String?              @db.VarChar(50)
+  entregas_dotaciones  entregas_dotaciones? @relation(fields: [id_entregas_dotacion], references: [id_entregas_dotaciones], onDelete: NoAction, onUpdate: NoAction, map: "id_entregas_dotacion")
+  tipo_prendas         tipo_prendas?        @relation(fields: [id_tipo_prendas], references: [id_tipo_prendas], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_prendas")
+}
+
+model detalle_factura {
+  id_detalle_factura          Int         @id @default(autoincrement())
+  id_factura                  Int?
+  id_producto                 Int?
+  cantidad                    Decimal?    @db.Decimal(12, 2)
+  precio_unitario             Decimal?    @db.Decimal(12, 2)
+  descuento                   Decimal?    @db.Decimal(12, 2)
+  subtotal                    Decimal?    @db.Decimal(12, 2)
+  id_iva                      Int?
+  iva_valor                   Decimal?    @db.Decimal(12, 2)
+  id_retefuente               Int?
+  retefuente_valor            Decimal?    @db.Decimal(12, 2)
+  valor_total                 Decimal?    @db.Decimal(12, 2)
+  porcentaje_descuento        Decimal?    @default(0) @db.Decimal(5, 2)
+  costo_unitario_con_impuesto Decimal?    @db.Decimal(12, 2)
+  facturas                    facturas?   @relation(fields: [id_factura], references: [id_facturas], onDelete: NoAction, onUpdate: NoAction, map: "id_factura")
+  ivas                        ivas?       @relation(fields: [id_iva], references: [id_iva], onDelete: NoAction, onUpdate: NoAction, map: "id_iva")
+  producto                    producto?   @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_producto")
+  retefuente                  retefuente? @relation(fields: [id_retefuente], references: [id_retefuente], onDelete: NoAction, onUpdate: NoAction, map: "id_retefuente")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model detalle_nomina {
+  id_detalle_nomina Int       @id @default(autoincrement())
+  id_nomina         Int
+  id_tipo_hora      Int
+  valor_hora        Decimal   @db.Decimal(12, 2)
+  cantidad_horas    Decimal   @default(0) @db.Decimal(12, 2)
+  total             Decimal   @default(0) @db.Decimal(12, 2)
+  nomina            nomina    @relation(fields: [id_nomina], references: [id_nomina], onDelete: Cascade, onUpdate: NoAction, map: "fk_detalle_nomina_nomina")
+  tipo_hora         tipo_hora @relation(fields: [id_tipo_hora], references: [id_tipo_hora], onDelete: NoAction, onUpdate: NoAction, map: "fk_detalle_nomina_tipo_hora")
+
+  @@index([id_nomina], map: "idx_detalle_nomina_id_nomina")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model detalle_salida {
+  id_detalle_salida            Int         @id @default(autoincrement())
+  id_salida                    Int?
+  id_producto                  Int?
+  cantidad                     Decimal?    @db.Decimal(12, 2)
+  precio_unitario              Decimal?    @db.Decimal(12, 2)
+  descuento                    Decimal?    @db.Decimal(12, 2)
+  subtotal                     Decimal?    @db.Decimal(12, 2)
+  id_iva                       Int?
+  iva_valor                    Decimal?    @db.Decimal(12, 2)
+  id_retefuente                Int?
+  retefuente_valor             Decimal?    @db.Decimal(12, 2)
+  valor_total                  Decimal?    @db.Decimal(12, 2)
+  precio_unitario_con_impuesto Decimal?    @default(0) @db.Decimal(18, 2)
+  ivas                         ivas?       @relation(fields: [id_iva], references: [id_iva], onDelete: NoAction, onUpdate: NoAction, map: "id_iva")
+  producto                     producto?   @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_producto")
+  retefuente                   retefuente? @relation(fields: [id_retefuente], references: [id_retefuente], onDelete: NoAction, onUpdate: NoAction, map: "id_retefuente")
+  salidas                      salidas?    @relation(fields: [id_salida], references: [id_salida], onDelete: NoAction, onUpdate: NoAction, map: "id_salida")
+}
+
+model detalle_tuberia {
+  id_detalle_tuberia  Int       @id @default(autoincrement())
+  diametro_manguera   String?
+  pn_manguera         String?
+  calibre_manguera    String?
+  presion_manguera    String?
+  id_producto_tuberia Int?
+  producto            producto? @relation(fields: [id_producto_tuberia], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "tuberia")
+
+  @@index([id_producto_tuberia], map: "fki_m")
+}
+
+model entregas_dotaciones {
+  id_entregas_dotaciones Int                @id @default(autoincrement())
+  id_usuarios            Int?
+  fecha_entrega          DateTime?          @db.Date
+  foto_acta              String?
+  detalle_dotacion       detalle_dotacion[]
+  usuarios               usuarios?          @relation(fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model eps {
+  id_eps   Int        @id @default(autoincrement())
+  nombre   String?    @db.VarChar(150)
+  usuarios usuarios[]
+}
+
+model estado {
+  id_estado       Int               @id @default(autoincrement())
+  nombre          String?           @db.VarChar(120)
+  modulo          String?           @db.VarChar(200)
+  color           String?           @db.VarChar(150)
+  descripcion     String?
+  bodegas         bodegas[]
+  cajas           cajas[]
+  clientes        clientes[]
+  facturas        facturas[]
+  movimiento_caja movimiento_caja[]
+  nomina          nomina[]
+  producto        producto[]
+  proveedor       proveedor[]
+  tareas          tareas[]
+  tipo_deduccion  tipo_deduccion[]
+  tipo_hora       tipo_hora[]
+  usuarios        usuarios[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model estado_civil {
+  id_estado_civil Int        @id @default(autoincrement())
+  nombre          String?    @db.VarChar(150)
+  usuarios        usuarios[]
+}
+
+model facturas {
+  id_facturas              Int               @id @default(autoincrement())
+  id_usuarios              Int?
+  fecha_creacion           DateTime?         @db.Date
+  id_proveedor             Int?
+  numero_factura_proveedor String?           @db.VarChar(50)
+  total_subtotal           Decimal?          @db.Decimal(12, 2)
+  total_descuento          Decimal?          @db.Decimal(12, 2)
+  total_iva                Decimal?          @db.Decimal(12, 2)
+  total_retencion          Decimal?          @db.Decimal(12, 2)
+  total_factura            Decimal?          @db.Decimal(12, 2)
+  id_estado                Int?
+  observaciones            String?
+  detalle_factura          detalle_factura[]
+  estado                   estado?           @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_facturas_estado")
+  proveedor                proveedor?        @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "id_proveedor")
+  usuarios                 usuarios?         @relation(fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+  inventario               inventario[]
+}
+
+model familia_producto {
+  id_familia_producto Int        @id @default(autoincrement())
+  nombre              String?    @db.VarChar(150)
+  producto            producto[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model fondo_pensiones {
+  id_fondo_pensiones Int        @id @default(autoincrement())
+  nombre             String?    @db.VarChar(150)
+  usuarios           usuarios[]
+}
+
+model grupos_productos {
+  id_grupos_productos Int        @id @default(autoincrement())
+  nombre              String?    @db.VarChar(200)
+  producto            producto[]
+}
+
+model inventario {
+  id_inventario  Int        @id @default(autoincrement())
+  id_bodega      Int?
+  id_producto    Int?
+  id_proveedor   Int?
+  fecha_ingreso  DateTime?  @db.Date
+  id_factura     Int?
+  cantidad_lote  Decimal?   @db.Decimal(12, 2)
+  costo_producto Decimal?   @db.Decimal(12, 2)
+  id_traslado    Int?
+  traslados      traslados? @relation(fields: [id_traslado], references: [id_traslado], onUpdate: NoAction, map: "fk_inventario_traslado")
+  bodegas        bodegas?   @relation(fields: [id_bodega], references: [id_bodega], onDelete: NoAction, onUpdate: NoAction, map: "id_bodega")
+  facturas       facturas?  @relation(fields: [id_factura], references: [id_facturas], onDelete: NoAction, onUpdate: NoAction, map: "id_factura")
+  producto       producto?  @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_producto")
+  proveedor      proveedor? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "id_proveedor")
+}
+
+model ivas {
+  id_iva          Int               @id @default(autoincrement())
+  nombre          String?           @db.VarChar(200)
+  valor           Decimal?          @db.Decimal(12, 2)
+  detalle_factura detalle_factura[]
+  detalle_salida  detalle_salida[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model maquinas {
+  id_maquina      Int           @id @default(autoincrement())
+  id_tipo_maquina Int?
+  nombre          String?       @db.VarChar(255)
+  observaciones   String?
+  tipo_maquina    tipo_maquina? @relation(fields: [id_tipo_maquina], references: [id_tipo_maquina], onDelete: NoAction, onUpdate: NoAction, map: "fk_maquinas_tipo_maquina")
+  produccion      produccion[]
+
+  @@index([id_tipo_maquina], map: "idx_maquinas_tipo_maquina")
+}
+
+model medida {
+  id_medida         Int                 @id @default(autoincrement())
+  nombre            String?             @db.VarChar(100)
+  produccion_medida produccion_medida[]
+  producto          producto[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model movimiento_caja {
+  id_movimiento_caja Int             @id @default(autoincrement())
+  id_caja            Int
+  id_tipo_movimiento Int
+  monto              Decimal         @db.Decimal(15, 2)
+  descripcion        String?
+  fecha_hora         DateTime        @default(now()) @db.Timestamptz(6)
+  id_usuario         Int
+  observaciones      String?
+  id_estado          Int
+  created_at         DateTime?       @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?       @default(now()) @db.Timestamp(6)
+  cajas              cajas           @relation(fields: [id_caja], references: [id_caja], map: "fk_movimiento_caja_caja")
+  estado             estado          @relation(fields: [id_estado], references: [id_estado], map: "fk_movimiento_caja_estado")
+  tipo_movimiento    tipo_movimiento @relation(fields: [id_tipo_movimiento], references: [id_tipo_movimiento], map: "fk_movimiento_caja_tipo_movimiento")
+  usuarios           usuarios        @relation(fields: [id_usuario], references: [id_usuarios], map: "fk_movimiento_caja_usuario")
+
+  @@index([id_caja], map: "idx_movimiento_caja_caja")
+  @@index([id_estado], map: "idx_movimiento_caja_estado")
+  @@index([fecha_hora], map: "idx_movimiento_caja_fecha")
+  @@index([id_tipo_movimiento], map: "idx_movimiento_caja_tipo_movimiento")
+  @@index([id_usuario], map: "idx_movimiento_caja_usuario")
+}
+
+model movimientos_kardex {
+  id_movimientos         Int       @id @default(autoincrement())
+  id_bodega              Int?
+  id_producto            Int?
+  tipo_movimiento        String?   @db.VarChar(70)
+  tipo_flujo             String?   @db.VarChar(50)
+  cantidad               Decimal?  @db.Decimal(12, 2)
+  costo_unitario         Decimal?  @db.Decimal(12, 2)
+  costo_total_movimiento Decimal?  @db.Decimal(12, 2)
+  fecha_                 DateTime? @map("fecha ") @db.Timestamp(6)
+  bodegas                bodegas?  @relation(fields: [id_bodega], references: [id_bodega], onDelete: NoAction, onUpdate: NoAction, map: "id_bodegas")
+  producto               producto? @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_productos")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model nomina {
+  id_nomina                                       Int                   @id @default(autoincrement())
+  id_usuario_trabajador                           Int
+  total_bruto_nomina                              Decimal               @default(0) @db.Decimal(12, 2)
+  periodo_inicio                                  DateTime              @db.Date
+  periodo_fin                                     DateTime              @db.Date
+  fecha_nomina                                    DateTime              @db.Date
+  id_estado                                       Int?                  @default(1)
+  id_usuario_creador                              Int?
+  total_deducciones                               Decimal               @default(0) @db.Decimal(12, 2)
+  total_pagar                                     Decimal               @default(0) @db.Decimal(12, 2)
+  observaciones                                   String?
+  fecha_creacion                                  DateTime?             @default(now()) @db.Timestamp(6)
+  valor_auxilio_transporte                        Decimal?              @default(0) @db.Decimal(12, 2)
+  dias_trabajados                                 Int?
+  detalle_deducciones                             detalle_deducciones[]
+  detalle_nomina                                  detalle_nomina[]
+  estado                                          estado?               @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_nomina_estado")
+  usuarios_nomina_id_usuario_creadorTousuarios    usuarios?             @relation("nomina_id_usuario_creadorTousuarios", fields: [id_usuario_creador], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "fk_nomina_usuario_creador")
+  usuarios_nomina_id_usuario_trabajadorTousuarios usuarios              @relation("nomina_id_usuario_trabajadorTousuarios", fields: [id_usuario_trabajador], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "fk_nomina_usuario_trabajador")
+
+  @@index([fecha_nomina], map: "idx_nomina_fecha_nomina")
+  @@index([id_usuario_trabajador], map: "idx_nomina_id_usuario_trabajador")
+  @@index([periodo_inicio, periodo_fin], map: "idx_nomina_periodo")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model notas {
+  id_notas                                    Int       @id @default(autoincrement())
+  titulo                                      String    @db.VarChar(255)
+  nota                                        String
+  id_usuario                                  Int
+  fecha_creacion                              DateTime? @default(now()) @db.Timestamp(6)
+  fecha_actualizacion                         DateTime? @default(now()) @db.Timestamp(6)
+  id_usuario_creador                          Int?
+  usuarios_notas_id_usuarioTousuarios         usuarios  @relation("notas_id_usuarioTousuarios", fields: [id_usuario], references: [id_usuarios], onDelete: Cascade, onUpdate: NoAction, map: "fk_notas_usuario")
+  usuarios_notas_id_usuario_creadorTousuarios usuarios? @relation("notas_id_usuario_creadorTousuarios", fields: [id_usuario_creador], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "fk_notas_usuario_creador")
+
+  @@index([id_usuario], map: "idx_notas_id_usuario")
+  @@index([titulo], map: "idx_notas_titulo")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model produccion {
+  id_produccion     Int                 @id @default(autoincrement())
+  id_producto       Int?
+  id_maquina        Int?
+  id_usuario        Int?
+  id_turno          Int?
+  fecha_hora        DateTime?           @default(now()) @db.Timestamp(6)
+  maquinas          maquinas?           @relation(fields: [id_maquina], references: [id_maquina], onDelete: NoAction, onUpdate: NoAction, map: "fk_produccion_maquina")
+  producto          producto?           @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "fk_produccion_producto")
+  turno             turno?              @relation(fields: [id_turno], references: [id_turno], onDelete: NoAction, onUpdate: NoAction, map: "fk_produccion_turno")
+  usuarios          usuarios?           @relation(fields: [id_usuario], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "fk_produccion_usuario")
+  produccion_medida produccion_medida[]
+
+  @@index([fecha_hora], map: "idx_produccion_fecha_hora")
+  @@index([id_maquina], map: "idx_produccion_maquina")
+  @@index([id_producto], map: "idx_produccion_producto")
+  @@index([id_turno], map: "idx_produccion_turno")
+  @@index([id_usuario], map: "idx_produccion_usuario")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model produccion_medida {
+  id_produccion_medida Int         @id @default(autoincrement())
+  id_produccion        Int?
+  id_medida            Int?
+  cantidad             Decimal?    @db.Decimal(12, 2)
+  medida               medida?     @relation(fields: [id_medida], references: [id_medida], onDelete: NoAction, onUpdate: NoAction, map: "fk_produccion_medida_medida")
+  produccion           produccion? @relation(fields: [id_produccion], references: [id_produccion], onDelete: Cascade, onUpdate: NoAction, map: "fk_produccion_medida_produccion")
+
+  @@index([id_medida], map: "idx_produccion_medida_medida")
+  @@index([id_produccion], map: "idx_produccion_medida_produccion")
+}
+
+model producto {
+  id_producto          Int                    @id @default(autoincrement())
+  codigo               String?
+  id_grupos_producto   Int?
+  nombre               String?
+  id_familia           Int?
+  existencia           Boolean?
+  codigo_barras        String?
+  cantidad_total       Decimal?               @db.Decimal(12, 2)
+  cantidad_minima      Decimal?               @db.Decimal(12, 2)
+  cantidad_maxima      Decimal?               @db.Decimal(12, 2)
+  id_estado            Int?
+  id_medida            Int?
+  detalle_factura      detalle_factura[]
+  detalle_salida       detalle_salida[]
+  detalle_tuberia      detalle_tuberia[]
+  inventario           inventario[]
+  movimientos_kardex   movimientos_kardex[]
+  produccion           produccion[]
+  estado               estado?                @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "id_estado")
+  familia_producto     familia_producto?      @relation(fields: [id_familia], references: [id_familia_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_familia_productos")
+  grupos_productos     grupos_productos?      @relation(fields: [id_grupos_producto], references: [id_grupos_productos], onDelete: NoAction, onUpdate: NoAction, map: "id_grupos_producto")
+  medida               medida?                @relation(fields: [id_medida], references: [id_medida], onDelete: NoAction, onUpdate: NoAction, map: "id_medida")
+  producto_x_proveedor producto_x_proveedor[]
+}
+
+model producto_x_proveedor {
+  id_producto_x_proveedor Int        @id @default(autoincrement())
+  id_producto             Int?
+  id_proveedor            Int?
+  costo                   Decimal?   @db.Decimal(12, 2)
+  producto                producto?  @relation(fields: [id_producto], references: [id_producto], onDelete: NoAction, onUpdate: NoAction, map: "id_producto")
+  proveedor               proveedor? @relation(fields: [id_proveedor], references: [id_proveedor], onDelete: NoAction, onUpdate: NoAction, map: "id_proveedor")
+}
+
+model proveedor {
+  id_proveedor              Int                     @id @default(autoincrement())
+  id_tipo_entidad           Int?
+  id_tipo_identificacion    Int?
+  identificacion            String?                 @db.VarChar(100)
+  dv                        Int?
+  telefono                  String?                 @db.VarChar(70)
+  razon_social              String?                 @db.VarChar(300)
+  nombre_comercial          String?                 @db.VarChar(300)
+  id_ciudad                 Int?
+  direccion                 String?                 @db.VarChar(300)
+  nombre_contacto           String?                 @db.VarChar(300)
+  apellido_contacto         String?                 @db.VarChar(300)
+  correo_electronico        String?                 @db.VarChar(300)
+  id_tipo_regimen_iva       Int?
+  id_responsabilidad_fiscal Int?
+  id_estado                 Int?                    @default(1)
+  facturas                  facturas[]
+  inventario                inventario[]
+  producto_x_proveedor      producto_x_proveedor[]
+  estado                    estado?                 @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_proveedor_estado")
+  ciudad                    ciudad?                 @relation(fields: [id_ciudad], references: [id_ciudad], onDelete: NoAction, onUpdate: NoAction, map: "id_ciudad")
+  responsabilidad_fiscal    responsabilidad_fiscal? @relation(fields: [id_responsabilidad_fiscal], references: [id_responsabilidad_fiscal], onDelete: NoAction, onUpdate: NoAction, map: "id_responsabilidad_fiscal")
+  tipo_entidad              tipo_entidad?           @relation(fields: [id_tipo_entidad], references: [id_tipo_entidad], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_entidad")
+  tipo_identificacion       tipo_identificacion?    @relation(fields: [id_tipo_identificacion], references: [id_tipo_identificacion], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_identificacion")
+  tipo_regimen_iva          tipo_regimen_iva?       @relation(fields: [id_tipo_regimen_iva], references: [id_regimen_iva], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_regimen_iva")
+}
+
+model responsabilidad_fiscal {
+  id_responsabilidad_fiscal Int         @id @default(autoincrement())
+  nombre                    String?     @db.VarChar(150)
+  codigo                    String?     @db.VarChar(20)
+  clientes                  clientes[]
+  proveedor                 proveedor[]
+}
+
+model retefuente {
+  id_retefuente   Int               @id @default(autoincrement())
+  nombre          String?           @db.VarChar(150)
+  valor           Decimal?          @db.Decimal(12, 2)
+  detalle_factura detalle_factura[]
+  detalle_salida  detalle_salida[]
+}
+
+model rol {
+  id_rol         Int              @id @default(autoincrement())
+  nombre         String?          @db.VarChar(150)
+  usuarios_x_rol usuarios_x_rol[]
+}
+
+model salidas {
+  id_salida       Int              @id @default(autoincrement())
+  id_usuario      Int?
+  fecha_creacion  DateTime?        @db.Date
+  id_cliente      Int?
+  total_subtotal  Decimal?         @db.Decimal(12, 2)
+  total_descuento Decimal?         @db.Decimal(12, 2)
+  total_iva       Decimal?         @db.Decimal(12, 2)
+  total_retencion Decimal?         @db.Decimal(12, 2)
+  total_factura   Decimal?         @db.Decimal(12, 2)
+  observaciones   String?
+  detalle_salida  detalle_salida[]
+  clientes        clientes?        @relation(fields: [id_cliente], references: [id_cliente], onDelete: NoAction, onUpdate: NoAction, map: "id_cliente")
+  usuarios        usuarios?        @relation(fields: [id_usuario], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuario")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tallas_empleados {
+  id_tallas_empleados Int           @id @default(autoincrement())
+  id_usuarios         Int?
+  id_tipo_prendas     Int?
+  talla               String?       @db.VarChar(50)
+  tipo_prendas        tipo_prendas? @relation(fields: [id_tipo_prendas], references: [id_tipo_prendas], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_prendas")
+  usuarios            usuarios?     @relation(fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tareas {
+  id_tareas                                    Int       @id @default(autoincrement())
+  id_usuarios                                  Int?
+  descripcion                                  String?
+  fecha_asignacion                             DateTime? @default(now()) @db.Timestamp(6)
+  id_estado                                    Int?      @default(1)
+  id_usuario_creador                           Int?
+  estado                                       estado?   @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_tareas_estado")
+  usuarios_tareas_id_usuario_creadorTousuarios usuarios? @relation("tareas_id_usuario_creadorTousuarios", fields: [id_usuario_creador], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "fk_tareas_usuario_creador")
+  usuarios_tareas_id_usuariosTousuarios        usuarios? @relation("tareas_id_usuariosTousuarios", fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_contrato {
+  id_tipo_contrato Int        @id @default(autoincrement())
+  nombre           String?    @db.VarChar(150)
+  usuarios         usuarios[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_deduccion {
+  id_tipo_deduccion   Int                   @id @default(autoincrement())
+  nombre              String                @db.VarChar(150)
+  descripcion         String?
+  id_estado           Int?                  @default(1)
+  detalle_deducciones detalle_deducciones[]
+  estado              estado?               @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_tipo_deduccion_estado")
+}
+
+model tipo_entidad {
+  id_tipo_entidad Int         @id @default(autoincrement())
+  nombre          String?     @db.VarChar(120)
+  clientes        clientes[]
+  proveedor       proveedor[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_hora {
+  id_tipo_hora   Int              @id @default(autoincrement())
+  nombre         String           @db.VarChar(150)
+  horario        String?          @db.VarChar(200)
+  recargo        String?          @db.VarChar(200)
+  valor_hora     Decimal          @default(0) @db.Decimal(12, 2)
+  id_estado      Int?             @default(1)
+  detalle_nomina detalle_nomina[]
+  estado         estado?          @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "fk_tipo_hora_estado")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_identificacion {
+  id_tipo_identificacion Int         @id @default(autoincrement())
+  nombre                 String?     @db.VarChar(150)
+  clientes               clientes[]
+  proveedor              proveedor[]
+  usuarios               usuarios[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_maquina {
+  id_tipo_maquina Int        @id @default(autoincrement())
+  nombre          String?    @db.VarChar(255)
+  descripcion     String?
+  maquinas        maquinas[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_movimiento {
+  id_tipo_movimiento Int               @id @default(autoincrement())
+  nombre             String            @unique @db.VarChar(100)
+  created_at         DateTime?         @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?         @default(now()) @db.Timestamp(6)
+  movimiento_caja    movimiento_caja[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model tipo_prendas {
+  id_tipo_prendas  Int                @id @default(autoincrement())
+  nombre           String?            @db.VarChar(100)
+  detalle_dotacion detalle_dotacion[]
+  tallas_empleados tallas_empleados[]
+}
+
+model tipo_regimen_iva {
+  id_regimen_iva Int         @id @default(autoincrement())
+  nombre         String?     @db.VarChar(200)
+  clientes       clientes[]
+  proveedor      proveedor[]
+}
+
+model traslados {
+  id_traslado       Int          @id @default(autoincrement())
+  fecha_traslado    DateTime?    @default(dbgenerated("CURRENT_DATE")) @db.Date
+  id_usuario        Int?
+  bodega_origen_id  Int?
+  bodega_destino_id Int?
+  observacion       String?
+  inventario        inventario[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model turno {
+  id_turno   Int          @id @default(autoincrement())
+  nombre     String?      @db.VarChar(255)
+  horario    String?      @db.VarChar(255)
+  produccion produccion[]
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model usuarios {
+  id_usuarios                                   Int                   @id @default(autoincrement())
+  id_tipo_identificacion                        Int?
+  documento                                     String?               @db.VarChar(150)
+  nombre                                        String?               @db.VarChar(200)
+  apellido                                      String?               @db.VarChar(200)
+  dia_ingreso                                   DateTime?             @db.Date
+  id_tipo_contrato                              Int?
+  id_estado_civil                               Int?
+  id_arl                                        Int?
+  arl_fecha_ingreso                             DateTime?             @db.Date
+  id_eps                                        Int?
+  eps_fecha_ingreso                             DateTime?             @db.Date
+  id_caja_compensacion                          Int?
+  id_fondo_pensiones                            Int?
+  induccion_sst                                 Boolean?
+  induccion_puesto_trabajo                      Boolean?
+  afiliacion_a_beneficiarios                    Boolean?
+  nombre_contacto                               String?               @db.VarChar(300)
+  telefono_contacto                             String?               @db.VarChar(200)
+  direccion                                     String?               @db.VarChar
+  celular                                       String?               @db.VarChar(200)
+  correo_electronico                            String?               @db.VarChar(250)
+  firma_reglamento_interno_trabajo              Boolean?
+  firma_elementos_proteccion                    Boolean?
+  firma_contrato                                Boolean?
+  fecha_nacimiento                              DateTime?             @db.Date
+  password                                      String?               @db.VarChar(200)
+  id_estado                                     Int?
+  entregas_dotaciones                           entregas_dotaciones[]
+  facturas                                      facturas[]
+  movimiento_caja                               movimiento_caja[]
+  nomina_nomina_id_usuario_creadorTousuarios    nomina[]              @relation("nomina_id_usuario_creadorTousuarios")
+  nomina_nomina_id_usuario_trabajadorTousuarios nomina[]              @relation("nomina_id_usuario_trabajadorTousuarios")
+  notas_notas_id_usuarioTousuarios              notas[]               @relation("notas_id_usuarioTousuarios")
+  notas_notas_id_usuario_creadorTousuarios      notas[]               @relation("notas_id_usuario_creadorTousuarios")
+  produccion                                    produccion[]
+  salidas                                       salidas[]
+  tallas_empleados                              tallas_empleados[]
+  tareas_tareas_id_usuario_creadorTousuarios    tareas[]              @relation("tareas_id_usuario_creadorTousuarios")
+  tareas_tareas_id_usuariosTousuarios           tareas[]              @relation("tareas_id_usuariosTousuarios")
+  arl                                           arl?                  @relation(fields: [id_arl], references: [id_arl], onDelete: NoAction, onUpdate: NoAction, map: "id_arl")
+  caja_compensacion                             caja_compensacion?    @relation(fields: [id_caja_compensacion], references: [id_caja_compensacion], onDelete: NoAction, onUpdate: NoAction, map: "id_caja_compensacion")
+  eps                                           eps?                  @relation(fields: [id_eps], references: [id_eps], onDelete: NoAction, onUpdate: NoAction, map: "id_eps")
+  estado                                        estado?               @relation(fields: [id_estado], references: [id_estado], onDelete: NoAction, onUpdate: NoAction, map: "id_estado")
+  estado_civil                                  estado_civil?         @relation(fields: [id_estado_civil], references: [id_estado_civil], onDelete: NoAction, onUpdate: NoAction, map: "id_estado_civil")
+  fondo_pensiones                               fondo_pensiones?      @relation(fields: [id_fondo_pensiones], references: [id_fondo_pensiones], onDelete: NoAction, onUpdate: NoAction, map: "id_fondo_pensiones")
+  tipo_contrato                                 tipo_contrato?        @relation(fields: [id_tipo_contrato], references: [id_tipo_contrato], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_contrato")
+  tipo_identificacion                           tipo_identificacion?  @relation(fields: [id_tipo_identificacion], references: [id_tipo_identificacion], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_identificacion")
+  usuarios_x_rol                                usuarios_x_rol[]
+  vacaciones                                    vacaciones[]
+}
+
+model usuarios_x_rol {
+  id_usuarios_x_rol Int       @id @default(autoincrement())
+  id_usuarios       Int?
+  id_rol            Int?
+  rol               rol?      @relation(fields: [id_rol], references: [id_rol], onDelete: NoAction, onUpdate: NoAction, map: "id_rol")
+  usuarios          usuarios? @relation(fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model vacaciones {
+  id_vacaciones Int       @id @default(autoincrement())
+  id_usuarios   Int?
+  fecha_inicio  DateTime  @db.Date
+  fecha_fin     DateTime  @db.Date
+  usuarios      usuarios? @relation(fields: [id_usuarios], references: [id_usuarios], onDelete: NoAction, onUpdate: NoAction, map: "id_usuarios")
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model valor_auxilio_transporte {
+  id     Int     @id @default(autoincrement())
+  nombre String? @db.VarChar(150)
+  valor  Decimal @default(0) @db.Decimal(12, 2)
+}
