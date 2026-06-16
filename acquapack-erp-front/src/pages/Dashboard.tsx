@@ -191,6 +191,7 @@ const Dashboard = () => {
 
 
 
+
   const getDisplayTitle = () => {
     if (location.pathname === "/dashboard" && !selectedModule) {
       return "ERP_ACQUAPACK";

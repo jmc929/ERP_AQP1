@@ -158,6 +158,77 @@ class ProduccionService {
 	}
 
 	/**
+	 * Obtiene productos activos paginados, filtrados por grupo y opcionalmente por búsqueda
+	 * @param {number} idGrupoProducto - ID del grupo de producto
+	 * @param {number} page - Página (1-based)
+	 * @param {number} limit - Cantidad por página
+	 * @param {string} busqueda - Búsqueda por nombre o código (opcional)
+	 * @returns {Promise<{ productos: Array, paginacion: Object }>}
+	 */
+	async obtenerProductosPaginados(idGrupoProducto, page = 1, limit = 30, busqueda = null) {
+		try {
+			const offset = (page - 1) * limit;
+			let where = `
+				WHERE (p.id_estado IS NULL OR p.id_estado NOT IN (
+					SELECT id_estado FROM public.estado WHERE nombre = 'Eliminado'
+				))
+				AND p.id_grupos_producto = $1
+			`;
+			const countParams = [idGrupoProducto];
+			const dataParams = [idGrupoProducto];
+
+			if (busqueda && String(busqueda).trim()) {
+				const term = `%${String(busqueda).trim().toLowerCase()}%`;
+				where += ` AND (LOWER(p.nombre) LIKE $${countParams.length + 1} OR LOWER(COALESCE(p.codigo, '')) LIKE $${countParams.length + 1})`;
+				countParams.push(term);
+				dataParams.push(term);
+			}
+
+			const countQuery = `
+				SELECT COUNT(*)::int as total
+				FROM public.producto p
+				${where}
+			`;
+			const countResult = await pool.query(countQuery, countParams);
+			const totalRegistros = countResult.rows[0]?.total ?? 0;
+			const totalPaginas = Math.max(1, Math.ceil(totalRegistros / limit));
+			const hayMas = page < totalPaginas;
+
+			let dataQuery = `
+				SELECT 
+					p.id_producto,
+					p.codigo,
+					p.nombre,
+					p.id_grupos_producto,
+					gp.nombre as grupo_nombre,
+					m.nombre as medida_nombre
+				FROM public.producto p
+				LEFT JOIN public.medida m ON p.id_medida = m.id_medida
+				LEFT JOIN public.grupos_productos gp ON p.id_grupos_producto = gp.id_grupos_productos
+				${where}
+				ORDER BY p.nombre
+				LIMIT $${dataParams.length + 1} OFFSET $${dataParams.length + 2}
+			`;
+			dataParams.push(limit, offset);
+			const result = await pool.query(dataQuery, dataParams);
+
+			return {
+				productos: result.rows,
+				paginacion: {
+					paginaActual: page,
+					totalPaginas,
+					totalRegistros,
+					limite: limit,
+					hayMas
+				}
+			};
+		} catch (error) {
+			logger.error({ err: error }, "Error al obtener productos paginados");
+			throw error;
+		}
+	}
+
+	/**
 	 * Obtiene usuarios activos filtrados por roles específicos
 	 * @returns {Promise<Array>} Lista de usuarios con roles 9, 11, 8, 10, 22
 	 */

@@ -118,8 +118,13 @@ const CorregirProduccion = () => {
   const [turnos, setTurnos] = useState<Turno[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [productos, setProductos] = useState<Producto[]>([]);
-  const [productosFiltrados, setProductosFiltrados] = useState<Producto[]>([]);
   const [busquedaProducto, setBusquedaProducto] = useState("");
+  const [paginacionProductos, setPaginacionProductos] = useState({
+    paginaActual: 1,
+    hayMas: false,
+    cargando: false
+  });
+  const [busquedaProductoDebounced, setBusquedaProductoDebounced] = useState("");
   const [producciones, setProducciones] = useState<Produccion[]>([]);
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -189,61 +194,109 @@ const CorregirProduccion = () => {
     return null;
   };
 
+  // Debounce búsqueda de producto para filtro
   useEffect(() => {
-    const cargarProductosYMaquinas = async () => {
+    const t = setTimeout(() => setBusquedaProductoDebounced(busquedaProducto), 400);
+    return () => clearTimeout(t);
+  }, [busquedaProducto]);
+
+  // Cargar máquinas del tipo seleccionado
+  useEffect(() => {
+    const cargarMaquinas = async () => {
       if (!tipoMaquinaSeleccionado) {
-        setProductos([]);
-        setProductosFiltrados([]);
         setMaquinas([]);
         return;
       }
       try {
-        const tipoSeleccionado = tiposMaquina.find(t => t.id_tipo_maquina === tipoMaquinaSeleccionado);
-        const nombreTipo = tipoSeleccionado?.nombre || "";
-
-        // Cargar máquinas de este tipo
-        const maquinasResponse = await fetch(
+        const response = await fetch(
           `${API_BASE_URL}/api/produccion/maquinas?id_tipo_maquina=${tipoMaquinaSeleccionado}`
         );
-        const maquinasData = await maquinasResponse.json();
-        if (maquinasData.success) {
-          setMaquinas(maquinasData.maquinas || []);
+        const data = await response.json();
+        if (data.success) {
+          setMaquinas(data.maquinas || []);
         }
+      } catch (error) {
+        console.error("Error al cargar máquinas:", error);
+      }
+    };
+    cargarMaquinas();
+  }, [tipoMaquinaSeleccionado]);
 
-        const idGrupoProducto = getGrupoProductoPorTipoMaquina(nombreTipo);
-        if (!idGrupoProducto) {
-          setProductos([]);
-          setProductosFiltrados([]);
-          return;
-        }
-        const response = await fetch(`${API_BASE_URL}/api/produccion/productos?id_grupo_producto=${idGrupoProducto}`);
+  // Cargar primera página de productos al cambiar tipo de máquina o búsqueda debounced
+  useEffect(() => {
+    const cargarPrimeraPagina = async () => {
+      if (!tipoMaquinaSeleccionado) {
+        setProductos([]);
+        setPaginacionProductos({ paginaActual: 1, hayMas: false, cargando: false });
+        return;
+      }
+      const tipoSeleccionado = tiposMaquina.find(t => t.id_tipo_maquina === tipoMaquinaSeleccionado);
+      const idGrupoProducto = getGrupoProductoPorTipoMaquina(tipoSeleccionado?.nombre || "");
+      if (!idGrupoProducto) {
+        setProductos([]);
+        setPaginacionProductos({ paginaActual: 1, hayMas: false, cargando: false });
+        return;
+      }
+      try {
+        setPaginacionProductos(prev => ({ ...prev, cargando: true }));
+        const params = new URLSearchParams({
+          id_grupo_producto: String(idGrupoProducto),
+          page: "1",
+          limit: "30"
+        });
+        if (busquedaProductoDebounced.trim()) params.set("busqueda", busquedaProductoDebounced.trim());
+        const response = await fetch(`${API_BASE_URL}/api/produccion/productos?${params.toString()}`);
         const data = await response.json();
         if (data.success) {
           setProductos(data.productos || []);
-          setProductosFiltrados(data.productos || []);
+          setPaginacionProductos({
+            paginaActual: data.paginacion?.paginaActual ?? 1,
+            hayMas: data.paginacion?.hayMas ?? false,
+            cargando: false
+          });
+        } else {
+          setPaginacionProductos(prev => ({ ...prev, cargando: false }));
         }
       } catch (error) {
-        console.error("Error al cargar productos o máquinas:", error);
-        toast({ title: "Error", description: "No se pudieron cargar los productos o máquinas", variant: "destructive" });
+        console.error("Error al cargar productos:", error);
+        toast({ title: "Error", description: "No se pudieron cargar los productos", variant: "destructive" });
+        setPaginacionProductos(prev => ({ ...prev, cargando: false }));
       }
     };
-    cargarProductosYMaquinas();
-  }, [tipoMaquinaSeleccionado, tiposMaquina, toast]);
+    cargarPrimeraPagina();
+  }, [tipoMaquinaSeleccionado, tiposMaquina, busquedaProductoDebounced, toast]);
 
-  // Filtrar productos locales según la búsqueda
-  useEffect(() => {
-    if (!busquedaProducto.trim()) {
-      setProductosFiltrados(productos);
-      return;
+  const cargarMasProductos = async () => {
+    if (!tipoMaquinaSeleccionado || paginacionProductos.cargando || !paginacionProductos.hayMas) return;
+    const tipoSeleccionado = tiposMaquina.find(t => t.id_tipo_maquina === tipoMaquinaSeleccionado);
+    const idGrupoProducto = getGrupoProductoPorTipoMaquina(tipoSeleccionado?.nombre || "");
+    if (!idGrupoProducto) return;
+    const siguientePagina = paginacionProductos.paginaActual + 1;
+    try {
+      setPaginacionProductos(prev => ({ ...prev, cargando: true }));
+      const params = new URLSearchParams({
+        id_grupo_producto: String(idGrupoProducto),
+        page: String(siguientePagina),
+        limit: "30"
+      });
+      if (busquedaProductoDebounced.trim()) params.set("busqueda", busquedaProductoDebounced.trim());
+      const response = await fetch(`${API_BASE_URL}/api/produccion/productos?${params.toString()}`);
+      const data = await response.json();
+      if (data.success) {
+        setProductos(prev => [...prev, ...(data.productos || [])]);
+        setPaginacionProductos({
+          paginaActual: data.paginacion?.paginaActual ?? siguientePagina,
+          hayMas: data.paginacion?.hayMas ?? false,
+          cargando: false
+        });
+      } else {
+        setPaginacionProductos(prev => ({ ...prev, cargando: false }));
+      }
+    } catch (error) {
+      console.error("Error al cargar más productos:", error);
+      setPaginacionProductos(prev => ({ ...prev, cargando: false }));
     }
-    const query = busquedaProducto.toLowerCase();
-    const filtrados = productos.filter(
-      (p) =>
-        p.nombre.toLowerCase().includes(query) ||
-        (p.codigo && p.codigo.toLowerCase().includes(query))
-    );
-    setProductosFiltrados(filtrados);
-  }, [busquedaProducto, productos]);
+  };
 
   const aplicarFiltros = async (paginaActual: number = 1) => {
     if (!tipoMaquinaSeleccionado) {
@@ -295,6 +348,7 @@ const CorregirProduccion = () => {
     setFiltroKilos("");
     setFiltroMetros("");
     setBusquedaProducto("");
+    setBusquedaProductoDebounced("");
     setProducciones([]);
   };
 
@@ -474,6 +528,21 @@ const CorregirProduccion = () => {
     return produccionSeleccionada?.medidas?.find(m => m.id_produccion_medida === idPm)?.medida_nombre ?? "";
   };
 
+  // Lista de productos para el dialog: incluir el producto actual si no está en la lista cargada
+  const productosParaDialog = (() => {
+    if (!produccionSeleccionada || productoIdEdit == null) return productos;
+    const yaEsta = productos.some(p => p.id_producto === productoIdEdit);
+    if (yaEsta) return productos;
+    return [
+      {
+        id_producto: produccionSeleccionada.id_producto,
+        nombre: produccionSeleccionada.producto_nombre,
+        codigo: produccionSeleccionada.producto_codigo
+      } as Producto,
+      ...productos
+    ];
+  })();
+
   return (
     <PageContainer>
       <PageTitle title="Corregir Producción" />
@@ -552,16 +621,24 @@ const CorregirProduccion = () => {
                 <Label htmlFor="producto">Producto</Label>
                 <Select value={filtroProducto || "none"} onValueChange={(v) => { setFiltroProducto(v === "none" ? "" : v); setBusquedaProducto(""); }}>
                   <SelectTrigger id="producto"><SelectValue placeholder="Todos los productos" /></SelectTrigger>
-                  <SelectContent>
-                    <div className="p-2 border-b">
+                  <SelectContent className="max-h-[280px] [&>[data-radix-select-viewport]]:!h-auto">
+                    <div className="p-2 border-b sticky top-0 bg-popover z-10">
                       <div className="relative">
                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                         <Input placeholder="Buscar..." value={busquedaProducto} onChange={(e) => setBusquedaProducto(e.target.value)} className="pl-8 h-9" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()} />
                       </div>
                     </div>
-                    <div className="max-h-[200px] overflow-y-auto">
-                      <SelectItem value="none">Todos los productos</SelectItem>
-                      {productosFiltrados.map((p) => (
+                    <SelectItem value="none">Todos los productos</SelectItem>
+                    <div
+                      className="max-h-[180px] overflow-y-auto overflow-x-hidden"
+                      onScroll={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.scrollTop + target.clientHeight >= target.scrollHeight * 0.85 && paginacionProductos.hayMas && !paginacionProductos.cargando) {
+                          cargarMasProductos();
+                        }
+                      }}
+                    >
+                      {productos.map((p) => (
                         <SelectItem key={p.id_producto} value={p.id_producto.toString()}>
                           <div className="flex flex-col">
                             <span>{p.nombre}</span>
@@ -571,10 +648,11 @@ const CorregirProduccion = () => {
                           </div>
                         </SelectItem>
                       ))}
-                      {productosFiltrados.length === 0 && busquedaProducto && (
-                        <div className="px-2 py-1.5 text-sm text-muted-foreground text-center">
-                          No se encontraron productos
-                        </div>
+                      {paginacionProductos.cargando && (
+                        <div className="py-2 text-center text-sm text-muted-foreground">Cargando más...</div>
+                      )}
+                      {!paginacionProductos.hayMas && productos.length > 0 && (
+                        <div className="py-1 text-center text-xs text-muted-foreground">Fin de la lista</div>
                       )}
                     </div>
                   </SelectContent>
@@ -717,12 +795,28 @@ const CorregirProduccion = () => {
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione producto" />
                   </SelectTrigger>
-                  <SelectContent>
-                    {(productosFiltrados.length ? productosFiltrados : productos).map((p) => (
-                      <SelectItem key={p.id_producto} value={String(p.id_producto)}>
-                        {p.nombre} {p.codigo ? `(${p.codigo})` : ""}
-                      </SelectItem>
-                    ))}
+                  <SelectContent className="max-h-[280px] [&>[data-radix-select-viewport]]:!h-auto">
+                    <div
+                      className="max-h-[200px] overflow-y-auto overflow-x-hidden"
+                      onScroll={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.scrollTop + target.clientHeight >= target.scrollHeight * 0.85 && paginacionProductos.hayMas && !paginacionProductos.cargando) {
+                          cargarMasProductos();
+                        }
+                      }}
+                    >
+                      {productosParaDialog.map((p) => (
+                        <SelectItem key={p.id_producto} value={String(p.id_producto)}>
+                          {p.nombre} {p.codigo ? `(${p.codigo})` : ""}
+                        </SelectItem>
+                      ))}
+                      {paginacionProductos.cargando && (
+                        <div className="py-2 text-center text-sm text-muted-foreground">Cargando más...</div>
+                      )}
+                      {!paginacionProductos.hayMas && productosParaDialog.length > 0 && (
+                        <div className="py-1 text-center text-xs text-muted-foreground">Fin de la lista</div>
+                      )}
+                    </div>
                   </SelectContent>
                 </Select>
               </div>

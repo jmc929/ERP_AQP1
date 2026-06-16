@@ -27,6 +27,7 @@ import GestionTareas from "./pages/GestionTareas";
 import GestionarBodegas from "./pages/GestionarBodegas";
 import TrasladosBodegas from "./pages/TrasladosBodegas";
 import VerInventarioBodegas from "./pages/VerInventarioBodegas";
+import AjusteInventario from "./pages/AjusteInventario";
 import VerCostosProductos from "./pages/VerCostosProductos";
 import ProductosXProveedor from "./pages/ProductosXProveedor";
 import GestionarDocumentos from "./pages/GestionarDocumentos";
@@ -84,6 +85,7 @@ const App = () => (
             <Route path="inventario/gestionar-bodegas" element={<GestionarBodegas />} />
             <Route path="inventario/traslados-bodegas" element={<TrasladosBodegas />} />
             <Route path="inventario/ver-inventario" element={<VerInventarioBodegas />} />
+            <Route path="inventario/ajuste-inventario" element={<AjusteInventario />} />
             <Route path="costos/ver-costos" element={<VerCostosProductos />} />
             <Route path="cajas/ver-cajas" element={<VerCajas />} />
             <Route path="cajas/hacer-movimientos" element={<HacerMovimientosCaja />} />

@@ -335,15 +335,15 @@ class BodegasService {
 						inv.id_traslado,
 						p.codigo as producto_codigo,
 						p.nombre as producto_nombre,
-						COALESCE(df.precio_unitario, 0) as precio_unitario,
-						COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
+						COALESCE(df.precio_unitario, inv.costo_producto / NULLIF(inv.cantidad_lote, 0), 0) as precio_unitario,
+						COALESCE(df.costo_unitario_con_impuesto, inv.costo_producto / NULLIF(inv.cantidad_lote, 0), 0) as costo_unitario_con_impuesto,
 						COALESCE(df.iva_valor, 0) as iva_valor,
-						COALESCE(df.valor_total, 0) as valor_total,
+						COALESCE(df.valor_total, inv.costo_producto, 0) as valor_total,
 						df.id_iva,
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
-						-- Comprobante: Usar directamente el id_factura o id_traslado del registro de inventario
+						-- Comprobante: Usar directamente el id_factura o id_traslado del registro de inventario (N/A para ajustes)
 						CASE
 							WHEN inv.id_traslado IS NOT NULL THEN 'T-' || inv.id_traslado::text
 							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
@@ -412,15 +412,15 @@ class BodegasService {
 						NULL as id_traslado,
 						p.codigo as producto_codigo,
 						p.nombre as producto_nombre,
-						COALESCE(df.precio_unitario, 0) as precio_unitario,
-						COALESCE(df.costo_unitario_con_impuesto, 0) as costo_unitario_con_impuesto,
+						COALESCE(df.precio_unitario, inv.costo_producto / NULLIF(inv.cantidad_lote, 0), 0) as precio_unitario,
+						COALESCE(df.costo_unitario_con_impuesto, inv.costo_producto / NULLIF(inv.cantidad_lote, 0), 0) as costo_unitario_con_impuesto,
 						COALESCE(df.iva_valor, 0) as iva_valor,
-						COALESCE(df.valor_total, 0) as valor_total,
+						COALESCE(df.valor_total, inv.costo_producto, 0) as valor_total,
 						df.id_iva,
 						i.nombre as iva_nombre,
 						i.valor as iva_porcentaje,
 						COALESCE(m.nombre, 'N/A') as unidad_medida,
-						-- Comprobante: Usar directamente el id_factura del registro de inventario
+						-- Comprobante: Usar directamente el id_factura del registro de inventario (N/A para ajustes)
 						CASE
 							WHEN inv.id_factura IS NOT NULL THEN 'FC-' || inv.id_factura::text
 							ELSE 'N/A'
