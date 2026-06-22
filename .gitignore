@@ -34,6 +34,9 @@ lerna-debug.log*
 # OS
 Thumbs.db
 
+# Docker PostgreSQL data
+pgdata/
+
 # Documentos subidos (NO subir al repositorio)
 documentos/
 *.pdf

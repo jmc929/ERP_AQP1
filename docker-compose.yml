@@ -1,14 +1,36 @@
-version: "3.8"
 
 services:
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Backup SQL montado fuera de initdb.d para que Docker no lo ejecute directamente
+      - ./cloud_backup.sql:/backup/cloud_backup.sql:ro
+      # Scripts de inicialización (solo se ejecutan si pgdata está vacío)
+      - ./init-db/01-restore.sh:/docker-entrypoint-initdb.d/01-restore.sh:ro
+      - ./init-db/02-detalle-tuberia.sql:/docker-entrypoint-initdb.d/02-detalle-tuberia.sql:ro
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
   backend:
     build:
       context: ./acquapack-erp-back
       dockerfile: Dockerfile
     restart: always
     environment:
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
@@ -19,6 +41,9 @@ services:
       - documentos:/app/documentos
     ports:
       - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   frontend:
     build:
@@ -33,4 +58,5 @@ services:
       - backend
 
 volumes:
+  pgdata:
   documentos:

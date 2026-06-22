@@ -1,17 +1,21 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /app
 
+# Copiar package files e instalar dependencias (incluyendo devDeps para prisma generate)
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
+# Copiar el código fuente (incluye prisma/schema.prisma)
 COPY . .
+
+# Generar el cliente Prisma dentro del contenedor
+RUN npx prisma generate
+
+# Eliminar devDependencies para imagen más liviana
+RUN npm prune --omit=dev
 
 ENV NODE_ENV=production
 EXPOSE 4000
 
-# Si tu backend usa TypeScript/Nest y requiere build:
-# RUN npm run build
-# CMD ["npm","run","start:prod"]
-
-CMD ["npm","start"]
+CMD ["npm", "start"]
