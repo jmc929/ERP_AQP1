@@ -75,6 +75,7 @@ model clientes {
   tipo_entidad              tipo_entidad?           @relation(fields: [id_tipo_entidad], references: [id_tipo_entidad], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_entidad")
   tipo_identificacion       tipo_identificacion?    @relation(fields: [id_tipo_identificacion], references: [id_tipo_identificacion], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_identificacion")
   tipo_regimen_iva          tipo_regimen_iva?       @relation(fields: [id_tipo_regimen_iva], references: [id_regimen_iva], onDelete: NoAction, onUpdate: NoAction, map: "id_tipo_regimen_iva")
+  fecha_diligenciamiento    DateTime?               @default(now()) @db.Timestamp(6)
   salidas                   salidas[]
 }
 

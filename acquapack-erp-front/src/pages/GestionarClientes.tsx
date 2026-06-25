@@ -61,6 +61,7 @@ interface Cliente {
   responsabilidad_fiscal_codigo?: string;
   estado_nombre?: string;
   estado_color?: string;
+  fecha_diligenciamiento?: string;
 }
 
 interface Catalogos {
@@ -418,245 +419,281 @@ const GestionarClientes = () => {
 
       {/* Formulario para agregar/editar cliente */}
       {mostrarFormulario && (
-        <FormCard title={clienteEditando ? "Editar Cliente" : "Agregar Nuevo Cliente"}>
-          {loadingCatalogos ? (
-            <div className="text-center py-4">Cargando catálogos...</div>
-          ) : (
-            <div className="space-y-6">
-              {/* Tipo de Entidad e Identificación */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipoEntidad">Tipo de Entidad</Label>
-                  <Select value={idTipoEntidad} onValueChange={setIdTipoEntidad}>
-                    <SelectTrigger id="tipoEntidad">
-                      <SelectValue placeholder="Seleccione tipo de entidad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.tiposEntidad.map((tipo) => (
-                        <SelectItem key={tipo.id_tipo_entidad} value={tipo.id_tipo_entidad.toString()}>
-                          {tipo.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tipoIdentificacion">Tipo de Identificación</Label>
-                  <Select value={idTipoIdentificacion} onValueChange={setIdTipoIdentificacion}>
-                    <SelectTrigger id="tipoIdentificacion">
-                      <SelectValue placeholder="Seleccione tipo de identificación" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.tiposIdentificacion.map((tipo) => (
-                        <SelectItem key={tipo.id_tipo_identificacion} value={tipo.id_tipo_identificacion.toString()}>
-                          {tipo.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        <div className="space-y-8 bg-white dark:bg-slate-900 p-6 md:p-8 rounded-2xl border border-slate-200/80 shadow-md">
+          <div className="flex items-center justify-between border-b pb-4">
+            <h2 className="text-xl md:text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">
+              {clienteEditando ? "Editar Cliente" : "Agregar Nuevo Cliente"}
+            </h2>
+          </div>
 
-              {/* Identificación y DV */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="identificacion">Identificación *</Label>
-                  <Input
-                    id="identificacion"
-                    value={identificacion}
-                    onChange={async (e) => {
-                      const nuevaIdentificacion = e.target.value;
-                      setIdentificacion(nuevaIdentificacion);
-                      
-                      // Calcular DV automáticamente si hay identificación
-                      if (nuevaIdentificacion.trim()) {
-                        try {
-                          const response = await fetch(
-                            `${API_BASE_URL}/api/clientes/calcular-dv?identificacion=${encodeURIComponent(nuevaIdentificacion)}`
-                          );
-                          const data = await response.json();
-                          if (data.success && data.dv !== null) {
-                            setDv(data.dv.toString());
-                          } else {
+          {loadingCatalogos ? (
+            <div className="text-center py-8 text-muted-foreground">Cargando catálogos...</div>
+          ) : (
+            <div className="space-y-8">
+              {/* Sección 1: Datos de Persona Natural o Jurídica */}
+              <div className="p-6 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/40 dark:bg-slate-900/40 space-y-6 shadow-sm">
+                <div className="flex items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+                  <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Datos de Persona Natural o Jurídica
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="tipoEntidad" className="text-slate-700 dark:text-slate-300 font-semibold">Tipo de Entidad</Label>
+                    <Select value={idTipoEntidad} onValueChange={setIdTipoEntidad}>
+                      <SelectTrigger id="tipoEntidad" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione tipo de entidad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.tiposEntidad.map((tipo) => (
+                          <SelectItem key={tipo.id_tipo_entidad} value={tipo.id_tipo_entidad.toString()}>
+                            {tipo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tipoIdentificacion" className="text-slate-700 dark:text-slate-300 font-semibold">Tipo de Identificación</Label>
+                    <Select value={idTipoIdentificacion} onValueChange={setIdTipoIdentificacion}>
+                      <SelectTrigger id="tipoIdentificacion" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione tipo de identificación" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.tiposIdentificacion.map((tipo) => (
+                          <SelectItem key={tipo.id_tipo_identificacion} value={tipo.id_tipo_identificacion.toString()}>
+                            {tipo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="identificacion" className="text-slate-700 dark:text-slate-300 font-semibold">Identificación *</Label>
+                    <Input
+                      id="identificacion"
+                      value={identificacion}
+                      onChange={async (e) => {
+                        const nuevaIdentificacion = e.target.value;
+                        setIdentificacion(nuevaIdentificacion);
+
+                        // Calcular DV automáticamente si hay identificación
+                        if (nuevaIdentificacion.trim()) {
+                          try {
+                            const response = await fetch(
+                              `${API_BASE_URL}/api/clientes/calcular-dv?identificacion=${encodeURIComponent(nuevaIdentificacion)}`
+                            );
+                            const data = await response.json();
+                            if (data.success && data.dv !== null) {
+                              setDv(data.dv.toString());
+                            } else {
+                              setDv("");
+                            }
+                          } catch (error) {
                             setDv("");
                           }
-                        } catch (error) {
-                          // Si falla el cálculo, dejar el campo vacío
+                        } else {
                           setDv("");
                         }
-                      } else {
-                        setDv("");
-                      }
-                    }}
-                    placeholder="Ingrese la identificación"
-                    required
-                  />
+                      }}
+                      placeholder="Ingrese la identificación"
+                      required
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="dv" className="text-slate-700 dark:text-slate-300 font-semibold">Dígito Verificador (DV)</Label>
+                    <Input
+                      id="dv"
+                      type="number"
+                      value={dv}
+                      disabled
+                      className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 cursor-not-allowed border-slate-200"
+                      placeholder="Se calcula automáticamente"
+                    />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="dv">Dígito Verificador (DV)</Label>
-                  <Input
-                    id="dv"
-                    type="number"
-                    value={dv}
-                    disabled
-                    className="bg-gray-100 text-gray-600 cursor-not-allowed"
-                    placeholder="Se calcula automáticamente"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="razonSocial" className="text-slate-700 dark:text-slate-300 font-semibold">Razón Social</Label>
+                    <Input
+                      id="razonSocial"
+                      value={razonSocial}
+                      onChange={(e) => setRazonSocial(e.target.value)}
+                      placeholder="Ingrese la razón social"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nombreComercial" className="text-slate-700 dark:text-slate-300 font-semibold">Nombre Comercial</Label>
+                    <Input
+                      id="nombreComercial"
+                      value={nombreComercial}
+                      onChange={(e) => setNombreComercial(e.target.value)}
+                      placeholder="Ingrese el nombre comercial"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="correo" className="text-slate-700 dark:text-slate-300 font-semibold">Correo Electrónico</Label>
+                    <Input
+                      id="correo"
+                      type="email"
+                      value={correoElectronico}
+                      onChange={(e) => setCorreoElectronico(e.target.value)}
+                      placeholder="correo@ejemplo.com"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="telefono" className="text-slate-700 dark:text-slate-300 font-semibold">Teléfono</Label>
+                    <Input
+                      id="telefono"
+                      value={telefono}
+                      onChange={(e) => setTelefono(e.target.value)}
+                      placeholder="Ingrese el teléfono"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Razón Social y Nombre Comercial */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="razonSocial">Razón Social</Label>
-                  <Input
-                    id="razonSocial"
-                    value={razonSocial}
-                    onChange={(e) => setRazonSocial(e.target.value)}
-                    placeholder="Ingrese la razón social"
-                  />
+              {/* Sección 2: Oficina Principal */}
+              <div className="p-6 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/40 dark:bg-slate-900/40 space-y-6 shadow-sm">
+                <div className="flex items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+                  <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Oficina Principal
+                  </h3>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nombreComercial">Nombre Comercial</Label>
-                  <Input
-                    id="nombreComercial"
-                    value={nombreComercial}
-                    onChange={(e) => setNombreComercial(e.target.value)}
-                    placeholder="Ingrese el nombre comercial"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="ciudad" className="text-slate-700 dark:text-slate-300 font-semibold">Ciudad</Label>
+                    <Select value={idCiudad} onValueChange={setIdCiudad}>
+                      <SelectTrigger id="ciudad" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione la ciudad" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.ciudades.map((ciudad) => (
+                          <SelectItem key={ciudad.id_ciudad} value={ciudad.id_ciudad.toString()}>
+                            {ciudad.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="direccion" className="text-slate-700 dark:text-slate-300 font-semibold">Dirección</Label>
+                    <Input
+                      id="direccion"
+                      value={direccion}
+                      onChange={(e) => setDireccion(e.target.value)}
+                      placeholder="Ingrese la dirección"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="nombreContacto" className="text-slate-700 dark:text-slate-300 font-semibold">Nombre del Contacto</Label>
+                    <Input
+                      id="nombreContacto"
+                      value={nombreContacto}
+                      onChange={(e) => setNombreContacto(e.target.value)}
+                      placeholder="Ingrese el nombre del contacto"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="apellidoContacto" className="text-slate-700 dark:text-slate-300 font-semibold">Apellido del Contacto</Label>
+                    <Input
+                      id="apellidoContacto"
+                      value={apellidoContacto}
+                      onChange={(e) => setApellidoContacto(e.target.value)}
+                      placeholder="Ingrese el apellido del contacto"
+                      className="bg-white dark:bg-slate-950 border-slate-200"
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Ciudad y Dirección */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="ciudad">Ciudad</Label>
-                  <Select value={idCiudad} onValueChange={setIdCiudad}>
-                    <SelectTrigger id="ciudad">
-                      <SelectValue placeholder="Seleccione la ciudad" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.ciudades.map((ciudad) => (
-                        <SelectItem key={ciudad.id_ciudad} value={ciudad.id_ciudad.toString()}>
-                          {ciudad.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              {/* Sección 3: Información Fiscal y Estado */}
+              <div className="p-6 border border-slate-100 dark:border-slate-800 rounded-2xl bg-slate-50/40 dark:bg-slate-900/40 space-y-6 shadow-sm">
+                <div className="flex items-center gap-3 border-b border-slate-200/80 dark:border-slate-800 pb-4">
+                  <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Información Fiscal y Estado
+                  </h3>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="direccion">Dirección</Label>
-                  <Input
-                    id="direccion"
-                    value={direccion}
-                    onChange={(e) => setDireccion(e.target.value)}
-                    placeholder="Ingrese la dirección"
-                  />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="tipoRegimenIva" className="text-slate-700 dark:text-slate-300 font-semibold">Tipo Régimen IVA</Label>
+                    <Select value={idTipoRegimenIva} onValueChange={setIdTipoRegimenIva}>
+                      <SelectTrigger id="tipoRegimenIva" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione el régimen IVA" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.tiposRegimenIva.map((tipo) => (
+                          <SelectItem key={tipo.id_regimen_iva} value={tipo.id_regimen_iva.toString()}>
+                            {tipo.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="responsabilidadFiscal" className="text-slate-700 dark:text-slate-300 font-semibold">Responsabilidad Fiscal</Label>
+                    <Select value={idResponsabilidadFiscal} onValueChange={setIdResponsabilidadFiscal}>
+                      <SelectTrigger id="responsabilidadFiscal" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione la responsabilidad fiscal" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.responsabilidadesFiscales.map((resp) => (
+                          <SelectItem key={resp.id_responsabilidad_fiscal} value={resp.id_responsabilidad_fiscal.toString()}>
+                            {resp.nombre} {resp.codigo ? `(${resp.codigo})` : ""}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="estado" className="text-slate-700 dark:text-slate-300 font-semibold">Estado</Label>
+                    <Select value={idEstado} onValueChange={setIdEstado}>
+                      <SelectTrigger id="estado" className="bg-white dark:bg-slate-950 border-slate-200">
+                        <SelectValue placeholder="Seleccione el estado" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {catalogos?.estados.map((estado) => (
+                          <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
+                            {estado.nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
 
-              {/* Teléfono y Correo Electrónico */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="telefono">Teléfono</Label>
-                  <Input
-                    id="telefono"
-                    value={telefono}
-                    onChange={(e) => setTelefono(e.target.value)}
-                    placeholder="Ingrese el teléfono"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="correo">Correo Electrónico</Label>
-                  <Input
-                    id="correo"
-                    type="email"
-                    value={correoElectronico}
-                    onChange={(e) => setCorreoElectronico(e.target.value)}
-                    placeholder="correo@ejemplo.com"
-                  />
-                </div>
-              </div>
-
-              {/* Nombre y Apellido Contacto */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nombreContacto">Nombre del Contacto</Label>
-                  <Input
-                    id="nombreContacto"
-                    value={nombreContacto}
-                    onChange={(e) => setNombreContacto(e.target.value)}
-                    placeholder="Ingrese el nombre del contacto"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="apellidoContacto">Apellido del Contacto</Label>
-                  <Input
-                    id="apellidoContacto"
-                    value={apellidoContacto}
-                    onChange={(e) => setApellidoContacto(e.target.value)}
-                    placeholder="Ingrese el apellido del contacto"
-                  />
-                </div>
-              </div>
-
-              {/* Tipo Régimen IVA y Responsabilidad Fiscal */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipoRegimenIva">Tipo Régimen IVA</Label>
-                  <Select value={idTipoRegimenIva} onValueChange={setIdTipoRegimenIva}>
-                    <SelectTrigger id="tipoRegimenIva">
-                      <SelectValue placeholder="Seleccione el régimen IVA" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.tiposRegimenIva.map((tipo) => (
-                        <SelectItem key={tipo.id_regimen_iva} value={tipo.id_regimen_iva.toString()}>
-                          {tipo.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="responsabilidadFiscal">Responsabilidad Fiscal</Label>
-                  <Select value={idResponsabilidadFiscal} onValueChange={setIdResponsabilidadFiscal}>
-                    <SelectTrigger id="responsabilidadFiscal">
-                      <SelectValue placeholder="Seleccione la responsabilidad fiscal" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.responsabilidadesFiscales.map((resp) => (
-                        <SelectItem key={resp.id_responsabilidad_fiscal} value={resp.id_responsabilidad_fiscal.toString()}>
-                          {resp.nombre} {resp.codigo ? `(${resp.codigo})` : ""}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {/* Estado */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="estado">Estado</Label>
-                  <Select value={idEstado} onValueChange={setIdEstado}>
-                    <SelectTrigger id="estado">
-                      <SelectValue placeholder="Seleccione el estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {catalogos?.estados.map((estado) => (
-                        <SelectItem key={estado.id_estado} value={estado.id_estado.toString()}>
-                          {estado.nombre}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={clienteEditando ? handleActualizarCliente : handleAgregarCliente} 
-                  className="flex-1" 
+              {/* Botones de acción */}
+              <div className="flex gap-4">
+                <Button
+                  onClick={clienteEditando ? handleActualizarCliente : handleAgregarCliente}
+                  className="flex-1 py-6 text-base font-bold bg-blue-600 hover:bg-blue-700 shadow-md hover:shadow-lg transition-all"
                   disabled={guardando}
                 >
                   {guardando ? "Guardando..." : clienteEditando ? "Actualizar Cliente" : "Guardar Cliente"}
@@ -669,6 +706,7 @@ const GestionarClientes = () => {
                     setClienteEditando(null);
                     setMostrarModalEditar(false);
                   }}
+                  className="py-6 text-base font-medium transition-all"
                   disabled={guardando}
                 >
                   Cancelar
@@ -676,9 +714,8 @@ const GestionarClientes = () => {
               </div>
             </div>
           )}
-        </FormCard>
+        </div>
       )}
-
       {/* Barra de búsqueda */}
       <SearchBar
         placeholder="Buscar por razón social, nombre comercial, identificación, contacto o ciudad..."
@@ -693,10 +730,10 @@ const GestionarClientes = () => {
           loading
             ? "Cargando clientes..."
             : clientes.length === 0
-            ? busqueda.trim()
-              ? "No se encontraron clientes"
-              : "No hay clientes registrados"
-            : undefined
+              ? busqueda.trim()
+                ? "No se encontraron clientes"
+                : "No hay clientes registrados"
+              : undefined
         }
         colSpan={8}
       >
@@ -724,9 +761,9 @@ const GestionarClientes = () => {
             </TableCell>
             <TableCell className="border-r border-border">
               {cliente.estado_nombre ? (
-                <span 
+                <span
                   className="px-2 py-1 rounded text-xs font-medium"
-                  style={{ 
+                  style={{
                     backgroundColor: cliente.estado_color ? `${cliente.estado_color}20` : '#f3f4f6',
                     color: cliente.estado_color || '#374151'
                   }}
@@ -895,9 +932,9 @@ const GestionarClientes = () => {
                     <Label className="text-sm font-semibold">Estado</Label>
                     <p>
                       {clienteSeleccionado.estado_nombre ? (
-                        <span 
+                        <span
                           className="px-2 py-1 rounded text-xs font-medium"
-                          style={{ 
+                          style={{
                             backgroundColor: clienteSeleccionado.estado_color ? `${clienteSeleccionado.estado_color}20` : '#f3f4f6',
                             color: clienteSeleccionado.estado_color || '#374151'
                           }}
@@ -905,6 +942,14 @@ const GestionarClientes = () => {
                           {clienteSeleccionado.estado_nombre}
                         </span>
                       ) : "N/A"}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-semibold">Fecha de Diligenciamiento</Label>
+                    <p>
+                      {clienteSeleccionado.fecha_diligenciamiento
+                        ? new Date(clienteSeleccionado.fecha_diligenciamiento).toLocaleString()
+                        : "N/A"}
                     </p>
                   </div>
                 </CardContent>

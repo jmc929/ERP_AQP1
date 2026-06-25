@@ -317,7 +317,7 @@ class ClientesService {
 				) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 				RETURNING id_cliente, id_tipo_entidad, id_tipo_identificacion, identificacion, dv, telefono, 
 					razon_social, nombre_comercial, id_ciudad, direccion, nombre_contacto, apellido_contacto, 
-					correo_electronico, id_tipo_regimen_iva, id_responsabilidad_fiscal, id_estado
+					correo_electronico, id_tipo_regimen_iva, id_responsabilidad_fiscal, id_estado, fecha_diligenciamiento
 			`;
 
 			const valores = [
@@ -425,7 +425,7 @@ class ClientesService {
 				WHERE id_cliente = $${contador}
 				RETURNING id_cliente, id_tipo_entidad, id_tipo_identificacion, identificacion, dv, telefono, 
 					razon_social, nombre_comercial, id_ciudad, direccion, nombre_contacto, apellido_contacto, 
-					correo_electronico, id_tipo_regimen_iva, id_responsabilidad_fiscal, id_estado
+					correo_electronico, id_tipo_regimen_iva, id_responsabilidad_fiscal, id_estado, fecha_diligenciamiento
 			`;
 
 			const result = await pool.query(query, valores);

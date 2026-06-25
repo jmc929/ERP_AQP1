@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-type Module = "productos" | "compras" | "ventas" | "inventario" | "costos" | "cajas" | "nomina" | "produccion" | "gestion-tareas" | "usuarios" | "documentos" | "notas" | null;
+type Module = "productos" | "compras" | "ventas" | "clientes" | "inventario" | "costos" | "cajas" | "nomina" | "produccion" | "gestion-tareas" | "usuarios" | "documentos" | "notas" | null;
 
 interface ModuleOption {
   title: string;
@@ -36,6 +36,7 @@ const modules = [
   { id: "productos" as Module, name: "Productos", icon: Box },
   { id: "compras" as Module, name: "Compras", icon: ShoppingCart },
   { id: "ventas" as Module, name: "Ventas", icon: TrendingUp },
+  { id: "clientes" as Module, name: "Clientes", icon: User },
   { id: "inventario" as Module, name: "Inventario", icon: Package },
   { id: "costos" as Module, name: "Costos", icon: DollarSign },
   { id: "cajas" as Module, name: "Cajas", icon: Wallet },
@@ -66,8 +67,10 @@ const moduleOptions: Record<Exclude<Module, null>, ModuleOption[]> = {
   ventas: [
     { title: "Venta de Producto", icon: TrendingUp, path: "/dashboard/ventas/venta-producto" },
     { title: "Ver Ventas", icon: TrendingUp, path: "/dashboard/ventas/ver-ventas" },
-    { title: "Gestionar Clientes", icon: User, path: "/dashboard/ventas/gestionar-clientes" },
-    { title: "Configuración de Clientes", icon: Cog, path: "/dashboard/ventas/configuracion-clientes" },
+  ],
+  clientes: [
+    { title: "Gestionar Clientes", icon: User, path: "/dashboard/clientes/gestionar-clientes" },
+    { title: "Configuración de Clientes", icon: Cog, path: "/dashboard/clientes/configuracion-clientes" },
   ],
   inventario: [
     { title: "Ver Inventario (Bodegas)", icon: Package, path: "/dashboard/inventario/ver-inventario" },

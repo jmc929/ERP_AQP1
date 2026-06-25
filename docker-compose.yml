@@ -15,7 +15,7 @@ services:
       - ./init-db/01-restore.sh:/docker-entrypoint-initdb.d/01-restore.sh:ro
       - ./init-db/02-detalle-tuberia.sql:/docker-entrypoint-initdb.d/02-detalle-tuberia.sql:ro
     ports:
-      - "5433:5432"
+      - "5435:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
       interval: 5s

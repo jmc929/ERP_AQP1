@@ -75,8 +75,8 @@ const App = () => (
             <Route path="compras/productos-x-proveedor" element={<ProductosXProveedor />} />
             <Route path="ventas/venta-producto" element={<VentaProducto />} />
             <Route path="ventas/ver-ventas" element={<VerVentas />} />
-            <Route path="ventas/gestionar-clientes" element={<GestionarClientes />} />
-            <Route path="ventas/configuracion-clientes" element={<ConfiguracionClientes />} />
+            <Route path="clientes/gestionar-clientes" element={<GestionarClientes />} />
+            <Route path="clientes/configuracion-clientes" element={<ConfiguracionClientes />} />
             <Route path="usuarios/crear-usuarios" element={<CrearUsuarios />} />
             <Route path="usuarios/ver-usuarios" element={<VerUsuarios />} />
             <Route path="usuarios/editar-usuarios/:id" element={<EditarUsuarios />} />
